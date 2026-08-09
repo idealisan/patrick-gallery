@@ -144,7 +144,7 @@ type SharedLink struct {
 	ID        string     `gorm:"primaryKey;type:text" json:"id"`
 	Key       string     `gorm:"type:text" json:"key"`
 	Type      string     `gorm:"type:text" json:"type"` // ALBUM | INDIVIDUAL
-	AssetID   string     `gorm:"type:text" json:"albumId,omitempty"`
+	AssetID   string     `gorm:"type:text" json:"assetId,omitempty"`
 	AlbumID   string     `gorm:"type:text" json:"albumId,omitempty"`
 	UserID    string     `gorm:"type:text" json:"userId"`
 	ExpiresAt *time.Time `json:"expiresAt,omitempty"`
