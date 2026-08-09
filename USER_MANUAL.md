@@ -116,6 +116,38 @@ docker run -d --name immich-go \
 - To build the image locally instead: `docker build -t immich-go .`
   (Dockerfile + .dockerignore are in this directory).
 
+### Bundled FFmpeg
+
+Each platform package ships with a `libs/` directory containing the
+pinned **FFmpeg 7.1 shared libraries** (`.so` / `.dylib` / `.dll`). The
+Go binary loads them at runtime via purego by searching its own
+directory and `<exe dir>/libs`, so **video thumbnail generation and
+transcoding work out of the box** — no separate FFmpeg install required.
+
+Differences in packaging:
+
+- **Linux / macOS**: the shared objects (`libav*` / `libsw*`) are placed
+  in `libs/`.
+- **Windows**: the BtbN FFmpeg 7.1 shared build DLLs are placed in
+  `libs/`.
+
+If `libs/` is absent (e.g. you only built the binary yourself), the
+server falls back to a **placeholder video backend**: video still
+uploads and plays its original file, but no thumbnail is extracted and
+`/encoded-video` serves the original without transcoding.
+
+> The environment variable `IMMICH_VIDEO_BACKEND` is **reserved** (the
+> backend selector) but currently optional — the bundled libs are used
+> automatically when present.
+
+Video endpoints:
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /api/assets/:id/thumbnail` | Poster / poster frame (extracted from video when libs present). |
+| `GET /api/assets/:id/encoded-video/:ts` | Transcoded playback stream (original served if no transcode). |
+| `GET /api/assets/:id/preview` | *(planned)* downscaled preview variant. |
+
 ---
 
 ## 4. Configuration (environment variables)

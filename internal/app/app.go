@@ -4,16 +4,18 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"immich-go/internal/video"
 )
 
 // App holds shared dependencies for all HTTP handlers.
 type App struct {
 	cfg   *Config
 	store *Store
+	video video.Processor
 }
 
 func NewApp(cfg *Config, store *Store) *App {
-	return &App{cfg: cfg, store: store}
+	return &App{cfg: cfg, store: store, video: video.New()}
 }
 
 // RegisterRoutes wires every Immich-compatible endpoint. Public endpoints
@@ -68,6 +70,8 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 
 		// assets
 		api.POST("/assets", a.handleAssetUpload)
+		api.POST("/assets/check", a.handleAssetCheck)
+		api.PUT("/assets", a.handleAssetBulkUpdate)
 		api.GET("/assets", a.handleAssetSearch) // query-based listing
 		api.GET("/assets/random", a.handleAssetRandom)
 		api.GET("/assets/count", a.handleAssetCount)
@@ -80,6 +84,7 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.GET("/assets/:id/original", a.handleAssetOriginal)
 		api.GET("/assets/:id/thumbnail", a.handleAssetThumbnail)
 		api.GET("/assets/:id/thumbnail/:ts", a.handleAssetThumbnail)
+		api.GET("/assets/:id/preview", a.handleAssetPreview)
 		api.GET("/assets/:id/encoded-video/:ts", a.handleAssetEncodedVideo)
 
 		// albums
@@ -87,6 +92,7 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.GET("/albums/statistics", a.handleAlbumStatistics)
 		api.POST("/albums", a.handleAlbumCreate)
 		api.GET("/albums/:id", a.handleAlbumGet)
+		api.GET("/albums/:id/assets", a.handleAlbumAssets)
 		api.PUT("/albums/:id", a.handleAlbumUpdate)
 		api.DELETE("/albums/:id", a.handleAlbumDelete)
 		api.POST("/albums/:id/assets", a.handleAlbumAddAssets)

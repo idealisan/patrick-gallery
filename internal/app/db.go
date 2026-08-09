@@ -10,10 +10,17 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+	"immich-go/internal/store"
 )
 
 // Store wraps the database handle and bootstrap logic.
+//
+// It embeds the store.Store abstraction (see internal/store) and shadows its
+// DB() method with a concrete *gorm.DB field so existing handler code that
+// does `a.store.DB.Where(...)` keeps working unchanged. The embedded
+// interface is the seam for a future Postgres backend.
 type Store struct {
+	store.Store
 	DB *gorm.DB
 }
 
@@ -34,6 +41,20 @@ func OpenDB(dbPath, resourceDir string) (*Store, error) {
 		return nil, err
 	}
 
+	// Single-user / private-LAN tuning: WAL for concurrent readers + a writer,
+	// a generous busy_timeout so short write contention waits instead of
+	// erroring, and NORMAL synchronous for speed without sacrificing durability
+	// across app crashes (still safe vs power loss at WAL default).
+	for _, p := range []string{
+		"PRAGMA journal_mode=WAL;",
+		"PRAGMA busy_timeout=5000;",
+		"PRAGMA foreign_keys=ON;",
+		"PRAGMA synchronous=NORMAL;",
+		"PRAGMA cache_size=-8000;", // ~8 MB page cache
+	} {
+		db.Exec(p)
+	}
+
 	models := []interface{}{
 		&User{}, &Asset{}, &Exif{}, &Album{}, &AlbumAsset{},
 		&Library{}, &Partner{}, &Tag{}, &AssetTag{}, &Person{},
@@ -43,7 +64,7 @@ func OpenDB(dbPath, resourceDir string) (*Store, error) {
 		return nil, err
 	}
 
-	s := &Store{DB: db}
+	s := &Store{Store: store.NewSQLite(db), DB: db}
 	if err := s.seed(); err != nil {
 		return nil, err
 	}

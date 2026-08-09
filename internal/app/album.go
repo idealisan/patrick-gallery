@@ -63,6 +63,40 @@ func (a *App) handleAlbumCreate(c *gin.Context) {
 	c.JSON(http.StatusCreated, a.albumToResponse(al))
 }
 
+// handleAlbumAssets returns the assets belonging to an album, in the order
+// stored on the join table (AlbumAsset.Order). This is the Immich-compatible
+// GET /api/albums/:id/assets endpoint the web UI needs to render album detail.
+func (a *App) handleAlbumAssets(c *gin.Context) {
+	uid := currentUserID(c)
+	id := c.Param("id")
+	var al Album
+	if err := a.store.DB.First(&al, "id = ? AND owner_id = ?", id, uid).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		return
+	}
+	var links []AlbumAsset
+	a.store.DB.Where("album_id = ?", id).Order("\"order\" ASC, created_at ASC").Find(&links)
+	ids := make([]string, 0, len(links))
+	for _, l := range links {
+		ids = append(ids, l.AssetID)
+	}
+	byID := map[string]Asset{}
+	if len(ids) > 0 {
+		var assets []Asset
+		a.store.DB.Where("id IN ? AND owner_id = ?", ids, uid).Find(&assets)
+		for _, as := range assets {
+			byID[as.ID] = as
+		}
+	}
+	out := make([]AssetResponse, 0, len(ids))
+	for _, aid := range ids {
+		if as, ok := byID[aid]; ok {
+			out = append(out, a.toResponse(as))
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"assets": out, "count": len(out), "total": len(out)})
+}
+
 func (a *App) handleAlbumGet(c *gin.Context) {
 	uid := currentUserID(c)
 	id := c.Param("id")

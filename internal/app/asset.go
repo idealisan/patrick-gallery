@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	imgproc "immich-go/internal/image"
+	"immich-go/internal/video"
 )
 
 // AssetResponse nests EXIF under the asset, matching Immich's JSON shape.
@@ -123,20 +125,54 @@ func (a *App) handleAssetUpload(c *gin.Context) {
 		UpdatedAt:     now,
 	}
 
-	// generate a thumbnail from the original (images only)
+	// generate a thumbnail/poster + extract EXIF from the original
 	thumbPath := ""
-	if asset.Type == "IMAGE" {
-		thumbDir := filepath.Join(a.cfg.ResourceDir, "thumbnail")
-		_ = os.MkdirAll(thumbDir, 0o755)
-		tp := filepath.Join(thumbDir, id+".jpg")
-		if makeThumbnail(origPath, tp) == nil {
-			thumbPath = tp
-			asset.HasThumbnail = true
+	thumbDir := filepath.Join(a.cfg.ResourceDir, "thumbnail")
+	_ = os.MkdirAll(thumbDir, 0o755)
+	tp := filepath.Join(thumbDir, id+".jpg")
+
+	exif := Exif{ID: newUUID(), AssetID: id}
+	raw, rerr := os.ReadFile(origPath)
+
+	if asset.Type == "IMAGE" && rerr == nil {
+		// Pure-Go EXIF extraction (no CGO).
+		if info, eerr := imgproc.Extract(raw); eerr == nil && info != nil {
+			exif.Make = info.Make
+			exif.Model = info.Model
+			if info.DateTimeOriginal != "" {
+				v := info.DateTimeOriginal
+				exif.DateTimeOriginal = &v
+			}
+			exif.Latitude = info.Latitude
+			exif.Longitude = info.Longitude
+			if info.Orientation != 0 {
+				o := info.Orientation
+				exif.Orientation = &o
+			}
+		}
+		// Pure-Go thumbnail (EXIF-oriented, WebP-capable).
+		if out, terr := imgproc.Thumbnail(raw, 256); terr == nil && len(out) > 0 {
+			if werr := os.WriteFile(tp, out, 0o644); werr == nil {
+				thumbPath = tp
+				asset.HasThumbnail = true
+			}
+		}
+	} else if asset.Type == "VIDEO" && rerr == nil {
+		// In-process decode of the first frame via the video backend
+		// (FFmpeg shared libs through purego; placeholder backend yields a
+		// neutral slate). Falls back silently if it cannot decode.
+		if out, terr := a.video.Thumbnail(raw, video.ThumbnailOptions{
+			MaxEdge: 320,
+			Format:  "jpeg",
+		}); terr == nil && len(out) > 0 {
+			if werr := os.WriteFile(tp, out, 0o644); werr == nil {
+				thumbPath = tp
+				asset.HasThumbnail = true
+			}
 		}
 	}
 	asset.ResizePath = thumbPath
 
-	exif := Exif{ID: newUUID(), AssetID: id}
 	a.store.DB.Create(&exif)
 	asset.ExifID = exif.ID
 
@@ -272,6 +308,81 @@ func (a *App) handleAssetBulkDelete(c *gin.Context) {
 	c.Status(http.StatusOK)
 }
 
+// handleAssetCheck lets clients probe which device asset IDs already exist
+// (used by the official apps before upload to skip duplicates).
+func (a *App) handleAssetCheck(c *gin.Context) {
+	uid := currentUserID(c)
+	var b struct {
+		DeviceId       string   `json:"deviceId"`
+		DeviceAssetIds []string `json:"deviceAssetIds"`
+	}
+	_ = c.ShouldBindJSON(&b)
+	res := map[string]string{}
+	for _, da := range b.DeviceAssetIds {
+		var n int64
+		a.store.DB.Model(&Asset{}).Where("owner_id = ? AND device_asset_id = ?", uid, da).Count(&n)
+		if n > 0 {
+			res[da] = "duplicate"
+		} else {
+			res[da] = "new"
+		}
+	}
+	c.JSON(http.StatusOK, res)
+}
+
+// handleAssetBulkUpdate applies favorite/archive/trash/exif edits to many
+// assets at once.
+func (a *App) handleAssetBulkUpdate(c *gin.Context) {
+	uid := currentUserID(c)
+	var b struct {
+		IDs              []string  `json:"ids"`
+		IsFavorite       *bool     `json:"isFavorite"`
+		IsArchived       *bool     `json:"isArchived"`
+		IsTrash          *bool     `json:"isTrash"`
+		DateTimeOriginal string    `json:"dateTimeOriginal"`
+		Latitude         *float64  `json:"latitude"`
+		Longitude        *float64  `json:"longitude"`
+	}
+	_ = c.ShouldBindJSON(&b)
+	for _, id := range b.IDs {
+		var asset Asset
+		if err := a.store.DB.First(&asset, "id = ?", id).Error; err != nil {
+			continue
+		}
+		if asset.OwnerID != uid && !a.isAdmin(uid) {
+			continue
+		}
+		if b.IsFavorite != nil {
+			asset.IsFavorite = *b.IsFavorite
+		}
+		if b.IsArchived != nil {
+			asset.IsArchived = *b.IsArchived
+		}
+		if b.IsTrash != nil {
+			asset.IsTrash = *b.IsTrash
+		}
+		if b.DateTimeOriginal != "" || b.Latitude != nil || b.Longitude != nil {
+			var exif Exif
+			if err := a.store.DB.First(&exif, "id = ?", asset.ExifID).Error; err == nil {
+				if b.DateTimeOriginal != "" {
+					v := b.DateTimeOriginal
+					exif.DateTimeOriginal = &v
+				}
+				if b.Latitude != nil {
+					exif.Latitude = *b.Latitude
+				}
+				if b.Longitude != nil {
+					exif.Longitude = *b.Longitude
+				}
+				a.store.DB.Save(&exif)
+			}
+		}
+		asset.UpdatedAt = time.Now().UTC()
+		a.store.DB.Save(&asset)
+	}
+	c.Status(http.StatusOK)
+}
+
 func (a *App) handleAssetOriginal(c *gin.Context) {
 	uid := currentUserID(c)
 	id := c.Param("id")
@@ -306,9 +417,61 @@ func (a *App) handleAssetThumbnail(c *gin.Context) {
 	c.File(asset.ResizePath)
 }
 
-func (a *App) handleAssetEncodedVideo(c *gin.Context) {
-	// No transcoding in the Go port; serve the original for video assets.
+// handleAssetPreview serves a mid-size representation: the generated
+// thumbnail/poster (ResizePath). For video this is the decoded poster frame;
+// for images it is the scaled thumbnail. Falls back to original when no
+// thumbnail exists (e.g. placeholder backend).
+func (a *App) handleAssetPreview(c *gin.Context) {
+	uid := currentUserID(c)
+	id := c.Param("id")
+	var asset Asset
+	if err := a.store.DB.First(&asset, "id = ?", id).Error; err != nil {
+		c.Status(http.StatusNotFound)
+		return
+	}
+	if asset.OwnerID != uid && !a.isAdmin(uid) {
+		c.Status(http.StatusForbidden)
+		return
+	}
+	if asset.ResizePath != "" {
+		c.File(asset.ResizePath)
+		return
+	}
 	a.handleAssetOriginal(c)
+}
+
+func (a *App) handleAssetEncodedVideo(c *gin.Context) {
+	// In-process, pure-Go transcoding via the video backend (FFmpeg shared
+	// libs loaded through purego; no CLI). Falls back to the original file if
+	// the backend cannot transcode (placeholder backend / unsupported input).
+	uid := currentUserID(c)
+	id := c.Param("id")
+	var asset Asset
+	if err := a.store.DB.First(&asset, "id = ?", id).Error; err != nil {
+		c.Status(http.StatusNotFound)
+		return
+	}
+	if asset.OwnerID != uid && !a.isAdmin(uid) {
+		c.Status(http.StatusForbidden)
+		return
+	}
+	raw, err := os.ReadFile(asset.OriginalPath)
+	if err != nil {
+		c.Status(http.StatusNotFound)
+		return
+	}
+	out, err := a.video.Transcode(raw, video.TranscodeOptions{
+		Format:     "mp4",
+		VideoCodec: "h264",
+		AudioCodec: "copy",
+		Preset:     "software",
+	})
+	if err != nil || len(out) == 0 {
+		c.File(asset.OriginalPath)
+		return
+	}
+	c.Header("Content-Type", "video/mp4")
+	c.Data(http.StatusOK, "video/mp4", out)
 }
 
 func (a *App) handleAssetRandom(c *gin.Context) {

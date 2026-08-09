@@ -78,6 +78,10 @@ jobs:
           if [ "${{ matrix.goos }}" = "windows" ]; then BIN="${BIN}.exe"; fi
           go build -trimpath -ldflags="-s -w" -o "${BIN}" .
 
+      - name: Bundle FFmpeg shared libs
+        timeout-minutes: 10
+        run: bash scripts/bundle-deps.sh .
+
       - name: Upload release asset
         uses: softprops/action-gh-release@v2
         with:

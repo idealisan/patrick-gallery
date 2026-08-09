@@ -2,181 +2,83 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Immich (Go port)</title>
-  <style>
-    :root { color-scheme: dark; }
-    body { font-family: system-ui, sans-serif; margin: 0; background: #0b0f17; color: #e6edf3; }
-    header { padding: 14px 24px; background: #111827; border-bottom: 1px solid #1f2937; display: flex; align-items: center; gap: 12px; }
-    header strong { font-size: 18px; }
-    .muted { color: #9aa7b5; }
-    main { max-width: 1040px; margin: 0 auto; padding: 24px; }
-    .card { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 16px; margin: 16px 0; }
-    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-    button, input[type=file] { font: inherit; }
-    button { background: #2563eb; color: #fff; border: 0; border-radius: 8px; padding: 8px 14px; cursor: pointer; }
-    button:hover { background: #1d4ed8; }
-    button.ghost { background: #1f2937; color: #e6edf3; }
-    input[type=text], input[type=password] { background: #0b0f17; color: #e6edf3; border: 1px solid #1f2937; border-radius: 8px; padding: 8px; width: 220px; }
-    pre { background: #0b0f17; border: 1px solid #1f2937; border-radius: 8px; padding: 12px; overflow: auto; max-height: 240px; }
-    .ok { color: #34d399; } .err { color: #f87171; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-top: 12px; }
-    .tile { background: #0b0f17; border: 1px solid #1f2937; border-radius: 10px; overflow: hidden; }
-    .tile img { width: 100%; height: 130px; object-fit: cover; display: block; background: #1f2937; }
-    .tile .cap { padding: 6px 8px; font-size: 12px; color: #9aa7b5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .stat { display: inline-block; margin-right: 16px; }
-    .stat b { font-size: 22px; }
-    #toast { position: fixed; right: 16px; bottom: 16px; background: #111827; border: 1px solid #1f2937; padding: 10px 14px; border-radius: 10px; opacity: 0; transition: opacity .25s; }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Immich</title>
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/assets/styles.css" />
 </head>
 <body>
-  <header>
-    <strong>Immich</strong> <span class="muted">Go port &middot; gin + gorm + sqlite</span>
-    <span class="row" style="margin-left:auto">
-      <span id="who" class="muted">not signed in</span>
-      <button id="logout" class="ghost" style="display:none">Logout</button>
-    </span>
-  </header>
-
-  <main>
-    <div class="card">
-      <h3>About</h3>
-      <div class="row"><button id="about">GET /api/server/about</button><span id="aboutVer" class="muted"></span></div>
+  <!-- Login screen (shown when not authenticated) -->
+  <div id="login-screen" class="login-screen" hidden>
+    <div class="login-card">
+      <div class="login-logo">IMMICH</div>
+      <div class="login-sub muted">Self-hosted photo &amp; video backup · Go port</div>
+      <form id="login-form">
+        <label>Email
+          <input type="text" id="email" placeholder="admin@immich.app" value="admin@immich.app" autocomplete="username" />
+        </label>
+        <label>Password
+          <input type="password" id="pass" placeholder="password" value="password" autocomplete="current-password" />
+        </label>
+        <button type="submit" id="login-btn" class="btn-primary">Sign in</button>
+        <div id="login-msg" class="msg"></div>
+      </form>
     </div>
+  </div>
 
-    <div class="card" id="loginCard">
-      <h3>Sign in</h3>
-      <div class="row">
-        <input type="text" id="email" placeholder="email" value="admin@immich.app" />
-        <input type="password" id="pass" placeholder="password" value="password" />
-        <button id="login">Login</button>
-        <span id="loginMsg" class="muted"></span>
+  <!-- App shell -->
+  <div id="app" class="app" hidden>
+    <aside class="sidebar">
+      <div class="brand">IMMICH</div>
+      <nav class="nav">
+        <a class="nav-item" data-view="photos" href="#/photos"><span class="ico">▦</span><span class="lbl">Photos</span></a>
+        <a class="nav-item" data-view="albums" href="#/albums"><span class="ico">▤</span><span class="lbl">Albums</span></a>
+        <a class="nav-item" data-view="search" href="#/search"><span class="ico">⌕</span><span class="lbl">Search</span></a>
+        <a class="nav-item" data-view="favorites" href="#/favorites"><span class="ico">★</span><span class="lbl">Favorites</span></a>
+        <a class="nav-item" data-view="archive" href="#/archive"><span class="ico">▥</span><span class="lbl">Archive</span></a>
+        <a class="nav-item" data-view="trash" href="#/trash"><span class="ico">🗑</span><span class="lbl">Trash</span></a>
+        <a class="nav-item" data-view="admin" href="#/admin"><span class="ico">⚙</span><span class="lbl">Admin</span></a>
+      </nav>
+      <div class="user-box">
+        <div class="avatar" id="user-avatar">?</div>
+        <div class="user-meta">
+          <div class="user-name" id="user-name">—</div>
+          <button class="link" id="logout-btn">Sign out</button>
+        </div>
       </div>
+    </aside>
+
+    <main class="content">
+      <header class="topbar">
+        <h1 id="page-title">Photos</h1>
+        <div class="topbar-actions">
+          <input type="search" id="global-search" class="search-input" placeholder="Search photos, camera, place…" hidden />
+          <button id="upload-btn" class="btn-primary">⬆ Upload</button>
+        </div>
+      </header>
+      <section id="view" class="view"></section>
+    </main>
+  </div>
+
+  <!-- Upload dropzone overlay -->
+  <div id="dropzone" class="dropzone" hidden>
+    <div class="dropzone-inner">
+      <div class="dropzone-icon">⬇</div>
+      <div>Drop photos &amp; videos to upload</div>
     </div>
+  </div>
 
-    <div class="card" id="libCard" style="display:none">
-      <h3>Library</h3>
-      <div id="counts" class="muted">—</div>
-      <div class="row" style="margin-top:12px">
-        <input type="file" id="file" />
-        <button id="upload">Upload asset</button>
-        <button id="refresh" class="ghost">Refresh</button>
-        <span id="uploadMsg" class="muted"></span>
-      </div>
-      <div id="grid" class="grid"></div>
-    </div>
-  </main>
+  <!-- Asset viewer / lightbox -->
+  <div id="viewer" class="viewer" hidden>
+    <button class="viewer-close" id="viewer-close">✕</button>
+    <button class="viewer-nav prev" id="viewer-prev">‹</button>
+    <button class="viewer-nav next" id="viewer-next">›</button>
+    <div class="viewer-stage" id="viewer-stage"></div>
+    <aside class="viewer-panel" id="viewer-panel"></aside>
+  </div>
 
-  <div id="toast"></div>
+  <div id="toast" class="toast"></div>
 
-  <script>
-    const $ = id => document.getElementById(id);
-    const toast = (msg, ok = true) => {
-      const t = $('toast'); t.textContent = msg; t.style.color = ok ? '#34d399' : '#f87171';
-      t.style.opacity = 1; setTimeout(() => (t.style.opacity = 0), 1800);
-    };
-    const token = () => localStorage.getItem('immich_token');
-    const headers = (json) => Object.assign(token() ? { 'Authorization': 'Bearer ' + token() } : {}, json ? { 'Content-Type': 'application/json' } : {});
-    const api = (method, path, opts = {}) => fetch(path, { method, headers: opts.headers || headers(!!opts.json), body: opts.body })
-      .then(async r => ({ status: r.status, body: await r.json().catch(() => null) }));
-
-    async function whoami() {
-      if (!token()) return;
-      const r = await api('GET', '/api/users/me');
-      if (r.status === 200 && r.body) {
-        $('who').textContent = 'signed in as ' + (r.body.email || r.body.id);
-        $('logout').style.display = '';
-        $('loginCard').style.display = 'none';
-        $('libCard').style.display = '';
-        loadCounts(); loadGallery();
-      } else {
-        localStorage.removeItem('immich_token');
-      }
-    }
-
-    $('about').onclick = async () => {
-      const r = await api('GET', '/api/server/about');
-      if (r.body) $('aboutVer').textContent = 'v' + r.body.version;
-    };
-
-    $('login').onclick = async () => {
-      const r = await api('POST', '/api/auth/login', { headers: headers(true), json: true, body: JSON.stringify({ email: $('email').value, password: $('pass').value }) });
-      if (r.status === 200 && r.body && r.body.accessToken) {
-        localStorage.setItem('immich_token', r.body.accessToken);
-        toast('signed in'); whoami();
-      } else {
-        $('loginMsg').textContent = 'login failed (' + r.status + ')';
-        toast('login failed', false);
-      }
-    };
-
-    $('logout').onclick = () => { localStorage.removeItem('immich_token'); location.reload(); };
-
-    async function loadCounts() {
-      const r = await api('GET', '/api/assets/count');
-      if (r.body) {
-        $('counts').innerHTML =
-          '<span class="stat"><b>' + r.body.total + '</b> total</span>' +
-          '<span class="stat"><b>' + r.body.photos + '</b> photos</span>' +
-          '<span class="stat"><b>' + r.body.videos + '</b> videos</span>';
-      }
-    }
-
-    async function loadGallery() {
-      const r = await api('GET', '/api/assets?take=100');
-      const grid = $('grid'); grid.innerHTML = '';
-      const assets = (r.body && r.body.assets) || [];
-      for (const a of assets) {
-        const tile = document.createElement('div'); tile.className = 'tile';
-        const img = document.createElement('img'); img.alt = a.originalFileName || a.id;
-        tile.appendChild(img);
-        const cap = document.createElement('div'); cap.className = 'cap';
-        cap.textContent = (a.originalFileName || a.id) + ' · ' + a.type;
-        tile.appendChild(cap); grid.appendChild(tile);
-        // thumbnails are auth-protected: fetch as blob with bearer token
-        if (a.hasThumbnail) {
-          try {
-            const tr = await fetch('/api/assets/' + a.id + '/thumbnail', { headers: headers(false) });
-            if (tr.ok) { const blob = await tr.blob(); img.src = URL.createObjectURL(blob); }
-          } catch (e) { /* ignore */ }
-        } else {
-          img.style.background = '#1f2937';
-        }
-      }
-      if (!assets.length) grid.innerHTML = '<p class="muted">No assets yet — upload one above.</p>';
-    }
-
-    $('upload').onclick = async () => {
-      const f = $('file').files[0];
-      if (!f) { $('uploadMsg').textContent = 'pick a file first'; return; }
-      const meta = {
-        deviceAssetId: f.name + '-' + f.size,
-        deviceId: 'go-web',
-        fileCreatedAt: new Date().toISOString(),
-        fileModifiedAt: new Date().toISOString(),
-        localDateTime: new Date().toISOString(),
-        fileExtension: '.' + (f.name.split('.').pop() || 'jpg'),
-        type: f.type.startsWith('video') ? 'VIDEO' : 'IMAGE',
-        isFavorite: false, isArchived: false
-      };
-      const fd = new FormData();
-      fd.append('asset', JSON.stringify(meta));
-      fd.append('assetData', f);
-      const r = await api('POST', '/api/assets', { headers: headers(false), body: fd });
-      if (r.status === 201) {
-        $('uploadMsg').textContent = 'uploaded ' + (r.body.assetId || r.body.id);
-        toast('uploaded'); loadCounts(); loadGallery();
-      } else {
-        $('uploadMsg').textContent = 'failed (' + r.status + ')';
-        toast('upload failed', false);
-      }
-    };
-
-    $('refresh').onclick = () => { loadCounts(); loadGallery(); };
-
-    // boot
-    $('about').click();
-    whoami();
-  </script>
+  <script src="/assets/app.js"></script>
 </body>
 </html>
