@@ -1,0 +1,13 @@
+# Local dev build artifacts (dist/ release artifacts are intentionally kept)
+/immich-go
+/immich-go.exe
+*.db
+*.db-journal
+/resources/
+/.cache/
+/server.log
+/build_err.txt
+*.out
+
+# In-project toolchain / caches (managed per AGENTS.md; not committed)
+/.tools/

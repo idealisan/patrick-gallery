@@ -1,0 +1,6 @@
+a3436d953e5c6c20f48ae2b9d7873ab2ab1902c663de2416ecd835a8dcdcd7d9  immich-go-1.0.0-go-darwin-amd64/immich-go
+2205376d2b2280c51c1066b15dc47c7a0ed52bbcdd5a39fb6c5db517a8b23a65  immich-go-1.0.0-go-darwin-arm64/immich-go
+e7cfa06164fdbf8e65d12410d8ac08e0d309ecf2143035417a42d74d58d8b7af  immich-go-1.0.0-go-linux-amd64/immich-go
+9f7864bd97ecb7e58098776078eb3e0a3d5a5f37fa7ee6272252eb1d19759f6f  immich-go-1.0.0-go-linux-arm64/immich-go
+67007fde20f5956916a1b3cd2dced678475d5d6b71f8772c24dff2710c44ee7d  immich-go-1.0.0-go-windows-amd64/immich-go.exe
+e0626a76949a96c578149122e4f2b4fb6cb84482a319a11069e369bf429fe8fa  immich-go-1.0.0-go-windows-arm64/immich-go.exe
