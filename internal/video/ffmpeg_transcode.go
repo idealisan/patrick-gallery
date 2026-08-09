@@ -123,27 +123,7 @@ func (f *ffmpeg) transcode(in []byte, opts TranscodeOptions) ([]byte, error) {
 		dh = 1
 	}
 
-	// ---- encoder (libx264) ----
-	encoder := fn.avcodecFindEncoder(avCodecIDH264)
-	if encoder == 0 {
-		return nil, errors.New("transcode: no h264 encoder")
-	}
-	ectx := fn.avcodecAllocContext3(encoder)
-	if ectx == 0 {
-		return nil, errors.New("transcode: encoder ctx")
-	}
-	defer fn.avcodecFreeContext(&ectx)
-	setI32(ectx, 12, avMediaTypeVideo)          // codec_type
-	setI64(ectx, 16, int64(encoder))            // codec
-	setI32(ectx, 116, int32(dw))                // width
-	setI32(ectx, 120, int32(dh))                // height
-	setI32(ectx, 136, avPixFmtYUV420P)          // pix_fmt
-	setAVRational(ectx, 100, 1, avTimebaseDen)  // time_base 1/30000
-	setI32(ectx, 132, 25)                       // gop_size
-	setI32(ectx, 160, 0)                        // max_b_frames = 0 (monotonic pts)
-	setI32(ectx, 56, 0)                         // bit_rate 0 -> crf controls
-	setI32(ectx, 636, 0)                        // thread_count 0 = auto
-
+	// ---- encoder (HW-first, software fallback) ----
 	crf := 23
 	if opts.Quality > 0 {
 		c := 51 - (opts.Quality*31)/100 // quality 100 -> crf 20, 1 -> crf 51
@@ -155,18 +135,74 @@ func (f *ffmpeg) transcode(in []byte, opts TranscodeOptions) ([]byte, error) {
 		}
 		crf = c
 	}
-	// libx264 options live in the encoder's priv_data, allocated by
-	// avcodec_open2 — so pass them through the options AVDictionary.
-	var encOpts uintptr
-	if rc := fn.avDictSet(&encOpts, cstr("preset"), cstr("veryfast"), 0); avNeg(rc) {
-		return nil, errors.New("transcode: opt preset")
+
+	// openEncoder allocates+configures an AVCodecContext for the named H.264
+	// encoder (libx264 or a hardware encoder), applies the resolved profile
+	// and CRF/preset via its private options, and opens it. The caller feeds
+	// SW YUV420P frames; hardware encoders upload internally.
+	openEncoder := func(name string) (uintptr, error) {
+		var codec uintptr
+		if name == "libx264" {
+			codec = fn.avcodecFindEncoder(avCodecIDH264)
+		} else {
+			codec = fn.avcodecFindEncoderByName(cstr(name))
+		}
+		if codec == 0 {
+			return 0, errors.New("transcode: no encoder " + name)
+		}
+		c := fn.avcodecAllocContext3(codec)
+		if c == 0 {
+			return 0, errors.New("transcode: enc ctx")
+		}
+		setI32(c, 12, avMediaTypeVideo)         // codec_type
+		setI64(c, 16, int64(codec))             // codec
+		setI32(c, 116, int32(dw))               // width
+		setI32(c, 120, int32(dh))               // height
+		setI32(c, 136, avPixFmtYUV420P)         // pix_fmt
+		setAVRational(c, 100, 1, avTimebaseDen) // time_base 1/30000
+		setI32(c, 132, 25)                      // gop_size
+		setI32(c, 160, 0)                       // max_b_frames = 0 (monotonic pts)
+		setI32(c, 56, 0)                        // bit_rate 0 -> crf controls
+		setI32(c, 636, 0)                       // thread_count 0 = auto
+
+		var o uintptr
+		if rc := fn.avDictSet(&o, cstr("preset"), cstr("veryfast"), 0); avNeg(rc) {
+			fn.avcodecFreeContext(&c)
+			return 0, errors.New("transcode: opt preset")
+		}
+		if rc := fn.avDictSet(&o, cstr("crf"), cstr(strconv.Itoa(crf)), 0); avNeg(rc) {
+			fn.avcodecFreeContext(&c)
+			return 0, errors.New("transcode: opt crf")
+		}
+		if rc := fn.avDictSet(&o, cstr("profile"), cstr(f.profileName), 0); avNeg(rc) {
+			fn.avcodecFreeContext(&c)
+			return 0, errors.New("transcode: opt profile")
+		}
+		if rc := fn.avcodecOpen2(c, codec, &o); avNeg(rc) {
+			if o != 0 {
+				fn.avDictFree(&o)
+			}
+			fn.avcodecFreeContext(&c)
+			return 0, errors.New("transcode: enc open " + name)
+		}
+		if o != 0 {
+			fn.avDictFree(&o)
+		}
+		return c, nil
 	}
-	if rc := fn.avDictSet(&encOpts, cstr("crf"), cstr(strconv.Itoa(crf)), 0); avNeg(rc) {
-		return nil, errors.New("transcode: opt crf")
+
+	ectx, err := openEncoder(f.selectedName)
+	if err != nil && f.nameLabel != "software" {
+		// Runtime safety net: if the probed HW encoder fails to open for the
+		// real stream, fall back to software libx264 rather than aborting.
+		f.selectedName = "libx264"
+		f.nameLabel = "software"
+		ectx, err = openEncoder("libx264")
 	}
-	if rc := fn.avcodecOpen2(ectx, encoder, &encOpts); avNeg(rc) {
-		return nil, errors.New("transcode: enc open")
+	if err != nil {
+		return nil, err
 	}
+	defer fn.avcodecFreeContext(&ectx)
 
 	// ---- output video stream ----
 	vst := fn.avformatNewStream(oc, 0)

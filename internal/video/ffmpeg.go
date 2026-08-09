@@ -17,6 +17,9 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strconv"
+	"strings"
 	"unsafe"
 
 	"github.com/ebitengine/purego"
@@ -67,6 +70,8 @@ type ffFuncs struct {
 	// avcodec
 	avcodecFindDecoder   func(id int) uintptr
 	avcodecFindEncoder   func(id int) uintptr
+	avcodecFindEncoderByName func(name uintptr) uintptr
+	avDictFree           func(d *uintptr)
 	avcodecAllocContext3 func(codec uintptr) uintptr
 	avcodecOpen2         func(ctx, codec uintptr, d *uintptr) int
 	avcodecSendPacket    func(ctx, pkt uintptr) int
@@ -108,10 +113,15 @@ type ffmpeg struct {
 	libs        []uintptr // keep handles alive
 	fn          *ffFuncs
 	codecparOff int // offset of AVStream.codecpar (ABI differs across ffmpeg)
+	// encoder selection (resolved once at load; HW-first with software fallback)
+	selectedName string // e.g. "h264_nvenc" or "libx264"
+	nameLabel    string // e.g. "nvenc" or "software"
+	selectedCodec uintptr
+	profileName  string // "high" or "main"
 }
 
-func (f *ffmpeg) Name() string        { return "ffmpeg-software" }
-func (f *ffmpeg) HardwareAccel() bool { return false }
+func (f *ffmpeg) Name() string        { return "ffmpeg-" + f.nameLabel }
+func (f *ffmpeg) HardwareAccel() bool { return f.nameLabel != "software" }
 
 // ---- library loading ----
 
@@ -181,6 +191,8 @@ func loadFFmpeg() (*ffmpeg, error) {
 	purego.RegisterLibFunc(&fn.avPacketRescaleTs, loaded["libavcodec"], "av_packet_rescale_ts")
 	purego.RegisterLibFunc(&fn.avcodecFindDecoder, loaded["libavcodec"], "avcodec_find_decoder")
 	purego.RegisterLibFunc(&fn.avcodecFindEncoder, loaded["libavcodec"], "avcodec_find_encoder")
+	purego.RegisterLibFunc(&fn.avcodecFindEncoderByName, loaded["libavcodec"], "avcodec_find_encoder_by_name")
+	purego.RegisterLibFunc(&fn.avDictFree, loaded["libavcodec"], "av_dict_free")
 	purego.RegisterLibFunc(&fn.avcodecAllocContext3, loaded["libavcodec"], "avcodec_alloc_context3")
 	purego.RegisterLibFunc(&fn.avcodecOpen2, loaded["libavcodec"], "avcodec_open2")
 	purego.RegisterLibFunc(&fn.avcodecSendPacket, loaded["libavcodec"], "avcodec_send_packet")
@@ -231,7 +243,96 @@ func newFFmpeg() (Processor, error) {
 	}
 	// quiet logs
 	f.fn.avLogSetLevel(0) // AV_LOG_QUIET
+	f.selectEncoder()
 	return f, nil
+}
+
+// totalMemGB returns total system RAM in gibibytes (best-effort; Linux
+// /proc/meminfo, otherwise 0 which forces the conservative "main" profile).
+func totalMemGB() int {
+	data, err := os.ReadFile("/proc/meminfo")
+	if err != nil {
+		return 0
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		if strings.HasPrefix(line, "MemTotal:") {
+			f := strings.Fields(line)
+			if len(f) >= 2 {
+				if kb, e := strconv.ParseInt(f[1], 10, 64); e == nil {
+					return int(kb / (1024 * 1024))
+				}
+			}
+		}
+	}
+	return 0
+}
+
+// capableMachine reports whether this host should use the higher-quality
+// "high" H.264 profile: >=4 CPU cores AND >=8 GiB RAM. Otherwise "main".
+func (f *ffmpeg) capableMachine() bool {
+	return runtime.NumCPU() >= 4 && totalMemGB() >= 8
+}
+
+// selectEncoder probes hardware H.264 encoders in priority order
+// (VideoToolbox -> NVENC -> QSV -> AMF) and selects the first that opens;
+// otherwise falls back to the pure-software libx264 encoder. The chosen
+// profile ("high" on capable machines, else "main") is stored for the
+// actual transcode.
+func (f *ffmpeg) selectEncoder() {
+	f.profileName = "main"
+	if f.capableMachine() {
+		f.profileName = "high"
+	}
+
+	// priority order required by the project goal
+	cands := []struct{ name, label string }{
+		{"h264_videotoolbox", "videotoolbox"},
+		{"h264_nvenc", "nvenc"},
+		{"h264_qsv", "qsv"},
+		{"h264_amf", "amf"},
+	}
+	for _, c := range cands {
+		if f.probeEncoderByName(c.name) {
+			f.selectedName = c.name
+			f.nameLabel = c.label
+			f.selectedCodec = f.fn.avcodecFindEncoderByName(cstr(c.name))
+			return
+		}
+	}
+	// software fallback (always available)
+	f.selectedName = "libx264"
+	f.nameLabel = "software"
+	f.selectedCodec = f.fn.avcodecFindEncoder(avCodecIDH264)
+}
+
+// probeEncoderByName checks whether an encoder can actually be opened (not
+// just that the symbol exists) by allocating a throwaway context, setting the
+// resolved profile, and attempting avcodec_open2 with a tiny frame. A real
+// device/driver is required, so unavailable HW encoders fail here and we move
+// on to the next candidate.
+func (f *ffmpeg) probeEncoderByName(name string) bool {
+	fn := f.fn
+	codec := fn.avcodecFindEncoderByName(cstr(name))
+	if codec == 0 {
+		return false
+	}
+	c := fn.avcodecAllocContext3(codec)
+	if c == 0 {
+		return false
+	}
+	setI32(c, 12, avMediaTypeVideo) // codec_type
+	setI64(c, 16, int64(codec))     // codec
+	setI32(c, 116, 320)             // width
+	setI32(c, 120, 240)             // height
+	setI32(c, 136, avPixFmtYUV420P) // pix_fmt
+	var opts uintptr
+	fn.avDictSet(&opts, cstr("profile"), cstr(f.profileName), 0)
+	rc := fn.avcodecOpen2(c, codec, &opts)
+	if opts != 0 {
+		fn.avDictFree(&opts)
+	}
+	fn.avcodecFreeContext(&c)
+	return !avNeg(rc)
 }
 
 // ---- helpers for struct field access (ffmpeg 4.4–7.x, 64-bit LE) ----

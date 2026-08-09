@@ -1,8 +1,6 @@
 package app
 
 import (
-	"crypto/sha1"
-	"encoding/hex"
 	"fmt"
 	"image"
 	"image/jpeg"
@@ -15,7 +13,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	imgproc "immich-go/internal/image"
 	"immich-go/internal/video"
 )
 
@@ -60,41 +57,16 @@ func (a *App) handleAssetUpload(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "missing assetData", "statusCode": 400})
 		return
 	}
-	ext := strings.TrimPrefix(strings.ToLower(meta.FileExtension), ".")
-	if ext == "" {
-		ext = strings.TrimPrefix(filepath.Ext(fh.Filename), ".")
-	}
-	if ext == "" {
-		ext = "bin"
-	}
-
-	id := newUUID()
-	upDir := filepath.Join(a.cfg.ResourceDir, "upload")
-	_ = os.MkdirAll(upDir, 0o755)
-	origPath := filepath.Join(upDir, id+"."+ext)
-
 	src, err := fh.Open()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	defer src.Close()
-	out, err := os.Create(origPath)
+	raw, err := io.ReadAll(src)
+	src.Close()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
-	}
-	hasher := sha1.New()
-	tee := io.TeeReader(src, hasher)
-	if _, err := io.Copy(out, tee); err != nil {
-		out.Close()
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	out.Close()
-	checksum := hex.EncodeToString(hasher.Sum(nil))
-	if meta.Checksum != "" {
-		checksum = meta.Checksum
 	}
 
 	// default library for the user
@@ -104,83 +76,44 @@ func (a *App) handleAssetUpload(c *gin.Context) {
 	}
 
 	now := time.Now().UTC()
-	asset := Asset{
-		ID:            id,
-		DeviceAssetId: meta.DeviceAssetId,
-		DeviceId:      meta.DeviceId,
-		OwnerID:       uid,
-		Type:          normalizeType(meta.Type),
-		OriginalPath:  origPath,
-		OriginalFileName: fh.Filename,
-		Checksum:      checksum,
-		FileCreatedAt: parseTime(meta.FileCreatedAt, now),
-		FileModifiedAt: parseTime(meta.FileModifiedAt, now),
-		LocalDateTime: parseTime(meta.LocalDateTime, now),
-		Duration:      meta.Duration,
-		IsFavorite:    meta.IsFavorite,
-		IsArchived:    meta.IsArchived,
-		IsExternal:    meta.IsExternal,
-		LibraryId:     lib.ID,
-		CreatedAt:     now,
-		UpdatedAt:     now,
+	localDateTime := parseTime(meta.LocalDateTime, now)
+	assetType := normalizeType(meta.Type)
+
+	ext := strings.ToLower(filepath.Ext(fh.Filename))
+	if ext == "" {
+		ext = "." + strings.TrimPrefix(strings.ToLower(meta.FileExtension), ".")
+	}
+	if assetType == "" {
+		assetType = extToType(ext)
 	}
 
-	// generate a thumbnail/poster + extract EXIF from the original
-	thumbPath := ""
-	thumbDir := filepath.Join(a.cfg.ResourceDir, "thumbnail")
-	_ = os.MkdirAll(thumbDir, 0o755)
-	tp := filepath.Join(thumbDir, id+".jpg")
-
-	exif := Exif{ID: newUUID(), AssetID: id}
-	raw, rerr := os.ReadFile(origPath)
-
-	if asset.Type == "IMAGE" && rerr == nil {
-		// Pure-Go EXIF extraction (no CGO).
-		if info, eerr := imgproc.Extract(raw); eerr == nil && info != nil {
-			exif.Make = info.Make
-			exif.Model = info.Model
-			if info.DateTimeOriginal != "" {
-				v := info.DateTimeOriginal
-				exif.DateTimeOriginal = &v
-			}
-			exif.Latitude = info.Latitude
-			exif.Longitude = info.Longitude
-			if info.Orientation != 0 {
-				o := info.Orientation
-				exif.Orientation = &o
-			}
-		}
-		// Pure-Go thumbnail (EXIF-oriented, WebP-capable).
-		if out, terr := imgproc.Thumbnail(raw, 256); terr == nil && len(out) > 0 {
-			if werr := os.WriteFile(tp, out, 0o644); werr == nil {
-				thumbPath = tp
-				asset.HasThumbnail = true
-			}
-		}
-	} else if asset.Type == "VIDEO" && rerr == nil {
-		// In-process decode of the first frame via the video backend
-		// (FFmpeg shared libs through purego; placeholder backend yields a
-		// neutral slate). Falls back silently if it cannot decode.
-		if out, terr := a.video.Thumbnail(raw, video.ThumbnailOptions{
-			MaxEdge: 320,
-			Format:  "jpeg",
-		}); terr == nil && len(out) > 0 {
-			if werr := os.WriteFile(tp, out, 0o644); werr == nil {
-				thumbPath = tp
-				asset.HasThumbnail = true
-			}
-		}
+	// Persist the original to the upload dir, then run it through the shared
+	// ingest path (thumbnail + EXIF + asset rows), identical to a disk scan.
+	upDir := filepath.Join(a.cfg.ResourceDir, "upload")
+	_ = os.MkdirAll(upDir, 0o755)
+	origPath := filepath.Join(upDir, newUUID()+ext)
+	if werr := os.WriteFile(origPath, raw, 0o644); werr != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": werr.Error()})
+		return
 	}
-	asset.ResizePath = thumbPath
 
-	a.store.DB.Create(&exif)
-	asset.ExifID = exif.ID
-
-	if err := a.store.DB.Create(&asset).Error; err != nil {
+	asset, err := a.ingestStoredFile(ingestOptions{
+		OwnerID:      uid,
+		LibraryID:    lib.ID,
+		FileName:     fh.Filename,
+		Ext:          ext,
+		Type:         assetType,
+		OriginalPath: origPath,
+		IsExternal:   false,
+		FileCreated:  now,
+		FileModified: now,
+		LocalDate:    localDateTime,
+	})
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"id": id, "status": "created", "assetId": id})
+	c.JSON(http.StatusCreated, gin.H{"id": asset.ID, "status": "created", "assetId": asset.ID})
 }
 
 func normalizeType(t string) string {

@@ -19,6 +19,10 @@ func Serve(w http.ResponseWriter, r *http.Request) {
 	if p == "" {
 		p = "index.html"
 	}
+	// public shared-link viewer (no auth): /share/<key> -> share.html
+	if p == "share" || strings.HasPrefix(p, "share/") {
+		p = "share.html"
+	}
 	// defend against path traversal
 	if strings.Contains(p, "..") {
 		p = "index.html"

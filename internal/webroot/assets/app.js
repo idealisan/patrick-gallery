@@ -137,7 +137,7 @@
 
     const titles = {
       photos: 'Photos', albums: 'Albums', search: 'Search',
-      favorites: 'Favorites', archive: 'Archive', trash: 'Trash', admin: 'Admin',
+      favorites: 'Favorites', map: 'Map', archive: 'Archive', trash: 'Trash', admin: 'Admin',
     };
     $('page-title').textContent = titles[App.view] || 'Photos';
 
@@ -148,6 +148,7 @@
       case 'albums': return App.params.albumId ? viewAlbumDetail(view, App.params.albumId) : viewAlbums(view);
       case 'search': return viewSearch(view);
       case 'favorites': return viewAssetList(view, { isFavorite: 'true' }, 'No favorites yet');
+      case 'map': return viewMap(view);
       case 'archive': return viewAssetList(view, { isArchived: 'true' }, 'Archive is empty');
       case 'trash': return viewTrash(view);
       case 'admin': return viewAdmin(view);
@@ -229,6 +230,97 @@
     renderTiles(view, assets, App.viewerList);
   }
 
+  // --------------------------------------------------------------- map
+  async function viewMap(view) {
+    const r = await getJSON('/api/map/markers');
+    const markers = (r.body && r.body.markers) || [];
+    if (markers.length === 0) {
+      view.innerHTML = '<div class="empty">No geo-tagged photos yet. Photos with GPS EXIF will be plotted on the map here.</div>';
+      return;
+    }
+
+    const wrap = document.createElement('div');
+    wrap.className = 'map-wrap';
+
+    const left = document.createElement('div');
+    left.className = 'map-canvas-wrap';
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 1000; canvas.height = 500;
+    canvas.className = 'map-canvas';
+    left.appendChild(canvas);
+
+    const hint = document.createElement('div');
+    hint.className = 'muted map-hint';
+    hint.textContent = markers.length + ' location' + (markers.length === 1 ? '' : 's') + ' · click a point or a list item to view';
+    left.appendChild(hint);
+    wrap.appendChild(left);
+
+    const list = document.createElement('div');
+    list.className = 'map-list';
+    wrap.appendChild(list);
+
+    view.appendChild(wrap);
+
+    const ctx = canvas.getContext('2d');
+    drawMapBg(ctx, canvas.width, canvas.height);
+
+    // representative asset list so clicking a marker opens the lightbox
+    const assetList = [];
+    const proj = (lat, lon) => ({
+      x: (lon + 180) / 360 * canvas.width,
+      y: (90 - lat) / 180 * canvas.height,
+    });
+
+    for (const m of markers) {
+      const { x, y } = proj(m.lat, m.lon);
+      const radius = Math.max(4, Math.min(11, 3 + Math.sqrt(m.count) * 1.6));
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, 2 * Math.PI);
+      ctx.fillStyle = 'rgba(220,40,60,0.78)';
+      ctx.fill();
+      ctx.lineWidth = 1.5; ctx.strokeStyle = '#fff'; ctx.stroke();
+
+      assetList.push({ id: m.assetId });
+
+      const item = document.createElement('div');
+      item.className = 'map-item';
+      const img = document.createElement('img');
+      img.dataset.id = m.assetId;
+      if (thumbObserver) thumbObserver.observe(img);
+      else (async () => { img.src = await thumbURL(m.assetId); })();
+      const label = document.createElement('div');
+      label.className = 'map-item-label';
+      const place = m.city || m.country || (m.lat.toFixed(2) + ', ' + m.lon.toFixed(2));
+      label.textContent = place + (m.count > 1 ? '  (' + m.count + ')' : '');
+      item.append(img, label);
+      item.onclick = () => openViewer(assetList, assetList.findIndex((a) => a.id === m.assetId));
+      list.appendChild(item);
+    }
+  }
+
+  // draws a simple equirectangular world grid (offline, no map tiles needed)
+  function drawMapBg(ctx, w, h) {
+    ctx.fillStyle = '#0e1b2a';
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 1;
+    for (let lon = -180; lon <= 180; lon += 30) {
+      const x = (lon + 180) / 360 * w;
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+    }
+    for (let lat = -90; lat <= 90; lat += 30) {
+      const y = (90 - lat) / 180 * h;
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+    }
+    // equator emphasis
+    ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+    ctx.beginPath(); ctx.moveTo(0, h / 2); ctx.lineTo(w, h / 2); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.font = '12px sans-serif';
+    ctx.fillText('Equator', 6, h / 2 - 4);
+  }
+
   // -------------------------------------------------------------- albums
   async function viewAlbums(view) {
     const r = await getJSON('/api/albums');
@@ -307,7 +399,18 @@
       await delJSON('/api/albums/' + albumId);
       toast('Album deleted'); location.hash = '#/albums';
     };
-    bar.append(title, rename, add, setCover, del);
+    const share = document.createElement('button');
+    share.className = 'btn-ghost'; share.textContent = '🔗 Share album';
+    share.onclick = async () => {
+      const r = await postJSON('/api/shared-links', { type: 'ALBUM', albumId: albumId });
+      if (r.status === 201 && r.body && r.body.key) {
+        const url = location.origin + '/share/' + r.body.key;
+        try { await navigator.clipboard.writeText(url); } catch (_) {}
+        toast('Share link copied to clipboard');
+        window.prompt('Share link (copied):', url);
+      } else toast('Could not create share', false);
+    };
+    bar.append(title, rename, add, setCover, share, del);
     view.appendChild(bar);
 
     if (assets.length === 0) { view.innerHTML += '<div class="empty">No assets in this album. Use “Add assets”.</div>'; return; }
@@ -383,6 +486,46 @@
     };
     pwd.append(cur, neu, btn);
     view.appendChild(pwd);
+
+    // ---- libraries (disk scan) ----
+    const libWrap = document.createElement('div'); libWrap.className = 'stat-card'; libWrap.style.marginTop = '16px';
+    libWrap.innerHTML = '<h4 style="margin:0 0 10px">Libraries (disk scan)</h4>';
+    const libList = document.createElement('div'); libList.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-bottom:12px';
+    const libForm = document.createElement('div'); libForm.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap';
+    const lname = document.createElement('input'); lname.placeholder = 'Library name';
+    const lpaths = document.createElement('input'); lpaths.placeholder = 'Import paths (comma separated)'; lpaths.style.flex = '1';
+    const lcreate = document.createElement('button'); lcreate.className = 'btn-primary'; lcreate.textContent = '+ Add library';
+    lcreate.onclick = async () => {
+      const r = await postJSON('/api/libraries', { name: lname.value || 'Library', importPaths: lpaths.value, type: 'EXTERNAL' });
+      if (r.status === 201) { toast('Library created'); renderLibs(); }
+      else toast('Create failed', false);
+    };
+    libForm.append(lname, lpaths, lcreate);
+    libWrap.append(libList, libForm);
+    view.appendChild(libWrap);
+
+    async function renderLibs() {
+      const r = await getJSON('/api/libraries');
+      const libs = r.body || [];
+      libList.innerHTML = '';
+      for (const l of libs) {
+        const row = document.createElement('div'); row.style.cssText = 'display:flex;gap:8px;align-items:center';
+        const info = document.createElement('div'); info.style.flex = '1';
+        info.innerHTML = '<b>' + escapeHtml(l.name) + '</b> <span class="muted">· ' + (l.status || '') + '</span><br><span class="muted" style="font-size:12px">' + escapeHtml(l.importPaths || 'no import paths') + '</span>';
+        const scan = document.createElement('button'); scan.className = 'btn-ghost'; scan.textContent = 'Scan';
+        scan.onclick = async () => {
+          scan.disabled = true; scan.textContent = 'Scanning…';
+          const sr = await postJSON('/api/libraries/' + l.id + '/scan', {});
+          scan.disabled = false; scan.textContent = 'Scan';
+          if (sr.status === 200) toast('Imported ' + (sr.body.imported || 0) + ', skipped ' + (sr.body.skipped || 0));
+          else toast('Scan failed', false);
+          renderLibs();
+        };
+        row.append(info, scan);
+        libList.appendChild(row);
+      }
+    }
+    renderLibs();
   }
 
   // ----------------------------------------------------------- tile render
@@ -560,12 +703,21 @@
       const res = await postJSON('/api/albums/' + albumId + '/assets', { ids: [a.id] });
       if (res.status === 200) toast('Added to album');
     }, true);
+    const share = mkBtn('🔗 Share', async () => {
+      const r = await postJSON('/api/shared-links', { type: 'INDIVIDUAL', assetId: a.id });
+      if (r.status === 201 && r.body && r.body.key) {
+        const url = location.origin + '/share/' + r.body.key;
+        try { await navigator.clipboard.writeText(url); } catch (_) {}
+        toast('Share link copied to clipboard');
+        window.prompt('Share link (copied):', url);
+      } else toast('Could not create share', false);
+    }, true);
     const del = mkBtn('🗑 Delete', async () => {
       if (!confirm('Move this asset to trash?')) return;
       await delJSON('/api/assets', { ids: [a.id] });
       toast('Moved to trash'); closeViewer(); route();
     }, true);
-    actions.append(favBtn, archBtn, addAlbum, dl, del);
+    actions.append(favBtn, archBtn, addAlbum, share, dl, del);
     p.appendChild(actions);
   }
 
@@ -693,8 +845,12 @@
     route();
   }
 
-  // --------------------------------------------------------------- helpers
-  function fmtDate(s) {
+// --------------------------------------------------------------- helpers
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function fmtDate(s) {
     const d = new Date(s);
     if (isNaN(d)) return s;
     return d.toLocaleString();

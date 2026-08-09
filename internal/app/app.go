@@ -41,6 +41,11 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		c.JSON(http.StatusOK, gin.H{"authStatus": boolToStatus(cfg.LoginRequired)})
 	})
 
+	// public shared-link access (no auth): view + asset streaming
+	r.GET("/api/share/:key", a.handleShareView)
+	r.GET("/api/share/:key/thumbnail/:assetId", a.handleShareThumbnail)
+	r.GET("/api/share/:key/original/:assetId", a.handleShareOriginal)
+
 	// ---- authenticated ----
 	api := r.Group("/api")
 	api.Use(a.AuthGuard())
@@ -113,6 +118,9 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.GET("/timeline/buckets", a.handleTimelineBuckets)
 		api.GET("/timeline/bucket", a.handleTimelineBucketAssets)
 		api.GET("/timeline/assets", a.handleTimelineBucketAssets)
+
+		// map (geo-tagged assets)
+		api.GET("/map/markers", a.handleMapMarkers)
 
 		// search
 		api.POST("/search", a.handleSearch)

@@ -210,3 +210,18 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
   .viewer-close { right: 16px; }
   .viewer-nav.next { right: 16px; }
 }
+
+/* ---- Map view ---- */
+.map-wrap { display: flex; gap: 16px; align-items: flex-start; }
+.map-canvas-wrap { flex: 1 1 auto; min-width: 0; }
+.map-canvas { width: 100%; height: auto; border: 1px solid var(--border); border-radius: 10px; background: #0e1b2a; display: block; }
+.map-hint { margin-top: 8px; }
+.map-list { flex: 0 0 280px; max-height: 70vh; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+.map-item { display: flex; gap: 10px; align-items: center; padding: 6px; border: 1px solid var(--border); border-radius: 10px; cursor: pointer; background: var(--bg-elev); }
+.map-item:hover { border-color: var(--accent, #4f8cff); }
+.map-item img { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; background: #222; flex: 0 0 auto; }
+.map-item-label { font-size: 13px; color: var(--text, #e7e7e7); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 720px) {
+  .map-wrap { flex-direction: column; }
+  .map-list { flex-basis: auto; width: 100%; max-height: none; }
+}

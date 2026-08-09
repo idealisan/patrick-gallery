@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Shared · Immich</title>
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/assets/styles.css" />
+  <style>
+    .share-head { padding: 18px 24px; border-bottom: 1px solid var(--border); display:flex; align-items:center; gap:12px; }
+    .share-head strong { color: var(--accent); letter-spacing:1px; }
+  </style>
+</head>
+<body>
+  <div class="share-head">
+    <strong>IMMICH</strong><span class="muted">Shared album</span>
+  </div>
+  <main class="view" id="view">
+    <div class="spinner">Loading shared album…</div>
+  </main>
+
+  <div id="viewer" class="viewer" hidden>
+    <button class="viewer-close" id="viewer-close">✕</button>
+    <button class="viewer-nav prev" id="viewer-prev">‹</button>
+    <button class="viewer-nav next" id="viewer-next">›</button>
+    <div class="viewer-stage" id="viewer-stage"></div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+  (function () {
+    const $ = (id) => document.getElementById(id);
+    function toast(m, ok) { const t = $('toast'); t.textContent = m; t.className = 'toast show' + (ok === false ? ' err' : ''); setTimeout(() => t.className = 'toast', 2200); }
+    function keyFromPath() {
+      const m = location.pathname.match(/\/share\/(.+)$/);
+      if (m) return decodeURIComponent(m[1]);
+      return new URLSearchParams(location.search).get('key') || '';
+    }
+    const key = keyFromPath();
+
+    const thumbURL = (id) => '/api/share/' + key + '/thumbnail/' + id;
+    const origURL = (id) => '/api/share/' + key + '/original/' + id;
+
+    async function load() {
+      if (!key) { $('view').innerHTML = '<div class="empty">No share key in URL.</div>'; return; }
+      const r = await fetch('/api/share/' + key);
+      if (r.status !== 200) { $('view').innerHTML = '<div class="empty">This share link is invalid or expired.</div>'; return; }
+      const body = await r.json();
+      const assets = body.assets || [];
+      document.querySelector('.share-head .muted').textContent = body.albumName ? 'Shared album · ' + body.albumName : 'Shared ' + body.type.toLowerCase();
+      if (assets.length === 0) { $('view').innerHTML = '<div class="empty">This share is empty.</div>'; return; }
+      const grid = document.createElement('div'); grid.className = 'grid';
+      assets.forEach((a, i) => {
+        const tile = document.createElement('div'); tile.className = 'tile';
+        const img = document.createElement('img'); img.dataset.id = a.id;
+        tile.appendChild(img);
+        if (a.type === 'VIDEO') { const p = document.createElement('div'); p.className = 'play'; p.textContent = '▶'; tile.appendChild(p); }
+        if (a.hasThumbnail) { img.src = thumbURL(a.id); }
+        tile.onclick = () => openViewer(assets, i);
+        grid.appendChild(tile);
+      });
+      $('view').innerHTML = ''; $('view').appendChild(grid);
+    }
+
+    let list = [], idx = -1;
+    function openViewer(l, i) {
+      list = l; idx = i; $('viewer').hidden = false; document.body.style.overflow = 'hidden'; render();
+    }
+    function close() { $('viewer').hidden = true; document.body.style.overflow = ''; $('viewer-stage').innerHTML = ''; }
+    function step(d) { idx = (idx + d + list.length) % list.length; render(); }
+    function render() {
+      const a = list[idx]; if (!a) return;
+      const stage = $('viewer-stage'); stage.innerHTML = '';
+      if (a.type === 'VIDEO') {
+        const v = document.createElement('video'); v.controls = true; v.autoplay = true; v.muted = true;
+        const s = document.createElement('source'); s.src = origURL(a.id); s.type = 'video/mp4'; v.appendChild(s);
+        stage.appendChild(v);
+      } else {
+        const img = document.createElement('img'); img.src = origURL(a.id); stage.appendChild(img);
+      }
+    }
+    $('viewer-close').onclick = close;
+    $('viewer-prev').onclick = () => step(-1);
+    $('viewer-next').onclick = () => step(1);
+    $('viewer').addEventListener('click', (e) => { if (e.target === $('viewer')) close(); });
+    document.addEventListener('keydown', (e) => { if ($('viewer').hidden) return; if (e.key === 'Escape') close(); else if (e.key === 'ArrowLeft') step(-1); else if (e.key === 'ArrowRight') step(1); });
+
+    load();
+  })();
+  </script>
+</body>
+</html>
