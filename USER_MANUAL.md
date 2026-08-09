@@ -96,6 +96,26 @@ password: password
 Change it immediately via the web UI (Settings → change password) or the
 API (`PUT /api/auth/change-password`).
 
+### With Docker (GHCR multi-arch image)
+
+On every published release the CI pushes a multi-arch image
+(`linux/amd64`, `linux/arm64`) to GitHub Container Registry:
+
+```sh
+docker run -d --name immich-go \
+  -p 8081:8081 \
+  -v "$(pwd)/data:/data" \
+  ghcr.io/idealisan/patrick-gallery:latest
+```
+
+- Mount `/data` to persist the SQLite DB and media. Inside the container
+  `IMMICH_DB=/data/immich.db` and `IMMICH_RESOURCE=/data/resources`.
+- Tags: `:latest` and `:<release-tag>` (e.g. `:v1.0.0-go`).
+- The binary is fully static (`CGO_ENABLED=0`), so the image runs on any
+  compatible arch with no libc dependency.
+- To build the image locally instead: `docker build -t immich-go .`
+  (Dockerfile + .dockerignore are in this directory).
+
 ---
 
 ## 4. Configuration (environment variables)

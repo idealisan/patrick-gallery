@@ -67,6 +67,29 @@ Prebuilt artifacts for Linux/macOS/Windows × x64/arm64 are in `dist/`:
 
 Verify: `sha256sum -c dist/checksums.txt`.
 
+## Docker image (GHCR)
+
+On every published GitHub Release the CI also builds and pushes a
+multi-arch image to GitHub Container Registry:
+
+```
+ghcr.io/idealisan/patrick-gallery:latest
+ghcr.io/idealisan/patrick-gallery:<release-tag>
+```
+
+```sh
+docker run -d --name immich-go \
+  -p 8081:8081 \
+  -v "$(pwd)/data:/data" \
+  ghcr.io/idealisan/patrick-gallery:latest
+# -> http://localhost:8081  (admin@immich.app / password)
+```
+
+The image is multi-arch (`linux/amd64`, `linux/arm64`), built with
+`CGO_ENABLED=0` so the binary is fully static. Mount `/data` to persist
+the SQLite DB (`immich.db`) and media (`resources/`). The `Dockerfile`
+and `.dockerignore` live at the repo root of this module.
+
 ## Performance
 
 Single static binary, ~3 MB idle RAM, ~1.5 s startup, hundreds of

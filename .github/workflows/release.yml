@@ -1,7 +1,9 @@
 name: Release build & test
 
-# Runs on every published GitHub Release. Tests the code, then cross-compiles
-# the 6 platform binaries and attaches them as release assets.
+# Runs on every published GitHub Release. Tests the code, then:
+#   * cross-compiles the 6 platform binaries and attaches them as release assets
+#   * builds and pushes a multi-arch Docker image (linux/amd64, linux/arm64)
+#     to GHCR (ghcr.io/<owner>/<repo>), tagged :latest and :<release-tag>.
 #
 # Timeout strategy (to avoid hung jobs wasting Actions minutes):
 #   * every job has `timeout-minutes`
@@ -82,12 +84,16 @@ jobs:
           files: immich-go-*
 
   docker:
-    name: Docker image
+    name: Docker image (multi-arch)
     needs: test
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        # Enables building linux/arm64 on the amd64 runner via emulation.
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -100,15 +106,15 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build & push image
-        # Single native arch (linux/amd64) to avoid slow QEMU emulation and
-        # keep Actions minutes low. Flip to "linux/amd64,linux/arm64" (and add
-        # docker/setup-qemu-action) for a multi-arch image.
-        timeout-minutes: 25
+        # Multi-arch: linux/amd64 (native) + linux/arm64 (QEMU-emulated).
+        # Public GHCR packages are free; build cache via GHA keeps minutes low.
+        # Hard timeout protects against a slow emulated build hanging.
+        timeout-minutes: 35
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           tags: |
             ghcr.io/${{ github.repository }}:latest
             ghcr.io/${{ github.repository }}:${{ github.event.release.tag_name }}
