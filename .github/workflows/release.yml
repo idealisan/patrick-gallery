@@ -124,3 +124,41 @@ jobs:
             ghcr.io/${{ github.repository }}:${{ github.event.release.tag_name }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  notify-lark:
+    name: Notify Lark (build result)
+    # Report the overall release-build outcome (test + matrix + docker) to a
+    # Lark (Feishu) group bot. The webhook URL comes from the repo secret
+    # LARK_WEBHOOK_URL; if unset the step skips so the release still proceeds.
+    needs: [test, build, docker]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Post build result to Lark
+        env:
+          LARK_WEBHOOK_URL: ${{ secrets.LARK_WEBHOOK_URL }}
+          R_TEST: ${{ needs.test.result }}
+          R_BUILD: ${{ needs.build.result }}
+          R_DOCKER: ${{ needs.docker.result }}
+        run: |
+          if [ -z "$LARK_WEBHOOK_URL" ]; then
+            echo "LARK_WEBHOOK_URL secret not set; skipping Lark notification"
+            exit 0
+          fi
+          STATUS="success"
+          for r in "$R_TEST" "$R_BUILD" "$R_DOCKER"; do
+            [ "$r" = "success" ] || STATUS="$r"
+          done
+          if [ "$STATUS" = "success" ]; then ICON="✅"; else ICON="❌"; fi
+          TAG="${{ github.event.release.tag_name }}"
+          MSG="${ICON} immich-go release build: ${STATUS} (${TAG})
+          repo:   ${GITHUB_REPOSITORY}
+          commit: ${GITHUB_SHA::7}
+          actor:  ${GITHUB_ACTOR}
+          run:    ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+          PAYLOAD=$(python3 -c 'import json,sys; print(json.dumps({"msg_type":"text","content":{"text":sys.argv[1]}}))' "$MSG")
+          curl -sS -X POST "$LARK_WEBHOOK_URL" \
+            -H 'Content-Type: application/json' \
+            --data-binary "$PAYLOAD"
