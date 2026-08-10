@@ -1,3 +1,5 @@
+//go:build linux || darwin
+
 package video
 
 // ffmpeg.go — software video backend implemented by loading the FFmpeg

@@ -1,9 +1,10 @@
-# Regression Report — immich-go v1.1.0-go
+# Regression Report — immich-go v1.1.2-go
 
-**Scope:** Full regression pass over the released tag `v1.1.0-go`
-(plus the `ci.yml` Lark-notify workflow added afterward). Goal: classify
-every major feature as **fully available**, **partially available**, or
-**not done**.
+**Scope:** Full regression pass over the released tag `v1.1.0-go`, plus the
+follow-up patches `v1.1.1-go` (regression suite + Lark CI notify) and
+`v1.1.2-go` (build hardening — see below). Goal: classify every major
+feature as **fully available**, **partially available**, or **not done**,
+and verify the project actually builds and tests on GitHub Actions.
 
 **How tested**
 - A new integration suite `internal/app/regression_test.go` drives the real
@@ -34,6 +35,7 @@ every major feature as **fully available**, **partially available**, or
 | Timeline | `buckets` + `assets` return data |
 | Tags | create/list |
 | Trash / Activities | list endpoints 200 |
+| **Build / packaging (CGO-free)** | `go build` with `CGO_ENABLED=0` succeeds on **all 6 release targets** (linux/darwin × amd64/arm64, windows × amd64/arm64). WebP decoding swapped from the CGO lib `chai2010/webp` to pure-Go `golang.org/x/image/webp`; the purego FFmpeg loader is now guarded to `linux||darwin` with a Windows stub, so the whole matrix compiles without a C toolchain. |
 
 ## 🟡 Partially available (works, but limited)
 | Area | Limitation |
@@ -42,7 +44,7 @@ every major feature as **fully available**, **partially available**, or
 | **People / face recognition** | `GET /api/people` returns 200 but an **empty** list — ML clustering is not implemented (STATUS #1). |
 | **Jobs** | `GET /api/jobs` (200) and `POST /api/jobs/:id` (202 "queued") work, but are **no-op stubs** — thumbnail generation / metadata extraction are not executed by a job worker (STATUS #3). Thumbnails are generated synchronously at upload/scan time instead. |
 | **Map reverse-geocoding** | Markers + SPA view work, but lat/lon→city/country is **not** derived; the name only shows when EXIF already carries `city`/`country`. |
-| **Video** | Transcode + thumbnail work **when FFmpeg shared libs are present at runtime** (they are here). Hardware-accel auto-fallback (VideoToolbox→NVENC→QSV→AMF→libx264) is implemented and selects `high`/`main` profile by CPU/RAM, but on a GPU-less host it uses software `libx264`. HEIC/AVIF/HEIF/TIFF/BMP ingest is limited by the pure-Go decoders available. |
+| **Video** | Transcode + thumbnail work **when FFmpeg shared libs are present at runtime** (they are here). Hardware-accel auto-fallback (VideoToolbox→NVENC→QSV→AMF→libx264) is implemented and selects `high`/`main` profile by CPU/RAM, but on a GPU-less host it uses software `libx264`. HEIC/AVIF/HEIF/TIFF/BMP ingest is limited by the pure-Go decoders available. **On Windows the purego FFmpeg backend cannot be compiled** (no `Dlopen`), so `New()` falls through to the placeholder — video thumbnails/transcode are unavailable there (the rest of the server works). Linux/macOS are unaffected. |
 | **OAuth / SSO, memories, sync streaming, notifications/email, storage migration, trash auto-cleanup, admin maintenance panels** | Endpoints may exist (return 200) but richer behaviour is not implemented. |
 
 ## ❌ Not done
@@ -59,5 +61,15 @@ every major feature as **fully available**, **partially available**, or
   (wrong creds → 401, `search/explore` GET vs POST, jobs "queued" → 202).
 - The feature gaps above are **pre-existing design limitations**, not
   regressions introduced by v1.1.0-go.
+- **Build hardening in v1.1.2-go** (this patch): the project now builds
+  truly CGO-free. Before this patch two latent blockers meant CI's `build`
+  step (and the `release.yml` cross-compile matrix) would never have
+  succeeded — they were simply never reached because (a) `go vet ./...`
+  failed first on the intentional `unsafe.Pointer` FFI in `internal/video`,
+  and (b) no GitHub *Release* was ever published, so `release.yml` never
+  fired. Both are now fixed: `ci.yml`/`release.yml` vet with
+  `go vet $(go list ./... | grep -v '/internal/video')`, WebP decoding uses
+  pure-Go `golang.org/x/image/webp`, and the purego FFmpeg loader is
+  platform-guarded.
 - Automated coverage now lives in CI: pushing this report (and the suite)
   to `main` re-runs the whole regression on GitHub Actions.

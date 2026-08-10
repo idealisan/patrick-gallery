@@ -13,7 +13,7 @@ import (
 	stdimage "image"
 	"image/jpeg"
 
-	"github.com/chai2010/webp"
+	"golang.org/x/image/webp"
 	"github.com/rwcarlsen/goexif/exif"
 
 	// Side-effect imports registering the standard-library decoders with

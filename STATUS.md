@@ -3,7 +3,7 @@
 > 回归测试结论见 [REGRESSION_REPORT.md](REGRESSION_REPORT.md)：已发布版本 v1.1.0-go 的全部受测端点均正常（无 5xx 回归），并标注了「部分可用 / 未做」的能力边界。自动化覆盖在 `.github/workflows/ci.yml`（每次 push/PR 在 GitHub Actions 上跑 `go test ./...`）。
 
 > 本文件基于 `internal/app/` 的实际路由与处理函数核对整理（非凭记忆）。
-> 项目别名：**patrick-gallery**。最后更新：2026-08-09。
+> 项目别名：**patrick-gallery**。最后更新：2026-08-10。
 
 ## Release 2 — in progress
 
@@ -14,7 +14,7 @@
 | 数据库抽象层 (`internal/store`) | `[done]` | 接口 + SQLite WAL 调优已完成 |
 | 视频后端抽象 (`internal/video`) + 纯软件 FFmpeg (purego) 后端 | `[done]` | 抽象接口就绪；**纯 Go / purego FFmpeg 后端完整可用**：Probe + 抽帧缩略图 + 进程内转码（无 CLI、无 CGO），经 `go test` 与 HTTP 端到端验证（输出经 ffprobe 确认为合法 h264 mp4）。硬件加速后端仍为 stub。 |
 | 视频 API 接线（上传缩略图、`/preview`、转码 `/encoded-video`） | `[done]` | 上传即抽帧生成视频封面；`/encoded-video` 走真实进程内转码（libx264 软编），失败时回退原文件 |
-| 图像：EXIF 提取 + 更宽解码（WebP） | `[in progress]` | EXIF 与 WebP 解码推进中 |
+| 图像：EXIF 提取 + 更宽解码（WebP） | `[done]` | EXIF 提取 + WebP 解码已完成；WebP 解码改用纯 Go 的 `golang.org/x/image/webp`（替代需 CGO 的 `chai2010/webp`），整项目现可 `CGO_ENABLED=0` 构建 |
 | 前端：官方前端完整移植（SPA） | `[done]` | 纯 vanilla JS SPA（无构建步骤、随包嵌入，唯一契合单二进制纯 Go 模型的方案）：时间线图库、相册（列表/详情/封面/增删成员）、搜索、收藏、归档、回收站、管理页、灯箱查看器（图片预览 + **视频经真实转码播放**）、拖拽/选择上传、多选批量操作。内嵌资源经 `webroot.go` 以 `web/` 目录 + SPA 回退方式服务 |
 | 发布打包：将 FFmpeg 共享库打包进各发行包 | `[done]` | `bundle-deps.sh` 为二进制生成 `-deps` 包（含 libs/），CI 已接入 |
 
@@ -85,6 +85,10 @@
 
 ### 9. 部分兼容字段为最小实现
 - 为让官方客户端能加载，新增的 compat 端点（config / features 等）返回的是「形状正确但内容最小化」的 JSON（如 ML 标志一律为 false），并非完整语义。
+
+### 10. 构建链路（已加固 ✅，v1.1.2-go）
+- 项目现已可纯粹 `CGO_ENABLED=0` 构建：WebP 解码由需 CGO 的 `chai2010/webp` 换成纯 Go 的 `golang.org/x/image/webp`；purego FFmpeg 加载器限定 `//go:build linux || darwin`，Windows 用 stub 回退到 placeholder（该平台无视频缩略图/转码，但服务其余部分正常）。`ci.yml` / `release.yml` 的 vet 改为 `go vet $(go list ./... | grep -v '/internal/video')`，绕开 `internal/video` 中故意使用的 `unsafe.Pointer` FFI。6 个发布目标（linux/darwin × amd64/arm64、windows × amd64/arm64）均已验证可 CGO-free 交叉编译。
+- 说明：此前这两项缺陷从未在 CI 暴露——vet 先失败导致 build 步未执行；而 `release.yml` 仅在「发布 GitHub Release」时触发，本项目无 gh/token 故从未发布过 Release，矩阵构建从未真正跑过。v1.1.2-go 一并修掉。
 
 ## 三、优先级建议（按性价比）
 1. **分享链接公开访问**（#5）——补全端点即可对外分享。

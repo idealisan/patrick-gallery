@@ -1,3 +1,5 @@
+//go:build linux || darwin
+
 package video
 
 // ffmpeg_transcode.go — real in-process re-encode/mux for the purego FFmpeg
