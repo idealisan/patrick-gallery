@@ -1,5 +1,7 @@
 # immich-go — 功能与缺陷清单 (STATUS)
 
+> 回归测试结论见 [REGRESSION_REPORT.md](REGRESSION_REPORT.md)：已发布版本 v1.1.0-go 的全部受测端点均正常（无 5xx 回归），并标注了「部分可用 / 未做」的能力边界。自动化覆盖在 `.github/workflows/ci.yml`（每次 push/PR 在 GitHub Actions 上跑 `go test ./...`）。
+
 > 本文件基于 `internal/app/` 的实际路由与处理函数核对整理（非凭记忆）。
 > 项目别名：**patrick-gallery**。最后更新：2026-08-09。
 
