@@ -1,0 +1,73 @@
+name: CI build & test (Lark notify)
+
+# Runs on every push to main and on pull requests: vet + test + build, then
+# posts the build result to a Lark (Feishu) group bot. The webhook URL is
+# supplied via the repository secret LARK_WEBHOOK_URL. If the secret is not
+# set, the notify step simply skips (so forks / local mirrors still build).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    name: Vet & test & build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Vet
+        # internal/video uses intentional unsafe.Pointer FFI (purego-loaded
+        # FFmpeg), which go vet flags as "possible misuse". That pattern is
+        # required for the in-process video backend, so we vet everything
+        # except that package to keep the rest of the codebase strict.
+        run: go vet $(go list ./... | grep -v '/internal/video')
+
+      - name: Test
+        timeout-minutes: 10
+        run: go test -timeout 300s ./...
+
+      - name: Build (CGO_ENABLED=0, pure-Go SQLite)
+        env:
+          CGO_ENABLED: 0
+        run: go build -o immich-go .
+
+  notify-lark:
+    name: Notify Lark
+    needs: build-test
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Post build result to Lark
+        env:
+          LARK_WEBHOOK_URL: ${{ secrets.LARK_WEBHOOK_URL }}
+          STATUS: ${{ needs.build-test.result }}
+        run: |
+          if [ -z "$LARK_WEBHOOK_URL" ]; then
+            echo "LARK_WEBHOOK_URL secret not set; skipping Lark notification"
+            exit 0
+          fi
+          if [ "$STATUS" = "success" ]; then ICON="✅"; else ICON="❌"; fi
+          MSG="${ICON} immich-go CI: ${STATUS}
+          repo:   ${GITHUB_REPOSITORY}
+          ref:    ${GITHUB_REF_NAME}
+          commit: ${GITHUB_SHA::7}
+          actor:  ${GITHUB_ACTOR}
+          run:    ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+          PAYLOAD=$(python3 -c 'import json,sys; print(json.dumps({"msg_type":"text","content":{"text":sys.argv[1]}}))' "$MSG")
+          curl -sS -X POST "$LARK_WEBHOOK_URL" \
+            -H 'Content-Type: application/json' \
+            --data-binary "$PAYLOAD"

@@ -1,0 +1,167 @@
+name: Release build & test
+
+# Runs on every published GitHub Release. Tests the code, then:
+#   * cross-compiles the 6 platform binaries and attaches them as release assets
+#   * builds and pushes a multi-arch Docker image (linux/amd64, linux/arm64)
+#     to GHCR (ghcr.io/<owner>/<repo>), tagged :latest and :<release-tag>.
+#
+# Timeout strategy (to avoid hung jobs wasting Actions minutes):
+#   * every job has `timeout-minutes`
+#   * the test step has an explicit `go test -timeout`
+#   * the build matrix uses `fail-fast: true` so a common compile failure
+#     stops the other platforms instead of building them all.
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write   # required to upload release assets
+  packages: write   # required to push the Docker image to GHCR
+
+jobs:
+  test:
+    name: Test & vet
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Vet
+        timeout-minutes: 5
+        # internal/video uses intentional unsafe.Pointer FFI (purego-loaded
+        # FFmpeg); go vet flags that as "possible misuse" but it is required
+        # for the in-process video backend, so vet everything except it.
+        run: go vet $(go list ./... | grep -v '/internal/video')
+
+      - name: Test
+        timeout-minutes: 10
+        run: go test -timeout 300s ./...
+
+  build:
+    name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Stop the whole matrix on the first failure (saves minutes when the
+    # code doesn't compile for one platform — it won't for any of them).
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { goos: linux,   goarch: arm64 }
+          - { goos: linux,   goarch: amd64 }
+          - { goos: darwin,  goarch: arm64 }
+          - { goos: darwin,  goarch: amd64 }
+          - { goos: windows, goarch: amd64 }
+          - { goos: windows, goarch: arm64 }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build (CGO_ENABLED=0, pure-Go SQLite)
+        timeout-minutes: 15
+        env:
+          CGO_ENABLED: 0
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          BIN="immich-go-${{ matrix.goos }}-${{ matrix.goarch }}"
+          if [ "${{ matrix.goos }}" = "windows" ]; then BIN="${BIN}.exe"; fi
+          go build -trimpath -ldflags="-s -w" -o "${BIN}" .
+
+      - name: Bundle FFmpeg shared libs
+        timeout-minutes: 10
+        run: bash scripts/bundle-deps.sh .
+
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: immich-go-*
+
+  docker:
+    name: Docker image (multi-arch)
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        # Enables building linux/arm64 on the amd64 runner via emulation.
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push image
+        # Multi-arch: linux/amd64 (native) + linux/arm64 (QEMU-emulated).
+        # Public GHCR packages are free; build cache via GHA keeps minutes low.
+        # Hard timeout protects against a slow emulated build hanging.
+        timeout-minutes: 35
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository }}:${{ github.event.release.tag_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  notify-lark:
+    name: Notify Lark (build result)
+    # Report the overall release-build outcome (test + matrix + docker) to a
+    # Lark (Feishu) group bot. The webhook URL comes from the repo secret
+    # LARK_WEBHOOK_URL; if unset the step skips so the release still proceeds.
+    needs: [test, build, docker]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Post build result to Lark
+        env:
+          LARK_WEBHOOK_URL: ${{ secrets.LARK_WEBHOOK_URL }}
+          R_TEST: ${{ needs.test.result }}
+          R_BUILD: ${{ needs.build.result }}
+          R_DOCKER: ${{ needs.docker.result }}
+        run: |
+          if [ -z "$LARK_WEBHOOK_URL" ]; then
+            echo "LARK_WEBHOOK_URL secret not set; skipping Lark notification"
+            exit 0
+          fi
+          STATUS="success"
+          for r in "$R_TEST" "$R_BUILD" "$R_DOCKER"; do
+            [ "$r" = "success" ] || STATUS="$r"
+          done
+          if [ "$STATUS" = "success" ]; then ICON="✅"; else ICON="❌"; fi
+          TAG="${{ github.event.release.tag_name }}"
+          MSG="${ICON} immich-go release build: ${STATUS} (${TAG})
+          repo:   ${GITHUB_REPOSITORY}
+          commit: ${GITHUB_SHA::7}
+          actor:  ${GITHUB_ACTOR}
+          run:    ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+          PAYLOAD=$(python3 -c 'import json,sys; print(json.dumps({"msg_type":"text","content":{"text":sys.argv[1]}}))' "$MSG")
+          curl -sS -X POST "$LARK_WEBHOOK_URL" \
+            -H 'Content-Type: application/json' \
+            --data-binary "$PAYLOAD"

@@ -1,0 +1,10 @@
+.git
+.tools
+.cache
+resources
+dist
+server.log
+immich-go
+immich-go.exe
+*.db
+.github
