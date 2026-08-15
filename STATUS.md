@@ -5,7 +5,7 @@
 > 本文件基于 `internal/app/` 的实际路由与处理函数核对整理（非凭记忆）。
 > 项目别名：**patrick-gallery**。最后更新：2026-08-15。
 
-> **差距复盘（对照原版 Immich，逐端点 diff）**：见 [docs/GAP_ANALYSIS.md](docs/GAP_ANALYSIS.md)——端点覆盖 102/254（≈40%）、152 缺失，并按架构/功能深度/数据模型/鉴权/前端/媒体/运维/版本契约分层给出 P0–P3 优先级。
+> **差距复盘（对照原版 Immich，逐端点 diff）**：见 [docs/GAP_ANALYSIS.md](docs/GAP_ANALYSIS.md)——以「手机 APP + Web UI 功能对等」为目标，端点覆盖 102/254（≈40%）、152 缺失，按客户端面（手机/Web/共有）归类，并逐块标注受 `AGENTS.md` 硬规则的约束可行性，给出 P0–P3 优先级。
 
 ## Release 2 — in progress
 

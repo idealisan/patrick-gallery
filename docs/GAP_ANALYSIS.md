@@ -1,293 +1,320 @@
 # immich-go 与原版 Immich 差距复盘（Gap Analysis）
 
-> 目标：对当前 `immich-go`（纯 Go 单二进制复刻）与原版 Immich（以仓库内置官方 OpenAPI 契约 `open-api/immich-openapi-specs.json`，tag **v3.1.0**，254 个 operation 为基准）做一次**全面、可复核**的差距复盘。
-> 本文所有结论均基于 `internal/app/app.go` 实际路由、各 handler 实现、`internal/video`、`internal/store`、`internal/app/models.go` 与官方契约的逐项 diff，而非凭记忆。
-> 最后更新：2026-08-15。配套任务状态见 [STATUS.md](../STATUS.md)；契约回归门禁见 [CONTRACT_TESTING.md](CONTRACT_TESTING.md)；原版并排对比 harness 见 [SIDE_BY_SIDE.md](SIDE_BY_SIDE.md)。
+> **目标口径（2026-08-15 明确）**：本项目的目标是为**手机 APP** 提供与原版 Immich **一致的 API 与功能**，并为 **Web UI** 提供与原版**一致的界面与功能**。即**功能对等**，不只是「单人核心闭环」。
+>
+> 因此，本复盘不再把「多用户 / ML / 管理后台 / 通知 / OAuth」等标为「超出范围」——在「对等」目标下，它们都是**必须补齐的差距**，区别只在于实现成本与受 `AGENTS.md` 硬规则的约束程度。
+>
+> 所有结论均基于 `internal/app/app.go` 实际路由、各 handler 实现、`internal/video`、`internal/store`、`internal/app/models.go` 与官方契约 `open-api/immich-openapi-specs.json`（tag **v3.1.0**，254 operation）的逐项 diff，而非凭记忆。
+> 配套状态见 [STATUS.md](../STATUS.md)；契约门禁见 [CONTRACT_TESTING.md](CONTRACT_TESTING.md)；原版并排对比 harness 见 [SIDE_BY_SIDE.md](SIDE_BY_SIDE.md)。
 
 ---
 
 ## 0. 一句话结论
 
-immich-go 已经把**单人 / 私域场景下的核心闭环**打通了（认证、上传去重、缩略图、时间线、相册、搜索、地图、分享链接、视频进程内转码 + HLS、回收站、实时同步、反向地理编码、Live Photo）。但相对原版 Immich 它仍是一个**功能子集**：
+immich-go 目前只覆盖了原版的**单人核心闭环**。要对等原版的**手机 APP + Web UI**，差距远大于此前「核心闭环」视角所见：
 
-- **API 端点覆盖 102 / 254（约 40%）**，152 个 operation 未实现；
-- 缺失高度集中在 **ML/AI（人物/人脸/CLIP/OCR）、多用户管理、OAuth/会话、Memories、Stacks、Workflows、Notifications、Plugins、Queues、Admin 维护/备份** 等原版面向「多用户 + AI + 运维」的能力；
-- 即便已实现的端点，**功能深度也不对齐**：人物为空、视频仅单码率、分享链接字段未持久化、资产元数据只能读不能写、`visibility` 不持久化、Partner 关系存在但共享资产未透出等。
-
-下面按「架构 → 端点 → 功能深度 → 数据模型 → 鉴权 → 前端 → 媒体 → 运维 → 版本契约 → 性能」分层复盘。
-
----
-
-## 1. 架构层差距（根本性，最难补齐）
-
-| 维度 | 原版 Immich | immich-go | 差距 |
-|------|-------------|-----------|------|
-| 形态 | 微服务：NestJS `immich-server` + Python `immich-machine-learning`（TensorRT/CLIP/OCR）+ Postgres（pgvecto-rs 向量）+ Redis | 单一 Go 二进制 + SQLite（纯 Go `glebarez/sqlite` / `modernc.org/sqlite`） | 完全单体化 |
-| 存储 | 支持存储模板、外部库（离线引用）、S3/对象存储 | 仅本地磁盘目录（`resources/`）；无 S3、无存储模板重命名 | 存储形态受限 |
-| 向量/AI | Postgres + pgvecto-rs 存 CLIP 向量，机器学习的 Python 服务做推理 | 无向量库、无推理服务；`smartSearch`/`facialRecognition`/`ocr` 全为 `false` | AI 能力缺失 |
-| 多实例 | 可水平扩展（无状态 server + 外部 DB/Redis） | 单机单进程；SQLite 单写者串行 | 不可水平扩展 |
-| DB 抽象 | — | 已有 `store.Store` 接口（见 `internal/store/store.go`），但**只有 SQLite 一个实现**，Postgres 后端未落地 | 抽象存在、后端缺位 |
-
-> 说明：单体化是 `AGENTS.md` 为「单人 / 私域」主动选择的取舍，并非 bug。但由此带来的多用户、AI、运维能力缺失是结构性的。
+- **API 端点覆盖 102 / 254（≈40%）**，152 个 operation 缺失；
+- 缺失项按「客户端面」归类后，**手机 APP 对等就差一大块**（人物聚类、回忆、堆叠、PIN/会话锁、通知、语义搜索、完整 sync），**Web UI 对等还额外差一整块管理后台**（用户管理、维护、备份恢复、系统元数据、OAuth 配置、插件、工作流、队列、通知管理）；
+- 即便已实现的端点，**功能深度也不对等**（人物为空、视频仅单码率、分享链接字段未持久化、`visibility` 不持久化、Partner 共享资产未透出等）；
+- 完全对等意味着要在 `AGENTS.md` 约束（纯 Go / 无 CGO / SQLite 单用户 / 进程内视频）内或附加约束下，重做 ML 推理、多用户、管理运维、通知、OAuth 等——这是量级很大的工程，文档第 12 节显式标注每块的**约束内可行性**。
 
 ---
 
-## 2. 端点覆盖差距（252 个 operation 的精确 diff）
+## 1. 覆盖范围与数字（精确 diff）
 
-以 `scripts/...` 同款方法：把官方契约 254 个 operation 的 `method + 路径` 归一化（`{id}`→`:id`）后，与从 `internal/app/app.go` 解析出的路由逐条匹配。
+把官方契约 254 个 operation 的 `method + 路径` 归一化（`{id}`→`:id`）后，与从 `internal/app/app.go` 解析出的路由逐条匹配：
 
 - **SPEC 总计：254**
 - **方法+路径精确匹配：102（≈40%）**
 - **缺失：152**
 
-### 2.1 缺失端点按 tag 分布
+### 1.1 缺失端点按 tag 分布
 
-| Tag | 缺失 | 性质归类 |
-|-----|------|----------|
-| Authentication | 12 | OAuth/SSO + Pin + 会话锁 + admin-signup（多用户/企业） |
-| Users (admin) | 11 | 多用户管理（超出单人范围） |
-| Assets | 11 | **元数据编辑 / 复制 / edits / OCR / 资产级 job（单人也缺）** |
-| Users | 10 | 资料图、license、onboarding、calendar-heatmap 等 |
-| Maintenance (admin) | 9 | 完整性报告 / 维护模式（PG 专属） |
-| Memories | 8 | 「On this day」回忆（锦上添花） |
-| Stacks | 7 | 连拍/相似堆叠（单人也实用，但缺） |
-| Workflows | 7 | 自动化工作流（企业） |
-| Notifications | 6 | 站内/邮件通知（email 缺失） |
-| People | 6 | 人物**写入**（聚类 ML） |
-| Sessions | 6 | 设备会话管理（多用户） |
-| Database Backups (admin) | 5 | PG 备份恢复（SQLite 不适用） |
-| Albums | 5 | **相册内用户共享 / 批量（单人也实用）** |
-| Queues | 5 | 任务队列可视化（内部 runner 替代） |
-| Search | 5 | large-assets/random/statistics（单人）/smart(ML)/person(ML) |
-| Shared links | 5 | **查看/登录/资产增删（单人也实用）** |
-| Plugins | 4 | 插件系统（企业） |
-| System metadata | 4 | onboarding/version-check/reverse-geocoding 状态端点 |
-| Tags | 4 | 批量标签操作（单人也实用，小缺） |
-| Notifications (admin) | 3 | 测试邮件 / 模板（email 缺失） |
-| API keys | 3 | 单 key 读取/`me`/更新（小缺） |
-| Faces | 3（注） | 人脸 CRUD（ML） |
-| Jobs | 2 | `POST /jobs`、`PUT /jobs/:name`（方法差异） |
-| Partners | 2 | 伙伴共享变体（单人也实用） |
-| Views | 2 | 官方 Web 文件夹视图（SPA 未用） |
-| Activities | 1 | `/activities/statistics`（小缺） |
-| Authentication (admin) | 1 | `/admin/auth/unlink-all` |
+| Tag | 缺失 | 客户端面（对等所需） |
+|-----|------|----------------------|
+| Authentication | 12 | 手机 PIN/会话锁 + Web OAuth 配置（两端都要） |
+| Users (admin) | 11 | Web 管理后台用户管理 |
+| Assets | 11 | 两端：元数据编辑 / 复制 / edits / OCR / 资产级 job |
+| Users | 10 | 两端：资料图、license、onboarding、calendar-heatmap |
+| Maintenance (admin) | 9 | Web 管理后台维护/完整性 |
+| Memories | 8 | **手机 + Web 都有「回忆/On this day」** |
+| Stacks | 7 | **手机 + Web 都有连拍/相似堆叠** |
+| Workflows | 7 | Web（较新功能） |
+| Notifications | 6 | **手机接收通知 + Web 通知管理** |
+| People | 6 | **手机 + Web 都有「人物」页（聚类 ML）** |
+| Sessions | 6 | 手机 PIN/会话锁要用 |
+| Database Backups (admin) | 5 | Web 管理后台备份恢复（SQLite 不适用 PG 方式） |
+| Albums | 5 | 两端：相册内用户共享 / 批量 |
+| Queues | 5 | Web 任务队列可视化 |
+| Search | 5 | 两端：large-assets/random/statistics + smart(ML)/person(ML) |
+| Shared links | 5 | 两端：查看/登录/资产增删 |
+| Plugins | 4 | Web（较新功能） |
+| System metadata | 4 | Web onboarding/状态端点 |
+| Tags | 4 | 两端：批量标签操作 |
+| Notifications (admin) | 3 | Web 测试邮件 / 模板 |
+| API keys | 3 | 两端：单 key 读取/`me`/更新 |
+| Faces | 3* | **手机 + Web 人脸（ML）** |
+| Jobs | 2 | 方法差异（两端 job 状态） |
+| Partners | 2 | 两端：伙伴共享变体 |
+| Views | 2 | **Web 文件夹视图** |
+| Activities | 1 | 两端：统计 |
+| Authentication (admin) | 1 | Web 解绑 OAuth |
 | Download | 1 | `POST /download/archive`（immich-go 用 GET 变体） |
-| Libraries | 1 | `/libraries/:id/validate`（小缺） |
-| Server | 1 | `DELETE /server/license`（小缺） |
-| Sync | 1 | `/sync/stream`（为 stub） |
-| System config | 1 | `/system-config/storage-template-options`（存储模板） |
+| Libraries | 1 | 两端：`/libraries/:id/validate` |
+| Server | 1 | `DELETE /server/license` |
+| Sync | 1 | **手机完整双向同步（当前 stub）** |
+| System config | 1 | 存储模板选项 |
 
-> 注：`Faces` tag 4 个 operation 在 spec 中，其中 `POST /faces`、`PUT /faces/:id`、`DELETE /faces/:id` 缺失，`GET /faces`、`GET /faces/:id` 为优雅 stub。
-
-### 2.2 缺失清单（节选，按「是否单人范围」标注）
-
-**A. 单人 / 私域也应补的「真实缺口」（优先级高）**
-- 资产元数据写入：`PUT /assets/:id/metadata`、`PUT /assets/metadata`、`GET/PUT/DELETE /assets/:id/metadata/:key`、`DELETE /assets/metadata`
-- 资产复制 / 编辑历史：`PUT /assets/copy`、`GET/PUT/DELETE /assets/:id/edits`
-- 资产 OCR：`GET /assets/:id/ocr`
-- 资产级 job：`POST /assets/jobs`
-- 相册内用户共享：`PUT /albums/:id/user/:userId`、`DELETE /albums/:id/user/:userId`、`PUT /albums/:id/users`、`PUT /albums/assets`
-- 相册地图标记：`GET /albums/:id/map-markers`
-- 搜索：`POST /search/large-assets`、`POST /search/random`、`POST /search/statistics`、`GET /search/person`
-- 分享链接：`GET /shared-links/:id`、`GET /shared-links/me`、`POST /shared-links/login`、`PUT/DELETE /shared-links/:id/assets`
-- 标签批量：`PUT /tags`、`PUT /tags/assets`、`PUT /tags/:id/assets`
-- 伙伴共享变体：`POST /partners/:id`、`PUT /partners/:id`
-- API key：`GET /api-keys/:id`、`GET /api-keys/me`、`PUT /api-keys/:id`
-- 存储模板：`GET /system-config/storage-template-options`
-- 同步深化：`GET /sync/stream`（当前为 stub，无完整双向增量同步）
-
-**B. 多用户 / 企业 / 运维（按 `AGENTS.md` 主动超出范围）**
-- OAuth/SSO 全系：`/oauth/*`（authorize/callback/link/unlink/mobile-redirect/backchannel-logout）、`auth/admin-sign-up`
-- 设备会话：`/sessions/*`（含 lock）、`auth/session/lock|unlock`、`auth/pin-code`（PIN 锁）
-- 多用户管理：`/admin/users/*`、`/admin/auth/unlink-all`
-- 维护/备份：`/admin/maintenance/*`、`/admin/integrity/*`、`/admin/database-backups/*`
-- 通知/邮件：`/notifications/*`、`/admin/notifications/*`
-- 队列：`/queues/*`
-- 插件：`/plugins/*`
-- 工作流：`/workflows/*`
-- 系统元数据状态：`/system-metadata/*`
-
-**C. AI / ML（结构性缺失，需外部后端）**
-- 人物写入/聚类：`POST/PUT/DELETE /people`、`PUT /people/:id`、`DELETE /people/:id`、`GET /people/:id/thumbnail`
-- 人脸：`POST/PUT/DELETE /faces`、`GET /faces/:id`
-- 语义搜索：`POST /search/smart`（CLIP 向量）
-- OCR：`GET /assets/:id/ocr`
-
-**D. 锦上添花 / 官方 Web 专属**
-- Memories（8）、Stacks（7）、Views（2）、Download 的 POST 变体（immich-go 用 GET）
+> *`Faces` 4 个 operation 中 `GET /faces`、`GET /faces/:id` 为优雅 stub，写操作缺失。
 
 ---
 
-## 3. 已实现端点的功能深度差距（stub vs 真实）
+## 2. 差距按「客户端面」归类（对等视角）
 
-即便端点「存在」，多数也只是**形状对齐**，语义并不完整：
+### 2.1 手机 APP 对等所需（当前缺失或弱化）
 
-### 3.1 人物 / 人脸（People/Faces）
-- `GET /people` 返回**空列表**（无聚类，`facialRecognition:false`）。`Person` 表仅有手动行，没有自动创建路径。
-- `GET /people/:id/assets` 返回空形状；`/search/person` 返回 0 结果。
-- 所有人脸写操作（`POST/PUT/DELETE /faces`、`POST/PUT/DELETE /people`、缩略图）缺失。
-- **结论**：官方 App 的「人物」页为空，不影响连接但无实用价值。
+手机 Immich 实际会用到、且现状不达对的项：
 
-### 3.2 视频（HLS / 转码）
-- HLS 为**单变体、单分辨率**：把一次转码的 MP4 包装成 `master → variant → 单 segment`（`internal/app/hls.go`）。原版 v3.x 提供按质量（1080p/720p/480p）的自适应码率。
-- **OS 原生后端全是 stub**：`internal/video/native_stub.go` 中 `newVideoToolbox` / `newMediaFoundation` / `newMediaCodec` 一律返回 `errBackendUnavailable`。`AGENTS.md` 要求的「macOS VideoToolbox / Windows Media Foundation / Linux MediaCodec」硬件加速**实际未实现**，硬件加速只靠 FFmpeg 库内编码器名探测（`h264_videotoolbox`/`nvenc`/`qsv`/`amf`，见 `ffmpeg.go` 的 `selectEncoder`）。
-- 无**按需按 quality 实时转码**：`encoded_video_path` 是上传/任务时预生成的单一 h264/mp4。
-- 无 HEVC 封装（除非 FFmpeg 共享库含且客户端支持）、无多音轨/音频码率选项、无 animated/webp 动图。
-- 抽帧缩略图仅取单帧。
+| 功能 | 原版手机行为 | immich-go 现状 | 差距 |
+|------|--------------|----------------|------|
+| 人物 / 人脸 | 「人物」Tab，自动聚类、可改名、合并、隐藏 | `GET /people` 返回空；人脸写操作全缺；`facialRecognition:false` | **完全缺失（ML）** |
+| 回忆 Memories | 「On this day」时间线 | 8 个端点全缺 | **完全缺失** |
+| 堆叠 Stacks | 连拍/相似自动堆叠、可展开 | 7 个端点全缺 | **完全缺失** |
+| 语义搜索 | 「人物/地点/事物」facets（CLIP 向量） | `smartSearch:false`；`/search/smart` 缺 | **完全缺失（ML）** |
+| 搜索人物 | `/search/person` | 仅 GET stub 返回 0 | **缺失（依赖 ML）** |
+| 设备锁 / PIN | `auth/pin-code`、`auth/session/lock|unlock`、`/sessions/*` | 全缺 | **缺失（手机必备）** |
+| 通知 | 站内通知、`/notifications/*` | 全缺 | **缺失** |
+| 完整同步 | `/sync/stream` 双向增量 | 为 stub（仅 `/api/events` + Socket.IO 实时事件） | **弱化** |
+| 相册内用户共享 | 把相册共享给指定用户 | `/albums/:id/user/:userId` 等缺 | **缺失** |
+| 伙伴共享资产 | 伙伴的照片出现在自己时间线 | 关系存在但资产未透出 | **弱化** |
+| 地图瓦片 | 真实地图（样式 URL） | 离线网格，无瓦片 | **弱化** |
+| 视频自适应码率 | 多质量 HLS | 单变体单分辨率 | **弱化** |
+| OAuth 登录 | 若服务端启用 OAuth，手机走 `/oauth/*` | 全缺 | 取决于部署 |
 
-### 3.3 分享链接（Shared links）
-- `SharedLink` 模型（`internal/app/models.go`）**缺少** `allowDownload` / `allowUpload` / `description` / `password` / `showMetadata` / `slug` / `assets` 关联列。
-- 创建响应从请求体**回显**这些字段（STATUS §K 已知限制），但重读（`GET /shared-links/:id`）时丢失。密码保护未生效。
+### 2.2 Web UI 对等所需（在手机之上额外缺）
 
-### 3.4 资产元数据
-- 仅 `GET /assets/:id/metadata` 可读；**无写入端点**（见 §2.2-A）。
-- `visibility` 枚举（archive/timeline/hidden/locked）是**由 `isArchived` 推导**的（`visibilityOf()`，见 `asset.go`），`hidden`/`locked` 不会被持久化。
-- `duplicateId` / `isEdited` / `isOffline` 在 DTO 中返回，但库表无对应列（非持久化）。
+Web 管理后台 + 高级界面缺失：
 
-### 3.5 实时同步
-- `GET /api/events`（内存总线）+ `Socket.IO`（Engine.IO v4）协议层已覆盖主要变更（资产/相册增删改、回收站、相册成员）。
-- 但 `GET /sync/stream` 仍是 stub，**没有原版完整的双向增量同步协议**（客户端侧的增量拉取/确认）。官方客户端主流程靠 REST + 实时事件即可，sync 协议主要用于跨设备全量校正。
+| 功能 | 原版 Web | immich-go 现状 | 差距 |
+|------|----------|----------------|------|
+| 用户管理后台 | `/admin/users/*` | 11 端点全缺 | **完全缺失** |
+| 维护 / 完整性 | `/admin/maintenance/*`、`/admin/integrity/*` | 全缺 | **完全缺失** |
+| 数据库备份恢复 | `/admin/database-backups/*` | 全缺（SQLite 只能拷文件） | **完全缺失（架构）** |
+| 系统元数据状态 | `/system-metadata/*` | 全缺 | **缺失** |
+| OAuth/SSO 配置 UI | `/oauth/*` + admin | 全缺 | **缺失** |
+| 插件 Plugins | `/plugins/*` | 4 端点全缺 | **缺失** |
+| 工作流 Workflows | `/workflows/*` | 7 端点全缺 | **缺失** |
+| 任务队列可视化 | `/queues/*` | 全缺 | **缺失** |
+| 通知管理 | `/admin/notifications/*` | 全缺 | **缺失** |
+| 文件夹视图 | `/view/folder`、`/view/folder/unique-paths` | 全缺 | **缺失（Web 专属）** |
+| 设置 / 账户 / License | users/license/onboarding/calendar-heatmap | 部分缺 | **部分缺失** |
+| 管理面板整体 | 作业、系统配置、存储、主题、关于 | 极简 | **大幅弱化** |
 
-### 3.6 搜索
-- 文本 / EXIF 搜索（`/search`、`/search/metadata`、`/search/explore`、`/search/suggestions`）可用；facets 最小化。
-- 无语义（CLIP）搜索（`smartSearch:false`）、无人物/地点召回（人物为空）。
+### 2.3 两端共有（已覆盖但深度不对等）
 
-### 3.7 地图（Map）
-- `GET /map/markers` 按 GPS 聚类 + 离线等距投影网格 + 标记点（SPA「Map」标签页）。`reverseGeocoding:true`。
-- 但**无真实地图瓦片**（原版用 Mapbox/maplibre 样式 URL），`mapDarkStyleUrl`/`mapLightStyleUrl` 为空。反向地理编码是 1°×1° 最近城市近似（GeoNames `cities15000`），非精确行政边界。
+见第 4 节（功能深度）。
+
+---
+
+## 3. 架构层差距（对等的根本阻碍）
+
+| 维度 | 原版 Immich | immich-go | 对等影响 |
+|------|-------------|-----------|----------|
+| 形态 | 微服务：NestJS server + Python ML（TensorRT/CLIP/OCR）+ Postgres(pgvecto-rs)+ Redis | 单 Go 二进制 + SQLite | ML/多用户/缓存需另寻纯 Go 路径 |
+| 存储 | 存储模板、外部库离线、S3/对象存储 | 仅本地磁盘；无 S3、无存储模板 | Web 存储管理页无法对等 |
+| 向量/AI | Postgres+pgvecto-rs 存 CLIP 向量；Python 推理 | 无向量库、无推理；`smartSearch/facialRecognition/ocr=false` | 语义搜索/人物/ OCR 全缺 |
+| 多实例 | 无状态 server + 外部 DB/Redis 可水平扩展 | 单机单进程；SQLite 单写者串行 | 多用户并发写受限 |
+| DB 抽象 | — | `store.Store` 接口有，但**仅 SQLite 实现** | Postgres 后端未落地 |
+
+> 注：单体化本身不违反对等目标，但「ML/多用户/运维」能力必须在这套约束内以纯 Go 方式重建，或显式引入受控的外部组件——见第 12 节。
+
+---
+
+## 4. 已实现端点的功能深度差距（stub vs 真实）
+
+### 4.1 人物 / 人脸（People/Faces）
+- `GET /people` 返回空（无聚类，`facialRecognition:false`）。`Person` 表无自动创建路径。
+- `GET /people/:id/assets` 空形状；`/search/person` 返回 0。
+- 人脸写操作（`POST/PUT/DELETE /faces`、`POST/PUT/DELETE /people`、缩略图）全缺。
+- 影响：官方 App/Web 的「人物」页为空。
+
+### 4.2 视频（HLS / 转码）
+- HLS 为**单变体单分辨率**（一次转码 MP4 包装成 master→variant→单 segment，`internal/app/hls.go`）。原版提供按质量（1080p/720p/480p）自适应码率。
+- **OS 原生后端全是 stub**：`internal/video/native_stub.go` 中 `newVideoToolbox/newMediaFoundation/newMediaCodec` 一律返回 `errBackendUnavailable`。`AGENTS.md` 要求的 macOS/Windows/Linux 原生硬件加速**实际未实现**，仅 FFmpeg 库内编码器名探测可用（`ffmpeg.go` `selectEncoder`）。
+- 无**按需按 quality 实时转码**（预生成单一 `encoded_video_path`）。
+- 无 HEVC 封装、多音轨、animated/webp 动图；抽帧缩略图单帧。
+
+### 4.3 分享链接（Shared links）
+- `SharedLink` 模型缺 `allowDownload/allowUpload/description/password/showMetadata/slug/assets` 列。
+- 创建响应从请求体回显（STATUS §K 已知限制），**重读时丢失**；密码保护未生效。
+
+### 4.4 资产元数据
+- 仅 `GET /assets/:id/metadata` 可读；**无写入端点**。
+- `visibility` 枚举（archive/timeline/hidden/locked）由 `isArchived` 推导（`visibilityOf()`，`asset.go`），`hidden`/`locked` 不持久化。
+- `duplicateId/isEdited/isOffline` 仅 DTO 返回，库表无列。
+
+### 4.5 实时同步
+- `GET /api/events`（内存总线）+ `Socket.IO`（Engine.IO v4）覆盖主要变更。
+- 但 `GET /sync/stream` 仍是 stub，**无原版完整双向增量同步协议**（跨设备全量校正依赖它）。
+
+### 4.6 搜索
+- 文本/EXIF 搜索可用，facets 最小化；无 CLIP 语义搜索（`smartSearch:false`）、无人物/地点召回（人物为空）。
+
+### 4.7 地图（Map）
+- `GET /map/markers` + 离线等距投影网格 + 标记点；`reverseGeocoding:true`。
+- **无真实地图瓦片**（原版用 Mapbox/maplibre 样式）；`mapDarkStyleUrl/mapLightStyleUrl` 为空。
+- 反向地理编码为 1°×1° 最近城市近似（GeoNames `cities15000`）。
 - 缺 `GET /albums/:id/map-markers`。
 
 ---
 
-## 4. 数据模型 / 持久化差距（schema 深度）
+## 5. 数据模型 / 持久化差距
 
-`internal/app/models.go` 的表远少于原版 Immich 的 GORM 模型：
+`internal/app/models.go` 表远少于原版：
 
-**完全缺失的表/实体**
-- `Stack` / `AssetStack`（连拍/相似堆叠）
-- `Face` / `AssetFace`（人脸框与资产关联）
-- `Session`（设备会话）
-- `Memory`（回忆）
-- `Notification`
-- `Workflow` / `Plugin` / `PluginJob` / `PluginJobAsset`
-- `UserPreferences`（独立表；当前偏好内联处理、字段有限）
-- 存储模板相关列
+**完全缺失的表/实体**：`Stack`/`AssetStack`、`Face`/`AssetFace`、`Session`、`Memory`、`Notification`、`Workflow`/`Plugin`/`PluginJob`、`UserPreferences`（独立表）、存储模板相关列。
 
-**`Asset` 缺列**：`stackParentId`/`stackId`、`isEdited`、`isOffline`、`visibility` 枚举持久化、`duplicateId`、`originalMimeType`（仅 DTO 计算）、`places`、`fileCreatedAt/fileModifiedAt` 已存但 `exifInfo` 关联弱。
+**`Asset` 缺列**：`stackParentId`/`stackId`、`isEdited`、`isOffline`、`visibility` 枚举持久化、`duplicateId`、`originalMimeType`（仅 DTO 计算）、`places`。
 
-**`SharedLink` 缺列**：`allowDownload` / `allowUpload` / `description` / `password`（哈希）/ `showMetadata` / `slug` / `assets` 关联。
+**`SharedLink` 缺列**：`allowDownload/allowUpload/description/password(哈希)/showMetadata/slug/assets`。
 
-**`Partner`**：关系行存在，但**共享资产未在任何查询中透出**（timeline / search 不 join partner 资产），即伙伴共享是「空关系」。
+**`Partner`**：关系行存在，但共享资产未在任何查询透出（timeline/search 不 join partner 资产）——伙伴共享是「空关系」。
 
 ---
 
-## 5. 鉴权 / 账户差距
+## 6. 鉴权 / 账户差距
 
 - **仅 JWT**：无刷新令牌轮换、无 device session、无 PIN 锁、无 OAuth/SSO、无 LDAP。
-- **默认 JWT secret 硬编码**：`IMMICH_JWT_SECRET` 默认 `immich-dev-secret-change-me`（`config.go`），生产必须覆盖，否则可伪造令牌。
-- 无账户锁定 / 爆破防护、无密码重置邮件（`email:false`）、无注册审批 / 邀请。
-- 无 admin 用户管理端点（11 个）+ `auth/admin-sign-up`。
-- API key 仅支持 list/create/delete，缺单 key 读取、更新、`/me` 别名。
+- 手机 PIN/会话锁所需的 `auth/pin-code`、`auth/session/lock|unlock`、`/sessions/*` 全缺（第 2.1 节）——**对等手机体验的硬缺口**。
+- **默认 JWT secret 硬编码**：`IMMICH_JWT_SECRET` 默认 `immich-dev-secret-change-me`（`config.go`），生产必须覆盖。
+- 无账户锁定/爆破防护、无密码重置邮件（`email:false`）、无注册审批。
+- 无 admin 用户管理（11）+ `auth/admin-sign-up`。
+- API key 仅 list/create/delete，缺单 key 读取/更新/`/me`。
 
 ---
 
-## 6. 前端（SPA）差距
+## 7. 前端（Web UI）差距
 
-`internal/webroot/assets/app.js`（vanilla JS，无构建步骤，~976 行）覆盖：时间线图库、相册、搜索、地图、收藏、归档、回收站、上传、多选批量、管理、灯箱（图片 + 视频进程内转码播放）、分享。
+`internal/webroot/assets/app.js`（vanilla JS，无构建，~976 行）覆盖：时间线、相册、搜索、地图、收藏、归档、回收站、上传、多选批量、管理、灯箱（图片+视频转码播放）、分享。
 
-**明显缺失的官方前端能力**
+**相对原版 Web 的缺失**
 - 人物 / 人脸 UI（因 ML 缺失，自然没有）
-- Memories（「On this day」）
-- 伙伴共享界面（Partner 共享在前端无入口）
+- 回忆 Memories（「On this day」）
+- 堆叠 Stack 视图
+- 伙伴共享界面（前端无入口）
 - OAuth 登录按钮（仅密码登录）
-- 设置 / 账户 / 用户管理 / 作业管理 / 维护面板
-- 文件夹视图（`/view/folder`，官方 Web 用，SPA 未实现）
+- **完整管理后台**：用户管理、作业、系统配置、存储、OAuth、日志、主题、关于、数据库备份/恢复、维护/完整性、License
+- 文件夹视图（`/view/folder`）
 - 高级搜索 facets（人物/地点/相机细化）
 - 真实地图瓦片（仅离线网格）
+- 通知中心 UI
 
-**维护负担**：原版是 React + TypeScript + Vite 持续演进；immich-go 的无构建 vanilla SPA 需手动追赶，随官方 UI 迭代成本递增。
-
----
-
-## 7. 媒体 / 转码差距（汇总 §3.2）
-
-- 仅 h264/mp4 输出路径；无多分辨率自适应码率（ABR）。
-- 无 HEVC 封装、无音频单独处理、无动图（animated webp/gif）。
-- 无**按客户端请求的 quality 实时转码**（预生成单一 encoded-video）。
-- 抽帧缩略图单帧。
-- OS 原生硬件加速后端为 stub（仅 FFmpeg 库内编码器名探测可用）。
+**维护负担**：原版是 React+TS+Vite 持续演进；immich-go 无构建 vanilla SPA 需手动追赶。
 
 ---
 
-## 8. 运维 / 可观测 / 备份差距
+## 8. 媒体 / 转码差距（汇总 §4.2）
+- 仅 h264/mp4；无多分辨率自适应码率（ABR）。
+- 无 HEVC 封装、音频单独处理、动图。
+- 无按客户端请求 quality 实时转码；抽帧缩略图单帧。
+- OS 原生硬件加速后端为 stub。
 
-- **无 admin database-backups**（PG 备份/恢复）——SQLite 只能停服拷文件。
-- 无 integrity report / maintenance mode 端点（`/admin/integrity/*`、`/admin/maintenance/*`）。
-- 无 notifications / email（站内信、测试邮件、模板）。
+---
+
+## 9. 运维 / 可观测 / 备份差距
+- 无 admin database-backups（PG 备份/恢复）——SQLite 只能停服拷文件。
+- 无 integrity report / maintenance mode（`/admin/integrity/*`、`/admin/maintenance/*`）。
+- 无 notifications/email（站内信、测试邮件、模板）。
 - 无 queues 可视化（`/queues/*`）。
-- 无 metrics / Prometheus 端点（原版有 `/api/server/health` 简化版，immich-go 有 `ping`/`health` 但无指标）。
-- 日志/追踪为 `log.Printf` 级别，无结构化日志、无分布式追踪。
+- 无 metrics/Prometheus 端点（仅有 `ping`/`health`）。
+- 日志为 `log.Printf` 级别，无结构化日志/分布式追踪。
 
 ---
 
-## 9. 版本 / 契约维护风险（重要）
-
-- **兼容性版本漂移**：`config.go` 默认 `IMMICH_COMPAT_VERSION=1.130.0`，而仓库内置契约是 **v3.1.0**（`STATUS.md` §H 实测需显式设 `3.1.0` 才能过 v3.1.0 客户端校验）。默认广告版本与代码内契约不一致，易引发「服务器版本不匹配」。
-- **客户端快速迭代**：官方 App / Web 随版本升级可能引入新必填字段或新端点，immich-go 需持续追赶（每次契约 diff 都要补）。这是长期维护成本，非一次性工作。
-- **契约测试覆盖有限**：Schemathesis 仅跑 `examples` 阶段，实际只覆盖 30/254 个 operation；`scripts/schemathesis-allowlist.txt` 豁免 25 个已知未实现端点 + 3 个良性边界。其余 152 缺失端点不在门禁视野内（只靠本 diff 暴露）。
-- DTO 形状回归靠 `response_schema_conformance` 等检查，但「内容最小化」的桩端点（ML/sync）即使形状正确也无真实语义。
+## 10. 版本 / 契约维护风险
+- **兼容性版本漂移**：`config.go` 默认 `IMMICH_COMPAT_VERSION=1.130.0`，而仓库内置契约为 **v3.1.0**（`STATUS.md` §H 实测需显式设 `3.1.0`）。默认广告版本与内置契约不一致，易引发「服务器版本不匹配」。
+- **客户端快速迭代**：官方 App/Web 升级可能引入新必填字段/端点，需持续追赶——长期维护成本。
+- **契约测试覆盖有限**：Schemathesis 仅 `examples` 阶段，实际只覆盖 30/254 operation；`schemathesis-allowlist.txt` 豁免 25 已知未实现 + 3 良性边界。其余 152 缺失端点不在门禁视野内（仅靠本 diff 暴露）。
 
 ---
 
-## 10. 性能 / 规模差距
-
-- **SQLite 单写者串行化**：并发写会串行，多用户/高并发写可能出现锁等待甚至偶发 500（个人场景可接受，多用户不行）。
-- 无缓存层（Redis）；缩略图有 `resize_path` 落盘缓存，但原图解码/转码每次按需。
+## 11. 性能 / 规模差距
+- SQLite 单写者串行化；多用户/高并发写锁等待甚至偶发 500。
+- 无缓存层（Redis）；缩略图有 `resize_path` 落盘缓存。
 - 无水平扩展 / 多副本 / 读写分离。
 
 ---
 
-## 11. 已实现亮点（差距对照中也应肯定）
+## 12. 约束张力与可行性评估（关键）
 
-为公平起见，以下是对齐甚至优于原版「开箱即用」的部分：
-- **纯 Go / `CGO_ENABLED=0` / 单静态二进制**，跨 linux/darwin/windows × amd64/arm64（6 平台），Docker 多架构镜像。
-- **进程内 purego 视频**（无 ffmpeg CLI、无 CGO），随包分发 FFmpeg 共享库（Windows 开箱即用；Linux 推荐 Docker 镜像内含 ffmpeg）。
-- 离线反向地理编码（GeoNames 嵌入，无需外部服务）。
-- HLS 兼容（v3.1.0 客户端视频播放）。
-- Socket.IO（Engine.IO v4）+ 裸 websocket 双通道实时同步。
-- 回收站定时清理、Live Photo 配对、分享链接免登录访问、库磁盘扫描去重。
-- DTO 形状经 Schemathesis 契约回归门禁守护。
+在「对等」目标下，按 `AGENTS.md` 硬规则（纯 Go / 无 CGO / SQLite 单用户 / 进程内视频）评估每块差距的可行性：
+
+| 差距块 | 约束内可行性 | 说明 |
+|--------|--------------|------|
+| 文本/EXIF 搜索、反向地理编码、时间线、相册、分享、回收站 | ✅ 纯 Go 可做（已做） | 无额外约束 |
+| 视频转码/HLS（单码率） | ✅ 纯 Go purego（已做） | 多码率 ABR 也纯 Go 可做，工作量中 |
+| 资产元数据写入、`visibility` 持久化、分享链接字段持久化 | ✅ 纯 Go + SQLite 列扩展 | 工作量小–中 |
+| 相册内用户共享、伙伴共享资产透出 | ⚠️ SQLite 可做但需多用户模型 | 单人内「家庭共享」可行；严格多租户难 |
+| 堆叠 Stacks | ✅ 纯 Go（相似度用感知哈希/尺寸） | 工作量中 |
+| 回忆 Memories | ✅ 纯 Go（按日期聚合） | 工作量小 |
+| 设备 PIN/会话锁/Sessions | ✅ 纯 Go + SQLite | 工作量中；手机必备 |
+| 通知 Notifications（站内） | ✅ 纯 Go + SQLite | email 通知需外部 SMTP（突破纯本地约束） |
+| 人脸聚类 / 人物 | ❌ 难（ML 推理） | 纯 Go 无成熟人脸/聚类模型；需外接推理或纯 Go 移植，工程量巨大 |
+| CLIP 语义搜索 | ❌ 难（向量嵌入） | 同上；需向量存储（pgvecto-rs 等价物或纯 Go 向量索引） |
+| OCR | ❌ 难 | 纯 Go OCR 弱；需模型或外部服务 |
+| 多用户管理后台 / 维护 / 备份 / 完整性 | ⚠️ 部分可行 | SQLite 可做用户管理/维护；PG 式备份恢复不适用，需 SQLite 专属方案 |
+| OAuth/SSO | ⚠️ 需外部 IdP | 协议纯 Go 可做，但依赖外部身份提供方 |
+| 插件 / 工作流 | ❌ 架构级 | 原版插件/工作流是独立子系统，对等成本极高 |
+| 水平扩展 / 高并发 | ❌ 与 SQLite 单用户冲突 | 需 Postgres 后端（`store.Store` 已留接口） |
+
+**结论张力**：
+- 纯 Go/无 CGO/SQLite 约束下，**「数据类、UI 类、单机运维类」功能基本可对等**；
+- **「AI/ML 类」（人物、CLIP、OCR）与「插件/工作流」类**在纯 Go 约束下极难对等，必须决定：① 接受不对等，或 ② 引入纯 Go 可加载的推理库（仍受 AGENTS.md 进程内/无 CLI 约束，可做但工程量巨大），或 ③ 放宽约束引入外部 AI 服务；
+- **多用户 / 高并发** 与 SQLite 单用户约束冲突，需落地 Postgres 后端才能对等；
+- 这些抉择应回到 `AGENTS.md` 的「Release 目标」与硬规则层面确认——当前 `AGENTS.md` 写的是「Single-user / private-LAN priority，多用户 scaling 显式 out of scope」，与本次明确的「对等」目标存在冲突，建议在文档外另作决策（见第 13 节）。
 
 ---
 
-## 12. 建议优先级（big → small）
+## 13. 建议优先级（对准「手机 + Web 对等」重排）
 
-**P0 — 单人私域真实缺口（值得补，性价比高）**
-1. 资产元数据写入（`PUT /assets/:id/metadata` 等）+ `visibility` 持久化
-2. 分享链接字段持久化（allowDownload/upload/description/password/slug）+ 重读正确
-3. 相册内用户共享（`/albums/:id/user/:userId`、`/albums/:id/users`）+ 前端入口
+**P0 — 手机 APP 对等硬缺口（不做则手机体验断档）**
+1. 设备 PIN / 会话锁 / Sessions（`auth/pin-code`、`auth/session/lock|unlock`、`/sessions/*`）
+2. 资产元数据写入（`PUT /assets/:id/metadata` 等）+ `visibility` 持久化
+3. 分享链接字段持久化（allowDownload/upload/description/password/slug）+ 重读正确
 4. 伙伴共享资产透出（timeline/search join partner 资产）
-5. 修复兼容版本漂移：默认 `IMMICH_COMPAT_VERSION` 与内置契约版本对齐（统一到 v3.1.0 或调整文档）
+5. 相册内用户共享（`/albums/:id/user/:userId`、`/albums/:id/users`）+ 前端入口
+6. 修复兼容版本漂移：默认 `IMMICH_COMPAT_VERSION` 与内置契约版本统一
 
-**P1 — 增强单人体验**
-6. Stacks（连拍/相似堆叠）
-7. 搜索 large-assets / random / statistics
-8. 存储模板（`/system-config/storage-template-options` + 落盘重命名）
-9. 视频多分辨率 ABR（至少 1080p/720p 两档）
-10. OS 原生硬件加速后端落地（VideoToolbox / Media Foundation / MediaCodec via purego）
+**P1 — 手机/Web 共有体验补齐**
+7. 回忆 Memories（8 端点）
+8. 堆叠 Stacks（7 端点）
+9. 站内通知 Notifications（6 端点）+ 前端通知中心
+10. 完整同步 `/sync/stream`（双向增量）
+11. 搜索 large-assets / random / statistics
+12. 存储模板（`/system-config/storage-template-options` + 落盘重命名）
+13. 视频多分辨率 ABR（至少 1080p/720p）
+14. OS 原生硬件加速后端落地（VideoToolbox/MediaFoundation/MediaCodec via purego）
 
-**P2 — 契约/测试加固**
-11. 把 Schemathesis 门禁从 `examples` 扩到更广 phase，或补充读端点自动覆盖
-12. 把 152 缺失端点纳入「已知差距清单」持续跟踪（即本文）
+**P2 — Web 管理后台对等**
+15. 用户管理后台（`/admin/users/*`）
+16. 维护 / 完整性（`/admin/maintenance/*`、`/admin/integrity/*`）
+17. 系统元数据状态（`/system-metadata/*`）
+18. 任务队列可视化（`/queues/*`）
+19. 文件夹视图（`/view/folder`）
+20. SQLite 专属备份/恢复方案（替代 PG 式 `/admin/database-backups/*`）
 
-**P3 — 架构扩展（超出当前单人范围，按 AGENTS.md 暂不做）**
-13. Postgres 后端（`store.Store` 已有接口，落地第二个实现）
-14. ML/AI 后端（CLIP/OCR/人脸聚类）外接
-15. OAuth/SSO、Sessions、Memories、Workflows、Notifications、Plugins、Admin 维护/备份
+**P3 — AI/ML 与架构扩展（受约束，需决策）**
+21. 人脸聚类 / 人物（`/people`、`/faces` 写操作）——需纯 Go 推理或外部 AI
+22. CLIP 语义搜索（`/search/smart`）——需向量嵌入 + 向量索引
+23. OCR（`/assets/:id/ocr`）
+24. OAuth/SSO 配置 UI（`/oauth/*` + admin）
+25. 插件 / 工作流（`/plugins/*`、`/workflows/*`）
+26. Postgres 后端（`store.Store` 已有接口，落地第二实现以支持多用户/高并发）
+27. 邮件/外部通知（SMTP）
 
 ---
 
-## 13. 复现方法
+## 14. 复现方法
 
 端点 diff 可复现（需 python3 + 仓库契约）：
 ```bash
@@ -315,4 +342,4 @@ PY
 
 ---
 
-*本文为审计文档，不含代码改动。所有「未实现」项均为有意记录，便于后续规划；其中 P3 项按 `AGENTS.md` 当前范围暂不实施。*
+*本文为审计文档，不含代码改动。所有「缺失/弱化」项均按「手机 APP + Web UI 功能对等」目标记录，便于后续规划；P3 项受 `AGENTS.md` 硬规则约束，需在项目目标层面决策后实施。*
