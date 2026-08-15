@@ -100,6 +100,19 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.DELETE("/users/:id", a.handleDeleteUser)
 		api.GET("/users/:id/thumb", a.handleUserThumb)
 
+		// admin user management
+		api.GET("/admin/users", a.handleAdminListUsers)
+		api.POST("/admin/users", a.handleAdminCreateUser)
+		api.GET("/admin/users/:id", a.handleAdminGetUser)
+		api.PUT("/admin/users/:id", a.handleAdminUpdateUser)
+		api.DELETE("/admin/users/:id", a.handleAdminDeleteUser)
+		api.POST("/admin/users/:id/restore", a.handleAdminRestoreUser)
+		api.GET("/admin/users/:id/preferences", a.handleAdminUserPreferences)
+		api.PUT("/admin/users/:id/preferences", a.handleAdminUserPreferences)
+		api.GET("/admin/users/:id/calendar-heatmap", a.handleAdminUserCalendarHeatmap)
+		api.GET("/admin/users/:id/sessions", a.handleAdminUserSessions)
+		api.GET("/admin/users/:id/statistics", a.handleAdminUserStatistics)
+
 		// assets
 		api.POST("/assets", a.handleAssetUpload)
 		api.POST("/assets/check", a.handleAssetCheck)

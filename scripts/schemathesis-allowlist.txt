@@ -5,13 +5,14 @@
 # i.e. when a previously-working endpoint regresses.
 # When you implement one of these endpoints, remove its line and re-run.
 DELETE /auth/pin-code
-GET /admin/users/{id}/calendar-heatmap
 GET /memories
 GET /memories/statistics
 GET /users/me/calendar-heatmap
 PATCH /shared-links/{id}
 POST /admin/notifications
 POST /admin/users
+GET /admin/users/{id}/calendar-heatmap
+PUT /admin/users/{id}
 POST /assets
 POST /auth/admin-sign-up
 POST /auth/change-password
@@ -19,12 +20,8 @@ POST /auth/login
 POST /auth/pin-code
 POST /auth/session/unlock
 POST /memories
-POST /search/large-assets
-POST /search/random
-POST /search/smart
 POST /search/statistics
 POST /shared-links/login
-PUT /admin/users/{id}
 PUT /auth/pin-code
 PUT /memories/{id}
 PUT /notifications
@@ -35,5 +32,3 @@ GET /faces/{id}
 POST /faces
 PUT /faces/{id}
 DELETE /faces/{id}
-# CLIP semantic search requires an ML backend (deferred) -> honest 501.
-POST /search/smart

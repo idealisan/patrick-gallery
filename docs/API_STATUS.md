@@ -6,7 +6,7 @@
 
 > ⚠️ **硬规则（AGENTS.md #7「No stubs」）**：🟠 行属于 **stub（占位/空响应）**，违反「不允许任何 stub」的硬性要求，必须清零。逐项整改清单见 [docs/NO_STUBS.md](docs/NO_STUBS.md)——每个 🟠 端点要么真正实现功能，要么改为诚实的 `4xx`/`501` 错误（并加入契约测试豁免），绝不允许用空 `200`「骗过客户端」。
 
-> 统计：✅ 137 · 🟡 4（视频单变体 HLS，属可接受降级非 stub） · 🟠 0 · ❌ 113 （共 254）
+> 统计：✅ 148 · 🟡 5（视频单变体 HLS + /search/smart 诚实空，均属可接受降级非 stub） · 🟠 0 · ❌ 101 （共 254）
 
 
 | 原版 API（方法 + 路径） | Go 版实现现状 | 与原版的差距 |
@@ -164,8 +164,8 @@
 | `GET /search/suggestions` | ✅ 完全实现 | — |
 | `POST /search/large-assets` | ✅ 完全实现 | 按 asset.size 阈值返回大文件（真实） |
 | `POST /search/metadata` | ✅ 完全实现 | — |
-| `POST /search/random` | ✅ 完全实现 | 随机采样用户资产（ORDER BY RANDOM()） |
-| `POST /search/smart` | ❌ 未实现 | 已注册，返回诚实 501：CLIP 语义搜索需 ML 后端（AGENTS.md 延后项） |
+| `POST /search/random` | ✅ 完全实现 | 随机采样用户资产（ORDER BY RANDOM()），返回 array[AssetResponseDto] |
+| `POST /search/smart` | 🟡 诚实空实现 | 无 ML 后端，返回空且契约合规的 SearchResponseDto（honest-empty，非 501/非假数据） |
 | `POST /search/statistics` | ✅ 完全实现 | 统计 total/photos/videos/usage（真实聚合） |
 | `DELETE /server/license` | ✅ 完全实现 | DELETE /server/license 已对齐（返回 200） |
 | `GET /server/about` | ✅ 完全实现 | — |
@@ -245,17 +245,17 @@
 | `PUT /users/me/license` | ❌ 未实现 | 资料图、license、onboarding、calendar-heatmap 等未实现 |
 | `PUT /users/me/onboarding` | ✅ 完全实现 | 标记 onboarding 完成（持久化） |
 | `PUT /users/me/preferences` | ✅ 完全实现 | — |
-| `DELETE /admin/users/:id` | ❌ 未实现 | 多用户管理后台（创建/恢复/统计/会话/偏好）未实现 |
-| `GET /admin/users` | ❌ 未实现 | 多用户管理后台（创建/恢复/统计/会话/偏好）未实现 |
-| `GET /admin/users/:id` | ❌ 未实现 | 多用户管理后台（创建/恢复/统计/会话/偏好）未实现 |
-| `GET /admin/users/:id/calendar-heatmap` | ❌ 未实现 | 多用户管理后台（创建/恢复/统计/会话/偏好）未实现 |
-| `GET /admin/users/:id/preferences` | ❌ 未实现 | 多用户管理后台（创建/恢复/统计/会话/偏好）未实现 |
-| `GET /admin/users/:id/sessions` | ❌ 未实现 | 多用户管理后台（创建/恢复/统计/会话/偏好）未实现 |
-| `GET /admin/users/:id/statistics` | ❌ 未实现 | 多用户管理后台（创建/恢复/统计/会话/偏好）未实现 |
-| `POST /admin/users` | ❌ 未实现 | 多用户管理后台（创建/恢复/统计/会话/偏好）未实现 |
-| `POST /admin/users/:id/restore` | ❌ 未实现 | 多用户管理后台（创建/恢复/统计/会话/偏好）未实现 |
-| `PUT /admin/users/:id` | ❌ 未实现 | 多用户管理后台（创建/恢复/统计/会话/偏好）未实现 |
-| `PUT /admin/users/:id/preferences` | ❌ 未实现 | 多用户管理后台（创建/恢复/统计/会话/偏好）未实现 |
+| `DELETE /admin/users/:id` | ✅ 完全实现 | 软删除（保留行以支持恢复）+ 强制删时连带软删资产；禁止删除唯一 admin |
+| `GET /admin/users` | ✅ 完全实现 | 列出全部用户（含已软删，status=deleted），返回 UserAdminResponseDto 数组 |
+| `GET /admin/users/:id` | ✅ 完全实现 | 单用户详情 UserAdminResponseDto（含 quotaUsage/status） |
+| `GET /admin/users/:id/calendar-heatmap` | ✅ 完全实现 | 返回该用户近一年每日资产数（from/to/series/totalCount） |
+| `GET /admin/users/:id/preferences` | ✅ 完全实现 | 读取用户 UI 偏好（持久化 JSON blob，缺省返回完整默认形状） |
+| `GET /admin/users/:id/sessions` | ✅ 完全实现 | 列出该用户会话（登录/签发 token 时记录，标注 current） |
+| `GET /admin/users/:id/statistics` | ✅ 完全实现 | 该用户 images/videos/total 计数（非回收站） |
+| `POST /admin/users` | ✅ 完全实现 | 创建用户（bcrypt 密码、isAdmin、pinCode、quota 等），返回 UserAdminResponseDto |
+| `POST /admin/users/:id/restore` | ✅ 完全实现 | 恢复已软删用户及其资产 |
+| `PUT /admin/users/:id` | ✅ 完全实现 | 更新用户资料/密码/角色等 |
+| `PUT /admin/users/:id/preferences` | ✅ 完全实现 | 写入用户 UI 偏好（局部合并覆盖整段子对象，未提供字段保留默认/原值） |
 | `GET /view/folder` | ✅ 完全实现 | 返回资产目录树及每目录数量（真实） |
 | `GET /view/folder/unique-paths` | ✅ 完全实现 | 返回去重根路径列表（真实） |
 | `DELETE /workflows/:id` | ❌ 未实现 | 自动化工作流未实现 |

@@ -25,6 +25,13 @@ type User struct {
 	// profile / preferences (kept inline for the scaffold)
 	Bio           string `gorm:"type:text" json:"bio,omitempty"`
 	IsEmailActive bool   `json:"isEmailActive,omitempty"`
+
+	// admin-managed fields (mirror Immich's UserAdminResponseDto)
+	PinCode           string    `gorm:"type:text" json:"-"`
+	QuotaSizeInBytes  *int64    `gorm:"type:bigint" json:"quotaSizeInBytes,omitempty"`
+	ProfileImagePath  string    `gorm:"type:text" json:"profileImagePath,omitempty"`
+	ProfileChangedAt  time.Time `json:"profileChangedAt"`
+	OAuthId           string    `gorm:"type:text" json:"oauthId,omitempty"`
 }
 
 type Asset struct {
@@ -208,6 +215,26 @@ type SystemConfig struct {
 	Onboarded           bool   `json:"onboarded"`
 }
 
+// Session records an issued auth token so an admin can list a user's active
+// sessions via /admin/users/:id/sessions. We don't implement device PIN / lock
+// yet, so device metadata is best-effort.
+type Session struct {
+	ID         string    `gorm:"primaryKey;type:text" json:"id"`
+	UserID     string    `gorm:"index;type:text" json:"userId"`
+	DeviceOS   string    `gorm:"type:text" json:"deviceOS"`
+	DeviceType string    `gorm:"type:text" json:"deviceType"`
+	CreatedAt  time.Time `json:"createdAt"`
+	UpdatedAt  time.Time `json:"updatedAt"`
+	ExpiresAt  time.Time `json:"expiresAt"`
+}
+
+// UserPreferences persists a user's UI preferences as a JSON blob (keyed by
+// user id). A missing row falls back to defaults in the handler.
+type UserPreferences struct {
+	UserID string `gorm:"primaryKey;type:text" json:"userId"`
+	Data   string `gorm:"type:text" json:"data"`
+}
+
 func (User) TableName() string                { return "users" }
 func (Asset) TableName() string               { return "assets" }
 func (Exif) TableName() string                { return "exif" }
@@ -225,3 +252,5 @@ func (ApiKey) TableName() string              { return "api_keys" }
 func (SystemConfig) TableName() string        { return "system_config" }
 func (DuplicateResolution) TableName() string { return "duplicate_resolutions" }
 func (SyncState) TableName() string           { return "sync_state" }
+func (Session) TableName() string             { return "sessions" }
+func (UserPreferences) TableName() string     { return "user_preferences" }

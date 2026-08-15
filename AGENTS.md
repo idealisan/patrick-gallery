@@ -6,21 +6,29 @@ target described below.
 
 ## Active goal
 
-**即时目标（必须可用）**：让**单个用户**用自己的**手机 APP** 和**网页**，
+**即时目标（已达成，持续保持）**：让**单个用户**用自己的**手机 APP** 和**网页**，
 完成**个人相册的管理与跨端同步**——即照片/视频的备份上传、浏览（时间线/相册/
 搜索/地图）、收藏/归档/回收站、分享链接、库扫描，以及手机与网页之间的实时刷新。
 这一范围已在 `docs/GAP_ANALYSIS.md` §14 逐项正确认为「已可用且与 v3.1.0 契约兼容」。
 
-**方向目标（更长线）**：在即时目标稳固后，再逐步向原版更多能力面靠拢
-（管理后台、更完整的同步协议、用户体验细化）。
+**方向目标（当前活动阶段）**：在单人闭环稳固的基础上，逐步补齐「**多用户**」
+能力面——先落地账户与权限基座（用户管理后台 `/admin/users/*` 已完成），再实现
+伙伴/相册内资产共享透出、按用户的资源隔离与配额、以及更完整的同步协议与体验细化。
+多用户能力必须在既有硬规则（纯 Go / 无 CGO / SQLite 单实例 / 进程内视频）内以纯
+Go 方式重建，或显式引入受控的外部组件；水平多租户扩展仍属延后项（见下）。
 
-**显式延后项（不在即时目标内，受 `AGENTS.md` 硬规则约束，需单独评估）**：
+**显式延后项（受 `AGENTS.md` 硬规则约束，需单独评估，不阻塞多用户基础）**：
 - **机器学习相关**：人物聚类/人脸、CLIP 语义搜索、OCR——纯 Go 内无成熟推理
   模型，需外接推理或纯 Go 移植，工程量巨大。
-- **强多用户 / 个性化**：完整多租户、水平扩展高并发、伙伴/相册内多用户共享、
-  插件/工作流子系统、OAuth/SSO（需外部 IdP）、邮件/外部通知、Memories、Stacks。
-  这些项在 `docs/GAP_ANALYSIS.md` 中按「约束可行性 ✅/⚠️/❌」逐块标注，归入 P3；
-  它们不属于「单人个人管理+同步」的即时目标。
+- **架构/集成类延后项**：完整多租户水平扩展高并发（需 Postgres 后端，
+  `store.Store` 已留接口）、插件/工作流子系统、OAuth/SSO（需外部 IdP）、
+  邮件/外部通知、Memories、Stacks。这些在 `docs/GAP_ANALYSIS.md` 按
+  「约束内可行性 ✅/⚠️/❌」逐块标注，归入 P3；其中**水平扩展**与 SQLite 单用户
+  约束冲突，需 Postgres 后端落地后才对等。
+- **已实现基础（不再延后）**：用户/账户管理后台 `/admin/users/*` 已完成；
+  伙伴关系、相册内用户共享的关系模型已存在，下一步是把共享资产透出到
+  timeline/search（见 `docs/GAP_ANALYSIS.md` §13）。多用户能力已转入**活动阶段**，
+  在纯 Go / SQLite 单实例约束内逐步推进。
 
 > 权威差距跟踪见 [docs/GAP_ANALYSIS.md](docs/GAP_ANALYSIS.md)。该文档以「手机 APP
 > + Web UI 功能对等」做完整端点 diff；其中的 §14 专门核验了「单人个人管理+同步」
@@ -48,13 +56,16 @@ target described below.
 4. **Database abstraction layer.** The app must depend on a `store.Store`
    interface, not on `*gorm.DB` directly, so a Postgres (or other) backend
    can be added later without touching handlers.
-5. **Single-owner / private-LAN optimization (default).** The default
-   deployment targets one owner on a LAN: SQLite + WAL, sensible busy_timeout,
-   cheap concurrency. **True multi-tenant horizontal scaling is out of scope
-   for now** (pending a Postgres backend behind `store.Store`). This does
-   **not** exempt the parity goal: partner sharing and in-album user sharing
-   within the owner's sphere must work, and all core media endpoints must stay
-   contract-compatible with the official clients.
+5. **Single-instance / private-LAN optimization (default).** The default
+   deployment targets a single immich-go instance on a LAN: SQLite + WAL,
+   sensible busy_timeout, cheap concurrency. **Multiple user accounts within
+   one instance are now supported** (the user/account management base is
+   implemented), but **true multi-tenant horizontal scaling is still deferred**
+   (pending a Postgres backend behind `store.Store`). This does **not** exempt
+   the parity goal: partner sharing and in-album user sharing must work, and
+   all core media endpoints must stay contract-compatible with the official
+   clients. New multi-user code MUST keep working under SQLite (no assumption
+   of a horizontally-sharded store) until the Postgres backend lands.
 6. **Original frontend port.** Aim to fully port the official Immich web
    frontend; at minimum the web UI must correctly browse, play, and manage
    images and videos.
@@ -122,8 +133,8 @@ target described below.
 - The authoritative gap tracker (endpoint coverage + parity verdict) is
   [docs/GAP_ANALYSIS.md](docs/GAP_ANALYSIS.md). Core media functions
   (upload/sync/management) are tracked there as "done & contract-compatible";
-  ML and strong multi-user/personalized features are the explicitly deferred
-  categories.
+  ML and horizontal-scaling features remain the explicitly deferred categories,
+  while multi-user account management is now an active workstream (see §13).
 
 ### Dependency bundling (hard rule)
 

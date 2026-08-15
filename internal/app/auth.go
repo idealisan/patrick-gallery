@@ -131,6 +131,7 @@ func (a *App) handleLogin(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	a.recordSession(u.ID)
 	c.JSON(http.StatusCreated, gin.H{
 		"accessToken":          token,
 		"userToken":            token,
@@ -181,6 +182,7 @@ func (a *App) handleSignup(c *gin.Context) {
 		return
 	}
 	token, _ := a.issueToken(u.ID)
+	a.recordSession(u.ID)
 	c.JSON(http.StatusCreated, gin.H{"accessToken": token, "userId": u.ID, "userEmail": u.Email, "name": u.Name, "isAdmin": true})
 }
 

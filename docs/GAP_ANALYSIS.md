@@ -25,7 +25,8 @@ immich-go 目前只覆盖了原版的**单人核心闭环**。要对等原版的
 - ✅ **已满足**（详见 §14 核验）：照片/视频备份上传、去重、时间线/相册/搜索/地图浏览、收藏/归档/回收站、分享链接、库扫描、作业、实时事件推送（websocket + Socket.IO）。核心媒体闭环对单人个人场景**已真正可用且 v3.1.0 契约兼容**。
 - ⚠️ **唯一开箱 blocker（已修）**：`config.go` 默认 `IMMICH_COMPAT_VERSION=1.130.0` 与仓库内置契约 v3.1.0 不一致，会导致客户端报「版本不匹配」。已改为默认 `3.1.0`，开箱即与已验证契约对齐。
 - 🔍 **需用真实客户端验证的一项**：原版手机 APP 的双向增量同步端点 `/sync/stream` 当前为 stub；主流程靠 REST + 实时事件即可刷新，但完整首次全量校正依赖该端点，建议用真实 APP 实测确认不影响备份/同步。
-- ❌ **不在本即时目标内**（归入 P3 / 显式延后）：ML（人物/CLIP/OCR）、管理后台（用户/维护/备份/系统元数据）、OAuth/SSO、通知、插件/工作流、Memories、Stacks、伙伴/多用户共享、PIN/设备会话锁。这些不影响「单人个人管理+同步」。
+- ❌ **不在本即时目标内（归入 P3 / 显式延后）**：ML（人物/CLIP/OCR）、OAuth/SSO、通知、插件/工作流、Memories、Stacks、PIN/设备会话锁、水平扩展。这些不影响「单人个人管理+同步」。
+- ✅ **多用户已转入活动阶段**：用户/账户管理后台 `/admin/users/*` 已实现（见 §13 P2-15）；伙伴/相册内用户共享的关系模型已存在。下一阶段把共享资产透出到 timeline/search、补相册内共享前端入口与按用户资源隔离（见 §13 多用户路线），均在纯 Go / SQLite 单实例约束内推进。
 
 > 一句话：达成「单人个人管理+同步可用」所需的代码，基本已经写好并通过核验；剩下的只是把默认版本对齐、并用真机走一遍同步。
 
@@ -44,7 +45,7 @@ immich-go 目前只覆盖了原版的**单人核心闭环**。要对等原版的
 | Tag | 缺失 | 客户端面（对等所需） |
 |-----|------|----------------------|
 | Authentication | 12 | 手机 PIN/会话锁 + Web OAuth 配置（两端都要） |
-| Users (admin) | 11 | Web 管理后台用户管理 |
+| Users (admin) | 11 | ✅ 已实现（`/admin/users/*` 全部 real，见 §13 P2-15） |
 | Assets | 11 | 两端：元数据编辑 / 复制 / edits / OCR / 资产级 job |
 | Users | 10 | 两端：资料图、license、onboarding、calendar-heatmap |
 | Maintenance (admin) | 9 | Web 管理后台维护/完整性 |
@@ -108,7 +109,7 @@ Web 管理后台 + 高级界面缺失：
 
 | 功能 | 原版 Web | immich-go 现状 | 差距 |
 |------|----------|----------------|------|
-| 用户管理后台 | `/admin/users/*` | 11 端点全缺 | **完全缺失** |
+| 用户管理后台 | `/admin/users/*` | 11 端点全缺 | ✅ 已实现（real，admin 角色守护） |
 | 维护 / 完整性 | `/admin/maintenance/*`、`/admin/integrity/*` | 全缺 | **完全缺失** |
 | 数据库备份恢复 | `/admin/database-backups/*` | 全缺（SQLite 只能拷文件） | **完全缺失（架构）** |
 | 系统元数据状态 | `/system-metadata/*` | 全缺 | **缺失** |
@@ -307,12 +308,33 @@ Web 管理后台 + 高级界面缺失：
 14. OS 原生硬件加速后端落地（VideoToolbox/MediaFoundation/MediaCodec via purego）
 
 **P2 — Web 管理后台对等**
-15. 用户管理后台（`/admin/users/*`）
+15. 用户管理后台（`/admin/users/*`）—— ✅ **已实现（real，非 stub）**：11 个端点全部落地（列出/创建/详情/更新/软删/恢复/偏好读写在 `/admin/users/:id` 下，外加 `calendar-heatmap`/`sessions`/`statistics`）。端点需 admin 角色；`sessions` 在登录/签发 token 时记录；偏好以 JSON blob 持久化。属单人/私域范围内的多用户管理（伙伴、相册内共享用户）。
 16. 维护 / 完整性（`/admin/maintenance/*`、`/admin/integrity/*`）
 17. 系统元数据状态（`/system-metadata/*`）
 18. 任务队列可视化（`/queues/*`）
 19. 文件夹视图（`/view/folder`）
 20. SQLite 专属备份/恢复方案（替代 PG 式 `/admin/database-backups/*`）
+
+### 多用户功能路线（活动阶段）
+
+账户与权限基座已落地（P2-15 `/admin/users/*`），多用户从「显式延后」转为**当前活动工作流**。在纯 Go / 无 CGO / SQLite 单实例约束内逐步推进；水平多租户扩展仍属 P3（需 Postgres 后端，见 P3-26）。
+
+**已完成（基座）**
+- 用户账户管理：`/admin/users/*` 11 端点（CRUD、软删/恢复、偏好、会话、统计、日历热力），受 admin 角色守护。
+- 关系模型已存在：`Partner`（伙伴）、`AlbumUser`（相册内用户共享）、`SharedLink`（分享链接）、`ApiKey`（设备/API 令牌）。
+- 登录/注册时已记录 `Session`（登录/签发 token 时落 `sessions` 表）。
+- `User` 已含 `QuotaSizeInBytes` / `StorageLabel` / `PinCode` 等字段（配额/存储标签的数据层已备）。
+
+**下一阶段（按优先级）**
+1. **伙伴共享资产透出**（P0-4）：`Partner` 关系存在，但 timeline/search 未 join 伙伴资产——把伙伴资产按「只读」并入当前用户时间线/搜索，且按 `owner_id` 正确隔离。
+2. **相册内用户共享可用化**（P0-5）：`/albums/:id/user/:userId`、`/albums/:id/users` 端点已存在，需补前端入口 + 按共享角色（editor/viewer）做资产/编辑权限校验；共享给指定用户后其时间线能看到该相册。
+3. **按用户资源隔离与配额**：确认所有 asset/album/library 查询严格 `owner_id` 作用域（已大部分做到）；实现 `quotaSizeInBytes` 的写入配额校验（当前仅存储、未强制）。
+4. **认证加固（可选，按需在 P3 推进）**：刷新令牌轮换、device session 管理（表已备）、PIN 锁——在纯 Go 内可做，不依赖外部组件。
+
+**约束与边界（与 `AGENTS.md` 一致）**
+- 不得假设水平分片存储：多用户代码须先在 SQLite 单实例跑通；Postgres 仅用于解除「水平扩展」这一项约束。
+- OAuth/SSO（P3-24）、邮件/外部通知（P3-27）依赖外部 IdP/SMTP，纯 Go 协议可做但需外部依赖；在依赖就绪前以诚实 4xx/501 暴露，不得假成功（见 `AGENTS.md` 硬规则 7 与 `NO_STUBS.md`）。
+- 所有新增多用户端点必须契约兼容（`schemathesis_check.py` 守护），不得引入 fake-success stub。
 
 **P3 — AI/ML 与架构扩展（受约束，需决策）**
 21. 人脸聚类 / 人物（`/people`、`/faces` 写操作）——需纯 Go 推理或外部 AI

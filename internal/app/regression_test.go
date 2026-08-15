@@ -486,11 +486,11 @@ func TestSearchAggregations(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("random -> %d", w.Code)
 	}
-	var rnd searchResponse
+	var rnd []AssetResponse
 	if err := json.Unmarshal(w.Body.Bytes(), &rnd); err != nil {
 		t.Fatalf("random decode: %v", err)
 	}
-	if rnd.Assets.Total < 1 {
+	if len(rnd) < 1 {
 		t.Errorf("random returned no assets")
 	}
 
@@ -499,18 +499,26 @@ func TestSearchAggregations(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("large-assets -> %d", w.Code)
 	}
-	var large searchResponse
+	var large []AssetResponse
 	if err := json.Unmarshal(w.Body.Bytes(), &large); err != nil {
 		t.Fatalf("large-assets decode: %v", err)
 	}
-	if large.Assets.Total < 2 {
-		t.Errorf("large-assets returned %d, want >=2", large.Assets.Total)
+	if len(large) < 2 {
+		t.Errorf("large-assets returned %d, want >=2", len(large))
 	}
 
-	// smart search must be an honest 501 (CLIP/ML deferred).
+	// smart search: no ML backend, so it returns an empty, schema-conformant
+	// SearchResponseDto (honest-empty, not a 501).
 	w = do(r, "POST", "/api/search/smart", token, mustJSON(t, map[string]string{"query": "cat"}), "application/json")
-	if w.Code != http.StatusNotImplemented {
-		t.Errorf("smart search -> %d, want 501", w.Code)
+	if w.Code != http.StatusOK {
+		t.Errorf("smart search -> %d, want 200", w.Code)
+	}
+	var smart searchResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &smart); err != nil {
+		t.Fatalf("smart decode: %v", err)
+	}
+	if smart.Assets.Total != 0 {
+		t.Errorf("smart search expected empty results, got %d", smart.Assets.Total)
 	}
 
 	_ = app

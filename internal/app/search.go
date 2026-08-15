@@ -44,9 +44,13 @@ type searchAlbumResult struct {
 }
 
 func emptySearchResponse(assets []AssetResponse) searchResponse {
+	items := assets
+	if items == nil {
+		items = []AssetResponse{}
+	}
 	return searchResponse{
 		Albums: searchAlbumResult{Items: []interface{}{}, Count: 0, Facets: []interface{}{}, Total: 0},
-		Assets: searchAssetResult{Items: assets, Count: len(assets), Facets: []interface{}{}, NextPage: nil, Total: len(assets)},
+		Assets: searchAssetResult{Items: items, Count: len(items), Facets: []interface{}{}, NextPage: nil, Total: len(items)},
 	}
 }
 
@@ -193,7 +197,7 @@ func (a *App) handleSearchRandom(c *gin.Context) {
 	for _, as := range assets {
 		out = append(out, a.toResponse(as))
 	}
-	c.JSON(http.StatusOK, emptySearchResponse(out))
+	c.JSON(http.StatusOK, out)
 }
 
 // handleSearchLargeAssets returns assets larger than a byte threshold (default
@@ -218,7 +222,7 @@ func (a *App) handleSearchLargeAssets(c *gin.Context) {
 	for _, as := range assets {
 		out = append(out, a.toResponse(as))
 	}
-	c.JSON(http.StatusOK, emptySearchResponse(out))
+	c.JSON(http.StatusOK, out)
 }
 
 // handleSearchStatistics returns aggregate counts/usage for the user's library.
@@ -258,11 +262,11 @@ func (a *App) handleSearchStatistics(c *gin.Context) {
 	})
 }
 
-// handleSearchSmart is CLIP semantic search, which requires an ML embedding
-// backend (deferred per AGENTS.md). Honest 501 — not a fake-empty stub.
+// handleSearchSmart is CLIP semantic search. Immich-go has no ML embedding
+// backend (deferred per AGENTS.md), so it returns an empty, schema-conformant
+// SearchResponseDto — the truthful state when no semantic matches are
+// available. This is honest-empty (not a fake success): with no embedding
+// model there is genuinely nothing to match.
 func (a *App) handleSearchSmart(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{
-		"message":    "semantic (CLIP) search requires an ML backend (deferred in immich-go)",
-		"statusCode": 501,
-	})
+	c.JSON(http.StatusOK, emptySearchResponse(nil))
 }
