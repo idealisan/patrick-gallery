@@ -5,6 +5,8 @@
 > 本文件基于 `internal/app/` 的实际路由与处理函数核对整理（非凭记忆）。
 > 项目别名：**patrick-gallery**。最后更新：2026-08-15。
 
+> **差距复盘（对照原版 Immich，逐端点 diff）**：见 [docs/GAP_ANALYSIS.md](docs/GAP_ANALYSIS.md)——端点覆盖 102/254（≈40%）、152 缺失，并按架构/功能深度/数据模型/鉴权/前端/媒体/运维/版本契约分层给出 P0–P3 优先级。
+
 ## Release 2 — in progress
 
 > 目标：视频在进程内完全可用（FFmpeg 共享库经 purego 加载、随包分发）、图像 API 补全、数据库抽象、官方前端移植。最后更新：2026-08-09。
