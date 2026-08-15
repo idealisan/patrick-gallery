@@ -1,6 +1,11 @@
-# CNB 云原生开发环境配置
-# 说明：仅声明 4 核 CPU（文档来源 https://docs.cnb.cool/zh/workspaces/custom-dev-pipeline.md）
-# runner.cpus 最大 64 核；内存按 cpus × 2GB 自动分配（4 核 = 8GB）。
+# CNB 云原生开发 + 云原生构建 配置
+#
+# 1) 云原生开发环境（WebIDE / 开发容器）—— 保留原 dev pipeline 配置。
+# 2) 云原生构建：推送 Git tag 时，构建并推送多架构 Docker 镜像到 CNB 制品库
+#    （docker.cnb.cool）。`services: - docker` 会自动 docker login 到
+#    docker.cnb.cool，且默认支持 buildx 多架构（无需额外 QEMU 配置）。
+
+# ---- 云原生开发环境 ----
 $:
   vscode:
     - runner:
@@ -9,3 +14,24 @@ $:
         image: cnbcool/default-dev-env
       services:
         - vscode
+
+  # ---- 发布镜像流水线：打 tag 时触发 ----
+  tag_push:
+    - name: release-docker-image
+      # dind 服务：自动注入 docker daemon/cli 并 login 到 docker.cnb.cool
+      services:
+        - docker
+      stages:
+        - name: build-and-push-multiarch
+          script:
+            # CNB 默认支持 buildx 多架构；TARGETOS/TARGETARCH 由 buildx 自动注入
+            # 给 Dockerfile 的 ARG（见 Dockerfile）。镜像推送到当前仓库制品库：
+            #   ${CNB_DOCKER_REGISTRY}/${CNB_REPO_SLUG_LOWERCASE}:<tag>
+            #   ${CNB_DOCKER_REGISTRY}/${CNB_REPO_SLUG_LOWERCASE}:latest
+            - TAG="${CNB_TAG:-$(git describe --tags --exact-match 2>/dev/null)}"
+            - docker buildx create --use
+            - docker buildx build
+              --platform linux/amd64,linux/arm64
+              -t "${CNB_DOCKER_REGISTRY}/${CNB_REPO_SLUG_LOWERCASE}:${TAG}"
+              -t "${CNB_DOCKER_REGISTRY}/${CNB_REPO_SLUG_LOWERCASE}:latest"
+              --push .

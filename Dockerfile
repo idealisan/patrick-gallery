@@ -30,10 +30,12 @@ RUN apt-get update \
 # ship versioned ones (libavformat.so.59 ...), so create unversioned symlinks
 # next to the binary. Their NEEDED deps resolve via the system ld.so cache.
 RUN mkdir -p /usr/local/bin/libs && \
+    triplet=$(dpkg-architecture -qDEB_HOST_MULTIARCH 2>/dev/null || echo x86_64-linux-gnu); \
     for l in libavformat libavcodec libavutil libswscale libswresample libavfilter libavdevice; do \
-      f=$(ls /usr/lib/x86_64-linux-gnu/$l.so.* 2>/dev/null | head -1); \
+      f=$(ls /usr/lib/$triplet/$l.so.* 2>/dev/null | head -1); \
       [ -n "$f" ] && ln -sf "$f" /usr/local/bin/libs/$l.so; \
-    done
+    done && \
+    ls -l /usr/local/bin/libs
 WORKDIR /data
 COPY --from=build /out/immich-go /usr/local/bin/immich-go
 ENV IMMICH_PORT=8081 \

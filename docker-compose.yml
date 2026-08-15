@@ -1,0 +1,97 @@
+# 原版 Immich v3.1.0 并排对比用 compose（与 immich-go 的兼容目标一致）
+#
+# 用途：在 Docker 可用的机器上拉起“原版 Immich”，再另起 immich-go，
+#       用 scripts/compare_origins.sh 对两套 API 做并排一致性对比。
+# 本沙箱（无 CAP_SYS_ADMIN）无法运行 dockerd，故仅提供可复用配置，
+# 需在具备 Docker 的主机执行（见 docs/SIDE_BY_SIDE.md）。
+#
+# 端口：原版 Immich 走 2283；immich-go 走 8081（见下方注释，分开避免冲突）。
+#
+# 启动原版：  docker compose -f docker-compose.yml up -d
+# 首次建管理员：浏览器打开 http://localhost:2283 完成初始化
+#   （或设置下方 IMMICH_ADMIN_EMAIL / IMMICH_ADMIN_PASSWORD 后由服务器引导创建）
+# 然后启动 immich-go：  ./immich-go   （默认 http://localhost:8081）
+
+services:
+  immich_postgres:
+    container_name: immich_postgres
+    image: tensorchord/pgvecto-rs:pg14-v0.2.0
+    restart: always
+    env_file:
+      - .env
+    environment:
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_DB: ${DB_DATABASE_NAME:-immich}
+      PG_DATA:/var/lib/postgresql/data
+    volumes:
+      - immich_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres} -d ${DB_DATABASE_NAME:-immich}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    # 与原版一致，单独网络避免与 immich-go 的 5432 冲突时复用宿主机端口
+    ports:
+      - "5432:5432"
+
+  redis:
+    container_name: immich_redis
+    image: redis:7.2.4-alpine
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  immich_server:
+    container_name: immich_server
+    image: ghcr.io/immich-app/immich-server:release-3.1.0
+    restart: always
+    ports:
+      - "2283:3001"
+    depends_on:
+      immich_postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DB_HOSTNAME: immich_postgres
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_DATABASE_NAME: ${DB_DATABASE_NAME:-immich}
+      REDIS_HOSTNAME: redis
+      IMMICH_API_PORT: 3001
+      # 首次启动引导创建的管理员（与原 immich-go 默认一致，便于并排对比）
+      IMMICH_ADMIN_EMAIL: ${IMMICH_ADMIN_EMAIL:-admin@immich.app}
+      IMMICH_ADMIN_PASSWORD: ${IMMICH_ADMIN_PASSWORD:-password}
+    volumes:
+      - immich_upload:/usr/src/app/upload
+    healthcheck:
+      # 用 v3.1.0 的公开接口；旧 /api/server/ping 在某些版本未开放，故探测 /api/about
+      test: ["CMD-SHELL", "curl -fsS http://localhost:3001/api/about >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  immich_machine_learning:
+    container_name: immich_machine_learning
+    image: ghcr.io/immich-app/immich-machine-learning:release-3.1.0
+    restart: always
+    ports:
+      - "3003:3003"
+    env_file:
+      - .env
+    environment:
+      # 关闭 GPU 以在普通机器上可跑；并排对比只关心 API 面，ML 可降级
+      DISABLE_GPU: "true"
+    volumes:
+      - immich_model_cache:/cache
+
+volumes:
+  immich_pgdata:
+  immich_upload:
+  immich_model_cache:

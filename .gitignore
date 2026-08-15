@@ -18,3 +18,6 @@
 .schemathesis/
 scripts/__pycache__/
 reports/schemathesis/regression/
+
+# 原版 Immich 并排对比 compose 的本地密钥（由 .env.example 复制）
+.env

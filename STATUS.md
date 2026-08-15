@@ -276,4 +276,17 @@
 
 **已固化为回归测试手段**：新增自包含门禁 `scripts/schemathesis_check.py`（构建+启动+登录+跑 Schemathesis+解析 JUnit+裁决）。裁决规则——关键检查 `response_schema_conformance` / `content_type_conformance` / `not_a_server_error`(5xx) 任一 >0 即失败；`status_code_conformance` 缺口仅在 `scripts/schemathesis-allowlist.txt`（25 个已知未实现端点 + 3 个良性边界）中豁免，出现未列出的 operation 即判回归。已接入 `.github/workflows/ci.yml` 的 `contract-test` job（push/PR 门禁）。方法文档：`docs/CONTRACT_TESTING.md`。本地复现：`python3 scripts/schemathesis_check.py`。
 
+### L. 多架构镜像流水线（`.cnb.yml`）+ 原版 Immich 并排对比
+
+**1. 多架构 Docker 镜像流水线（`.cnb.yml`）**
+- 在既有云原生开发配置（`$:` → `vscode:`）之外，新增 `tag_push` 流水线：推送 Git tag 时，用 `services: - docker`（CNB 自动 `docker login` 到 `docker.cnb.cool`）经 `docker buildx` 构建并推送 **linux/amd64 + linux/arm64** 镜像到 `docker.cnb.cool/finalappstore/immich-go:<tag>` 与 `:latest`。CNB 默认支持 buildx 多架构（无需额外 QEMU 配置）。镜像 tag 取 `${CNB_TAG}`，兜底用 `git describe --tags --exact-match`。
+- `Dockerfile` 修正为**多架构安全**：FFmpeg 软链接原硬编码 `/usr/lib/x86_64-linux-gnu/`，在 arm64 镜像里会缺失导致视频后端失效；改为用 `dpkg-architecture -qDEB_HOST_MULTIARCH` 取三元组（`x86_64-linux-gnu` / `aarch64-linux-gnu`），保证两种架构的 `<exe dir>/libs/*.so` 软链接都正确，进程内 purego 视频转码在两种架构上均可工作。
+- 注：尚未实际触发（需推送新 tag 才会跑；本沙箱无 dockerd 也无法本地 `docker build` 验证）。请在下次发版 tag 时观察 CNB 构建记录。
+
+**2. 原版 Immich 并排对比（Docker side-by-side）**
+- 新增 `docker-compose.yml`：拉起原版 Immich **v3.1.0** 全家桶（pgvecto-rs postgres + redis + immich-server + machine-learning，端口 2283），与 immich-go 默认 `:8081` 分开，便于同机并排。
+- 新增 `scripts/compare_origins.py`：对原版 Immich 与 immich-go 各跑一次 Schemathesis（同一份 v3.1.0 契约），解析两份 JUnit，按 endpoint 打印 `ORIGIN / IMMICH-GO / NOTE`（`OK` / `GAP` / `BOTH_FAIL` / `GO-AHEAD`），直接看出 immich-go 的覆盖缺口与 DTO 形状差异。
+- 文档 `docs/SIDE_BY_SIDE.md`：含前置、步骤、预期结论与限制。
+- ⚠️ **执行阻塞**：本开发沙箱缺少 `CAP_SYS_ADMIN`，无法启动 `dockerd`，因此并排对比**无法在此环境运行**；上述 compose / 脚本 / 文档为可复用产物，需在具备 Docker 的主机执行。原版 Immich 的 machine-learning 已关 GPU（`DISABLE_GPU=true`），因并排只关心 API 面。
+
 
