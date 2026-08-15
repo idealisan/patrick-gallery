@@ -138,6 +138,42 @@ func bucketKey(lat, lon float64) string {
 // Cities returns the number of reference cities loaded (for diagnostics/log).
 func (g *Geocoder) Cities() int { return len(g.cities) }
 
+// CityResult is a city match returned by SearchCities for the /search/cities
+// and /search/places endpoints.
+type CityResult struct {
+	Name      string  `json:"name"`
+	Latitude  float64 `json:"latitude"`
+	Longitude float64 `json:"longitude"`
+	Country   string  `json:"country"` // resolved country name
+	State     string  `json:"state"`   // admin1 code (state/province)
+}
+
+// SearchCities returns up to limit cities whose name contains q
+// (case-insensitive substring). An empty q returns the first `limit` cities in
+// load order. This powers real city/place search instead of an empty stub.
+func (g *Geocoder) SearchCities(q string, limit int) []CityResult {
+	if limit <= 0 {
+		limit = 100
+	}
+	needle := strings.ToLower(strings.TrimSpace(q))
+	out := make([]CityResult, 0, limit)
+	for _, c := range g.cities {
+		if needle == "" || strings.Contains(strings.ToLower(c.name), needle) {
+			out = append(out, CityResult{
+				Name:      c.name,
+				Latitude:  c.lat,
+				Longitude: c.lon,
+				Country:   g.countries[c.country],
+				State:     c.admin1,
+			})
+			if len(out) >= limit {
+				break
+			}
+		}
+	}
+	return out
+}
+
 // Reverse returns the nearest known city (within maxRadiusKm) of the supplied
 // coordinate along with its admin1 code (state) and resolved country name.
 // When nothing is within range it returns empty strings, which callers treat

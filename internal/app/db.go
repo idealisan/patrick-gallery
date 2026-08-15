@@ -59,6 +59,7 @@ func OpenDB(dbPath, resourceDir string) (*Store, error) {
 		&User{}, &Asset{}, &Exif{}, &Album{}, &AlbumAsset{},
 		&Library{}, &Partner{}, &Tag{}, &AssetTag{}, &Person{},
 		&Activity{}, &SharedLink{}, &ApiKey{}, &SystemConfig{},
+		&DuplicateResolution{}, &SyncState{},
 	}
 	if err := db.AutoMigrate(models...); err != nil {
 		return nil, err
@@ -82,16 +83,16 @@ func (s *Store) seed() error {
 			return err
 		}
 		admin := &User{
-			ID:                    newUUID(),
-			Email:                 adminEmail,
-			Name:                  "Administrator",
-			Password:              string(hash),
-			Salt:                  newUUID(),
-			IsAdmin:               true,
+			ID:                   newUUID(),
+			Email:                adminEmail,
+			Name:                 "Administrator",
+			Password:             string(hash),
+			Salt:                 newUUID(),
+			IsAdmin:              true,
 			ShouldChangePassword: false,
 			AvatarColor:          "primary",
-			CreatedAt:             time.Now().UTC(),
-			UpdatedAt:             time.Now().UTC(),
+			CreatedAt:            time.Now().UTC(),
+			UpdatedAt:            time.Now().UTC(),
 		}
 		if err := s.DB.Create(admin).Error; err != nil {
 			return err

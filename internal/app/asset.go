@@ -25,40 +25,40 @@ import (
 // DTO (not an embedding of the DB model) so response shape is decoupled from
 // storage.
 type AssetResponse struct {
-	ID               string    `json:"id"`
-	OwnerID          string    `json:"ownerId"`
-	Type             string    `json:"type"`
-	OriginalPath     string    `json:"originalPath"`
-	OriginalFileName string    `json:"originalFileName"`
-	OriginalMimeType string    `json:"originalMimeType,omitempty"`
-	ResizePath       string    `json:"resizePath"`
-	EncodedVideoPath string    `json:"encodedVideoPath"`
-	Checksum         string    `json:"checksum"`
-	FileCreatedAt    time.Time `json:"fileCreatedAt"`
-	FileModifiedAt   time.Time `json:"fileModifiedAt"`
-	LocalDateTime    time.Time `json:"localDateTime"`
-	Duration         int       `json:"duration"`
-	IsFavorite       bool      `json:"isFavorite"`
-	IsArchived       bool      `json:"isArchived"`
-	IsTrashed        bool      `json:"isTrashed"`
-	IsExternal       bool      `json:"isExternal"`
-	LibraryId        string    `json:"libraryId"`
-	HasThumbnail     bool      `json:"hasThumbnail"`
-	Resized          bool      `json:"resized"`
-	HasMetadata      bool      `json:"hasMetadata"`
-	Visibility       string    `json:"visibility,omitempty"`
-	Thumbhash        string    `json:"thumbhash,omitempty"`
-	Width            int       `json:"width,omitempty"`
-	Height           int       `json:"height,omitempty"`
-	DuplicateID      string    `json:"duplicateId,omitempty"`
-	IsEdited         bool      `json:"isEdited"`
-	IsOffline        bool      `json:"isOffline"`
-	LivePhotoVideoID string    `json:"livePhotoVideoId,omitempty"`
-	CreatedAt        time.Time `json:"createdAt"`
-	UpdatedAt        time.Time `json:"updatedAt"`
-	ExifInfo         *Exif        `json:"exifInfo,omitempty"`
-	People           []any        `json:"people"`
-	Tags             []any        `json:"tags"`
+	ID               string        `json:"id"`
+	OwnerID          string        `json:"ownerId"`
+	Type             string        `json:"type"`
+	OriginalPath     string        `json:"originalPath"`
+	OriginalFileName string        `json:"originalFileName"`
+	OriginalMimeType string        `json:"originalMimeType,omitempty"`
+	ResizePath       string        `json:"resizePath"`
+	EncodedVideoPath string        `json:"encodedVideoPath"`
+	Checksum         string        `json:"checksum"`
+	FileCreatedAt    time.Time     `json:"fileCreatedAt"`
+	FileModifiedAt   time.Time     `json:"fileModifiedAt"`
+	LocalDateTime    time.Time     `json:"localDateTime"`
+	Duration         int           `json:"duration"`
+	IsFavorite       bool          `json:"isFavorite"`
+	IsArchived       bool          `json:"isArchived"`
+	IsTrashed        bool          `json:"isTrashed"`
+	IsExternal       bool          `json:"isExternal"`
+	LibraryId        string        `json:"libraryId"`
+	HasThumbnail     bool          `json:"hasThumbnail"`
+	Resized          bool          `json:"resized"`
+	HasMetadata      bool          `json:"hasMetadata"`
+	Visibility       string        `json:"visibility,omitempty"`
+	Thumbhash        string        `json:"thumbhash,omitempty"`
+	Width            int           `json:"width,omitempty"`
+	Height           int           `json:"height,omitempty"`
+	DuplicateID      string        `json:"duplicateId,omitempty"`
+	IsEdited         bool          `json:"isEdited"`
+	IsOffline        bool          `json:"isOffline"`
+	LivePhotoVideoID string        `json:"livePhotoVideoId,omitempty"`
+	CreatedAt        time.Time     `json:"createdAt"`
+	UpdatedAt        time.Time     `json:"updatedAt"`
+	ExifInfo         *Exif         `json:"exifInfo,omitempty"`
+	People           []any         `json:"people"`
+	Tags             []any         `json:"tags"`
 	Owner            *UserResponse `json:"owner,omitempty"`
 }
 
@@ -398,12 +398,12 @@ func (a *App) handleAssetGet(c *gin.Context) {
 }
 
 type assetUpdateBody struct {
-	IsFavorite *bool  `json:"isFavorite"`
-	IsArchived *bool  `json:"isArchived"`
-	IsTrash    *bool  `json:"isTrash"`
-	DateTimeOriginal string `json:"dateTimeOriginal,omitempty"`
-	Latitude   *float64 `json:"latitude,omitempty"`
-	Longitude  *float64 `json:"longitude,omitempty"`
+	IsFavorite       *bool    `json:"isFavorite"`
+	IsArchived       *bool    `json:"isArchived"`
+	IsTrash          *bool    `json:"isTrash"`
+	DateTimeOriginal string   `json:"dateTimeOriginal,omitempty"`
+	Latitude         *float64 `json:"latitude,omitempty"`
+	Longitude        *float64 `json:"longitude,omitempty"`
 }
 
 func (a *App) handleAssetUpdate(c *gin.Context) {
@@ -458,8 +458,8 @@ func (a *App) handleAssetUpdate(c *gin.Context) {
 func (a *App) handleAssetBulkDelete(c *gin.Context) {
 	uid := currentUserID(c)
 	var b struct {
-		IDs    []string `json:"ids"`
-		Force  bool     `json:"force"`
+		IDs   []string `json:"ids"`
+		Force bool     `json:"force"`
 	}
 	_ = c.ShouldBindJSON(&b)
 	for _, id := range b.IDs {
@@ -520,13 +520,13 @@ func (a *App) handleAssetCheck(c *gin.Context) {
 func (a *App) handleAssetBulkUpdate(c *gin.Context) {
 	uid := currentUserID(c)
 	var b struct {
-		IDs              []string  `json:"ids"`
-		IsFavorite       *bool     `json:"isFavorite"`
-		IsArchived       *bool     `json:"isArchived"`
-		IsTrash          *bool     `json:"isTrash"`
-		DateTimeOriginal string    `json:"dateTimeOriginal"`
-		Latitude         *float64  `json:"latitude"`
-		Longitude        *float64  `json:"longitude"`
+		IDs              []string `json:"ids"`
+		IsFavorite       *bool    `json:"isFavorite"`
+		IsArchived       *bool    `json:"isArchived"`
+		IsTrash          *bool    `json:"isTrash"`
+		DateTimeOriginal string   `json:"dateTimeOriginal"`
+		Latitude         *float64 `json:"latitude"`
+		Longitude        *float64 `json:"longitude"`
 	}
 	_ = c.ShouldBindJSON(&b)
 	for _, id := range b.IDs {
@@ -842,6 +842,14 @@ func (a *App) handleAssetBulkInfo(c *gin.Context) {
 }
 
 func (a *App) handleAssetDuplicates(c *gin.Context) {
+	// Hide duplicates the user has already resolved (POST /duplicates/resolve)
+	// so they stop re-surfacing in the duplicate review list.
+	var resolved []DuplicateResolution
+	a.store.DB.Find(&resolved)
+	hidden := make(map[string]bool, len(resolved))
+	for _, r := range resolved {
+		hidden[r.DuplicateID] = true
+	}
 	// Group by checksum; return assets that share a checksum with another.
 	type dup struct {
 		Checksum string
@@ -856,9 +864,14 @@ func (a *App) handleAssetDuplicates(c *gin.Context) {
 		a.store.DB.Where("checksum = ? AND is_trash = ?", d.Checksum, false).Find(&assets)
 		ids := make([]string, 0, len(assets))
 		for _, a2 := range assets {
+			if hidden[a2.ID] {
+				continue
+			}
 			ids = append(ids, a2.ID)
 		}
-		out = append(out, gin.H{"assets": ids})
+		if len(ids) > 1 {
+			out = append(out, gin.H{"assets": ids})
+		}
 	}
 	c.JSON(http.StatusOK, out)
 }

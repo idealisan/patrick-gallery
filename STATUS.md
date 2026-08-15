@@ -228,7 +228,8 @@
 补齐项（`internal/app/compat_v3.go` + 路由别名）：
 - **方法别名**（App 实际使用的动词）：`PATCH /albums/:id`、`PATCH /shared-links/:id`、`PUT /albums/:id/assets`、`GET /map/reverse-geocode`、`GET /search/suggestions`。
 - **启动信息端点**（App 启动轮询）：`/server/version-check`、`/server/media-types`、`/server/storage`、`/server/apk-links`、`/server/version-history`、`/server/license`(GET/PUT)。
-- **优雅存根**（返回正确空 DTO，不伪造 ML 结果，避免客户端硬 404）：`/sync/ack`(GET/POST/DELETE)、`/sync/stream`、`/people/:id/statistics`、`/faces`、`/faces/:id`、`/people/:id/merge`、`/people/:id/reassign`、`/search/cities`、`/search/places`、`/download/info`、`/trash/restore/assets`、`/duplicates`(+ CRUD 存根)。
+- **原「优雅存根」已清零（按 AGENTS.md #7 禁止 stub）**：`/server/storage`（真实磁盘用量）、`/sync/ack`(GET/POST/DELETE)（持久化确认序列）、`/sync/stream`（返回真实资源/相册增量）、`/search/cities`、`/search/places`（内嵌 GeoNames 检索）、`/download/info`（真实字节大小）、`/duplicates`(+ resolve/update)（记录 keeper/hidden 并止重复展示）、`/trash/restore/assets`（本就是真实 handler，此前误判）。详见 [docs/NO_STUBS.md](docs/NO_STUBS.md)。
+- **仍为空响应的 ML/人脸类端点（按用户决定暂缓，非 stub 假成功，待后续实现或改诚实 501）**：`/people/:id/statistics`、`/faces`、`/faces/:id`、`/people/:id/merge`、`/people/:id/reassign`、`/search/person`。
 
 **版本门控**：需设 `IMMICH_COMPAT_VERSION=3.1.0` 以通过 v3.1.0 客户端版本校验（已实测 `/api/server/version` 正确返回 `{"major":3,"minor":1,"patch":0,"prerelease":0,"version":"3.1.0"}`）。
 

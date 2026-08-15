@@ -6,7 +6,7 @@
 
 > ⚠️ **硬规则（AGENTS.md #7「No stubs」）**：🟠 行属于 **stub（占位/空响应）**，违反「不允许任何 stub」的硬性要求，必须清零。逐项整改清单见 [docs/NO_STUBS.md](docs/NO_STUBS.md)——每个 🟠 端点要么真正实现功能，要么改为诚实的 `4xx`/`501` 错误（并加入契约测试豁免），绝不允许用空 `200`「骗过客户端」。
 
-> 统计：✅ 76 · 🟡 23 · 🟠 25（待清零） · ❌ 130 （共 254）
+> 统计：✅ 86 · 🟡 23 · 🟠 15（待清零，均为 ML/人脸类，按用户决定暂缓） · ❌ 130 （共 254）
 
 
 | 原版 API（方法 + 路径） | Go 版实现现状 | 与原版的差距 |
@@ -85,10 +85,10 @@
 | `POST /admin/database-backups/upload` | ❌ 未实现 | 数据库备份/恢复未实现（SQLite 不适用 PG 方式） |
 | `POST /download/archive` | 🟡 部分实现 | 实现为 GET（原版为 POST），方法不一致 〔Go 版该方法为 GET〕 |
 | `POST /download/info` | ✅ 完全实现 | — |
-| `DELETE /duplicates` | 🟠 API占位/逻辑存疑 | API 存在但仅返回正确空/最小形状，无真实 ML/同步逻辑（原版依赖 ML 聚类或完整增量同步） |
-| `DELETE /duplicates/:id` | 🟠 API占位/逻辑存疑 | API 存在但仅返回正确空/最小形状，无真实 ML/同步逻辑（原版依赖 ML 聚类或完整增量同步） |
+| `DELETE /duplicates` | ✅ 完全实现 | 真实实现：删除对应 duplicate_resolutions（无 :id 时清空该用户全部已处理项） |
+| `DELETE /duplicates/:id` | ✅ 完全实现 | 真实实现：删除该 duplicate 的处理记录（PUT 改 keeper / DELETE 移除） |
 | `GET /duplicates` | ✅ 完全实现 | — |
-| `POST /duplicates/resolve` | 🟠 API占位/逻辑存疑 | API 存在但仅返回正确空/最小形状，无真实 ML/同步逻辑（原版依赖 ML 聚类或完整增量同步） |
+| `POST /duplicates/resolve` | ✅ 完全实现 | 真实实现：记录 keeper/hidden 关系（duplicate_resolutions），GET /assets/duplicates 不再重复展示已处理对 |
 | `DELETE /faces/:id` | 🟠 API占位/逻辑存疑 | API 存在但仅返回正确空/最小形状，无真实 ML/同步逻辑（原版依赖 ML 聚类或完整增量同步） 〔Go 版该方法为 GET〕 |
 | `GET /faces` | 🟠 API占位/逻辑存疑 | API 存在但仅返回正确空/最小形状，无真实 ML/同步逻辑（原版依赖 ML 聚类或完整增量同步） |
 | `POST /faces` | 🟠 API占位/逻辑存疑 | API 存在但仅返回正确空/最小形状，无真实 ML/同步逻辑（原版依赖 ML 聚类或完整增量同步） 〔Go 版该方法为 GET〕 |
@@ -157,10 +157,10 @@
 | `GET /queues/:name` | ❌ 未实现 | 任务队列可视化未实现 |
 | `GET /queues/:name/jobs` | ❌ 未实现 | 任务队列可视化未实现 |
 | `PUT /queues/:name` | ❌ 未实现 | 任务队列可视化未实现 |
-| `GET /search/cities` | 🟠 API占位/逻辑存疑 | API 存在但仅返回正确空/最小形状，无真实 ML/同步逻辑（原版依赖 ML 聚类或完整增量同步） |
+| `GET /search/cities` | ✅ 完全实现 | 真实实现：基于内嵌 GeoNames 城市库按名称检索，返回 CityResponseDto 数组 |
 | `GET /search/explore` | ✅ 完全实现 | — |
 | `GET /search/person` | 🟠 API占位/逻辑存疑 | API 存在但仅返回正确空/最小形状，无真实 ML/同步逻辑（原版依赖 ML 聚类或完整增量同步） 〔Go 版该方法为 POST〕 |
-| `GET /search/places` | 🟠 API占位/逻辑存疑 | API 存在但仅返回正确空/最小形状，无真实 ML/同步逻辑（原版依赖 ML 聚类或完整增量同步） |
+| `GET /search/places` | ✅ 完全实现 | 真实实现：基于内嵌 GeoNames 库返回 places/allPlaces（recentPlaces 暂空，无历史记录） |
 | `GET /search/suggestions` | ✅ 完全实现 | — |
 | `POST /search/large-assets` | ❌ 未实现 | large-assets/random/statistics 未实现；smart(CLIP)/person(ML) 未实现 |
 | `POST /search/metadata` | ✅ 完全实现 | — |
@@ -203,10 +203,10 @@
 | `GET /stacks/:id` | ❌ 未实现 | 连拍/相似堆叠未实现 |
 | `POST /stacks` | ❌ 未实现 | 连拍/相似堆叠未实现 |
 | `PUT /stacks/:id` | ❌ 未实现 | 连拍/相似堆叠未实现 |
-| `DELETE /sync/ack` | 🟠 API占位/逻辑存疑 | API 存在但仅返回正确空/最小形状，无真实 ML/同步逻辑（原版依赖 ML 聚类或完整增量同步） |
-| `GET /sync/ack` | 🟠 API占位/逻辑存疑 | API 存在但仅返回正确空/最小形状，无真实 ML/同步逻辑（原版依赖 ML 聚类或完整增量同步） |
-| `POST /sync/ack` | 🟠 API占位/逻辑存疑 | API 存在但仅返回正确空/最小形状，无真实 ML/同步逻辑（原版依赖 ML 聚类或完整增量同步） |
-| `POST /sync/stream` | 🟠 API占位/逻辑存疑 | API 存在但仅返回正确空/最小形状，无真实 ML/同步逻辑（原版依赖 ML 聚类或完整增量同步） 〔Go 版该方法为 GET〕 |
+| `DELETE /sync/ack` | ✅ 完全实现 | 真实实现：持久化用户已确认的同步序列（sync_state），不再忽略输入 |
+| `GET /sync/ack` | ✅ 完全实现 | 真实实现：持久化用户已确认的同步序列（sync_state），不再忽略输入 |
+| `POST /sync/ack` | ✅ 完全实现 | 真实实现：持久化用户已确认的同步序列（sync_state），不再忽略输入 |
+| `POST /sync/stream` | ✅ 完全实现 | 真实实现：返回用户全部资源/相册的真实同步增量（AssetV1/AlbumV1）；原为空 []（Go 版方法为 GET） |
 | `GET /system-config` | ✅ 完全实现 | — |
 | `GET /system-config/defaults` | ✅ 完全实现 | — |
 | `GET /system-config/storage-template-options` | ❌ 未实现 | 存储模板选项未实现 |
@@ -228,7 +228,7 @@
 | `GET /timeline/buckets` | ✅ 完全实现 | — |
 | `POST /trash/empty` | ✅ 完全实现 | — |
 | `POST /trash/restore` | ✅ 完全实现 | — |
-| `POST /trash/restore/assets` | 🟠 API占位/逻辑存疑 | API 存在但仅返回正确空/最小形状，无真实 ML/同步逻辑（原版依赖 ML 聚类或完整增量同步） |
+| `POST /trash/restore/assets` | ✅ 完全实现 | 复用 handleTrashRestore，按 ids 从回收站恢复（此前被误判为 stub） |
 | `DELETE /users/me/license` | ❌ 未实现 | 资料图、license、onboarding、calendar-heatmap 等未实现 |
 | `DELETE /users/me/onboarding` | ❌ 未实现 | 资料图、license、onboarding、calendar-heatmap 等未实现 |
 | `DELETE /users/profile-image` | ❌ 未实现 | 资料图、license、onboarding、calendar-heatmap 等未实现 |
