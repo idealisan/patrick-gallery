@@ -82,7 +82,17 @@ func (a *App) handleMapReverseGeocode(c *gin.Context) {
 		Lat float64 `json:"lat"`
 		Lon float64 `json:"lon"`
 	}
-	if err := c.ShouldBindJSON(&b); err != nil {
+	_ = c.ShouldBindJSON(&b)
+	// v3.1.0 also calls this as GET with query params.
+	if b.Lat == 0 && b.Lon == 0 {
+		if q := c.Query("lat"); q != "" {
+			fmt.Sscanf(q, "%f", &b.Lat)
+		}
+		if q := c.Query("lon"); q != "" {
+			fmt.Sscanf(q, "%f", &b.Lon)
+		}
+	}
+	if b.Lat == 0 && b.Lon == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "lat/lon required", "statusCode": 400})
 		return
 	}

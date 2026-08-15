@@ -211,6 +211,23 @@
 - **REST 兼容性**：timeline / 上传 / 相册 / 地图 / 搜索 / 回收站等核心 REST 已对齐最新 Immich 契约（见 §五），官方 App 可浏览、上传、播放。仍属 ML / 多用户范畴未覆盖的约 160 路由（人脸聚类召回、`/people` 实际数据、CLIP 搜索、OAuth/SSO、memories、通知/邮件、管理后台）在官方 App 中对应页可能为空或报错，但不影响主流程连接与同步。
 - 本环境无法运行真实官方 App 做端到端验证；Socket.IO 实现经**线级协议测试**（手写客户端走完整握手 + 事件投递）验证，建议在你自己的设备/App 上以匹配的 `IMMICH_COMPAT_VERSION` 实测确认。
 
+### H. 兼容性核对：官方客户端 v3.1.0（2026-08-15）
+拉取官方 OpenAPI 规范 `open-api/immich-openapi-specs.json`（release tag **v3.1.0**，254 个 method-path，`info.version=3.1.0`，base `/api`），与 immich-go 路由逐端点 diff：
+
+- **补齐前**：匹配 70/254，缺失 184。
+- **补齐后（本次）**：匹配 97/254，缺失 157。
+
+补齐项（`internal/app/compat_v3.go` + 路由别名）：
+- **方法别名**（App 实际使用的动词）：`PATCH /albums/:id`、`PATCH /shared-links/:id`、`PUT /albums/:id/assets`、`GET /map/reverse-geocode`、`GET /search/suggestions`。
+- **启动信息端点**（App 启动轮询）：`/server/version-check`、`/server/media-types`、`/server/storage`、`/server/apk-links`、`/server/version-history`、`/server/license`(GET/PUT)。
+- **优雅存根**（返回正确空 DTO，不伪造 ML 结果，避免客户端硬 404）：`/sync/ack`(GET/POST/DELETE)、`/sync/stream`、`/people/:id/statistics`、`/faces`、`/faces/:id`、`/people/:id/merge`、`/people/:id/reassign`、`/search/cities`、`/search/places`、`/download/info`、`/trash/restore/assets`、`/duplicates`(+ CRUD 存根)。
+
+**版本门控**：需设 `IMMICH_COMPAT_VERSION=3.1.0` 以通过 v3.1.0 客户端版本校验（已实测 `/api/server/version` 正确返回 `{"major":3,"minor":1,"patch":0,"prerelease":0,"version":"3.1.0"}`）。
+
+**仍缺失（按设计超出单人/私域范围，不阻断连接与同步主流程）**：`admin/*`、`memories/*`、`notifications/*`、`oauth/*`、`plugins/*`、`workflows/*`、`queues/*`、`sessions/*`、ML（`people` 聚类 / `faces` / CLIP `smart-search` / `ocr`——People 页在客户端为空，`server/features` 已置 `facialRecognition:false`）、视频 **HLS 流**（`/assets/:id/video/stream/*`、`main.m3u8`，App 端视频播放走 HLS；immich-go 以 `/assets/:id/encoded-video` MP4 替代）、`stacks/*`、`partners` 部分变体、`trash` 部分变体。
+
+**实测**：`IMMICH_COMPAT_VERSION=3.1.0` 起服，登录及上述新增端点均正常返回（album PATCH、GET 反向地理编码返回 Paris/France、sync/faces/people 存根返回空）；`go build` / `go vet` / `go test ./...` 全绿。
+
 ### 仍待补全（发布相关）
 - Windows/arm64 视频开箱即用需 BtbN 提供 `win-arm64-gpl-shared`（上游缺失）；可改从其他渠道取 arm64 共享库。
 - Docker 镜像多架构（arm64）+ CNB 流水线自动发版（`.cnb.yml` stages）待接入。
