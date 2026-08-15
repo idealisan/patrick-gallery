@@ -63,10 +63,10 @@ func LoadConfig() *Config {
 		APIKeySalt:     getEnv("IMMICH_API_KEY_SALT", "immich-dev-api-salt"),
 		LoginRequired:  getEnv("IMMICH_LOGIN_REQUIRED", "true") == "true",
 		ExternalDomain: getEnv("IMMICH_EXTERNAL_DOMAIN", ""),
-		CompatVersion:  getEnv("IMMICH_COMPAT_VERSION", "1.130.0"),
+		CompatVersion:  getEnv("IMMICH_COMPAT_VERSION", "3.1.0"),
 		TrashDays:      trashDaysFromEnv(),
 	}
-	maj, min, pat := 1, 130, 0
+	maj, min, pat := 3, 1, 0
 	if n, err := fmt.Sscanf(cfg.CompatVersion, "%d.%d.%d", &maj, &min, &pat); n >= 1 && err == nil {
 		cfg.CompatMajor, cfg.CompatMinor, cfg.CompatPatch = maj, min, pat
 	} else {
