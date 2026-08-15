@@ -12,3 +12,9 @@
 # In-project toolchain / caches (managed per AGENTS.md; not committed)
 /.tools/
 /.tmp/
+
+# Schemathesis regression harness temp/output
+.schemathesis-tmp/
+.schemathesis/
+scripts/__pycache__/
+reports/schemathesis/regression/

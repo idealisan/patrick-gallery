@@ -1,0 +1,31 @@
+# Known status_code_conformance gaps (unimplemented endpoints / benign edges).
+# These return 404/400/204/401 where the spec documents 2xx, but the DTO SHAPE
+# is correct. The regression gate (scripts/schemathesis_check.py) FAILS only if a
+# status_code_conformance failure appears on an operation NOT listed here,
+# i.e. when a previously-working endpoint regresses.
+# When you implement one of these endpoints, remove its line and re-run.
+DELETE /auth/pin-code
+GET /admin/users/{id}/calendar-heatmap
+GET /memories
+GET /memories/statistics
+GET /users/me/calendar-heatmap
+PATCH /shared-links/{id}
+POST /admin/notifications
+POST /admin/users
+POST /assets
+POST /auth/admin-sign-up
+POST /auth/change-password
+POST /auth/login
+POST /auth/pin-code
+POST /auth/session/unlock
+POST /memories
+POST /search/large-assets
+POST /search/random
+POST /search/smart
+POST /search/statistics
+POST /shared-links/login
+PUT /admin/users/{id}
+PUT /auth/pin-code
+PUT /memories/{id}
+PUT /notifications
+PUT /notifications/{id}

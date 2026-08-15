@@ -46,6 +46,12 @@ surface for that use case. Port the original Immich frontend.
   GHCR image. Verify locally with the in-repo Go toolchain (`.tools/go`)
   before pushing — there is no Go on the runner's checkout cache, so CI is
   the only safety net if you skip local checks.
+- **API 契约回归测试**：CI 的 `contract-test` job 会构建并启动 immich-go，用
+  Schemathesis 4.24.3 针对官方 Immich v3.1.0 OpenAPI 契约做一致性校验，并在
+  DTO 形状（`response_schema_conformance`）、`content_type_conformance`、5xx
+  上回归时失败。本地可运行 `python3 scripts/schemathesis_check.py` 复现；已知
+  未实现端点的 4xx 缺口豁免于 `scripts/schemathesis-allowlist.txt`（详见
+  `docs/CONTRACT_TESTING.md`）。改动响应体形状前请先跑此脚本。
 - Video backends that fail to load (library absent) MUST degrade gracefully
   (server still starts, video endpoints return a placeholder / the original)
   so the cross-platform binaries keep working everywhere.

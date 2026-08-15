@@ -274,4 +274,6 @@
 
 完整报告：`reports/schemathesis-v3.1.0.md`；复现产物：`reports/schemathesis/*.txt`、`*.xml`。`go build`/`go vet ./...` 全绿（vet 的 `unsafe.Pointer` 提示来自 `internal/video` 的 purego FFI，非本次改动）。
 
+**已固化为回归测试手段**：新增自包含门禁 `scripts/schemathesis_check.py`（构建+启动+登录+跑 Schemathesis+解析 JUnit+裁决）。裁决规则——关键检查 `response_schema_conformance` / `content_type_conformance` / `not_a_server_error`(5xx) 任一 >0 即失败；`status_code_conformance` 缺口仅在 `scripts/schemathesis-allowlist.txt`（25 个已知未实现端点 + 3 个良性边界）中豁免，出现未列出的 operation 即判回归。已接入 `.github/workflows/ci.yml` 的 `contract-test` job（push/PR 门禁）。方法文档：`docs/CONTRACT_TESTING.md`。本地复现：`python3 scripts/schemathesis_check.py`。
+
 

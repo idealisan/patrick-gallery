@@ -43,6 +43,40 @@ jobs:
           CGO_ENABLED: 0
         run: go build -o immich-go .
 
+  contract-test:
+    name: API contract regression (Schemathesis)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install Schemathesis
+        run: python3 -m pip install --quiet "schemathesis==4.24.3"
+
+      - name: Run contract regression gate
+        # Builds immich-go, starts it, logs in, runs Schemathesis against the
+        # official Immich v3.1.0 OpenAPI spec, and fails on DTO-shape regressions.
+        run: python3 scripts/schemathesis_check.py --max-examples 1
+
+      - name: Upload report on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: schemathesis-regression
+          path: reports/schemathesis/regression
+          if-no-files-found: ignore
+
   notify-lark:
     name: Notify Lark
     needs: build-test
