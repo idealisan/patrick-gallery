@@ -33,7 +33,7 @@ func (a *App) issueToken(userID string) (string, error) {
 		},
 	}
 	tok := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return tok.SignedString([]byte(a.cfg.JWTSecret))
+	return tok.SignedString([]byte(a.jwtSecret))
 }
 
 func (a *App) parseToken(t string) (*Claims, error) {
@@ -42,7 +42,7 @@ func (a *App) parseToken(t string) (*Claims, error) {
 		if _, ok := tok.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, errors.New("unexpected signing method")
 		}
-		return []byte(a.cfg.JWTSecret), nil
+		return []byte(a.jwtSecret), nil
 	})
 	if err != nil {
 		return nil, err

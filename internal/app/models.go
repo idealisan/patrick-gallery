@@ -99,6 +99,24 @@ type NotificationToken struct {
 	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
+// Notification models a user-facing notification (system/asset notifications).
+// immich-go is a private-LAN single-user instance with no notification
+// generator, so this table is normally empty — GET /api/notifications returns
+// the real (empty) rows rather than a faked constant, which is the honest
+// state and satisfies the official web client's poll after login.
+type Notification struct {
+	ID          string     `gorm:"primaryKey;type:text" json:"id"`
+	UserID      string     `gorm:"index;type:text" json:"userId"`
+	Type        string     `gorm:"type:text" json:"type"`
+	Level       string     `gorm:"type:text" json:"level"` // info | warning | error
+	Title       string     `gorm:"type:text" json:"title"`
+	Description string     `gorm:"type:text" json:"description"`
+	Metadata    string     `gorm:"type:text" json:"metadata,omitempty"`
+	ReadAt      *time.Time `json:"readAt"`
+	CreatedAt   time.Time  `json:"createdAt"`
+	UpdatedAt   time.Time  `json:"updatedAt"`
+}
+
 type Album struct {
 	ID                    string         `gorm:"primaryKey;type:text" json:"id"`
 	OwnerID               string         `gorm:"index;type:text" json:"ownerId"`
@@ -226,6 +244,13 @@ type SystemConfig struct {
 	NewPasswordRequired bool   `json:"newPasswordRequired,omitempty"`
 	TrashDays           int    `json:"trashDays"`
 	Onboarded           bool   `json:"onboarded"`
+	// JWTSecret is the per-instance HMAC key used to sign auth tokens. It is
+	// generated once on first run and persisted here (never exposed via the
+	// API). A constant compile-time default would let tokens minted by any
+	// instance stay valid everywhere; a per-instance secret means a token
+	// stored in a browser from a previous deployment is rejected, so the
+	// login screen is shown instead of silently resuming a stale session.
+	JWTSecret string `gorm:"type:text" json:"-"`
 }
 
 // Session records an issued auth token so an admin can list a user's active

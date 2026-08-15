@@ -1,6 +1,8 @@
 package app
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"log"
 	"os"
 	"path/filepath"
@@ -60,7 +62,7 @@ func OpenDB(dbPath, resourceDir string) (*Store, error) {
 		&Library{}, &Partner{}, &Tag{}, &AssetTag{}, &Person{},
 		&Activity{}, &SharedLink{}, &ApiKey{}, &SystemConfig{},
 		&DuplicateResolution{}, &SyncState{}, &Session{}, &UserPreferences{},
-		&NotificationToken{},
+		&NotificationToken{}, &Notification{},
 	}
 	if err := db.AutoMigrate(models...); err != nil {
 		return nil, err
@@ -70,7 +72,31 @@ func OpenDB(dbPath, resourceDir string) (*Store, error) {
 	if err := s.seed(); err != nil {
 		return nil, err
 	}
+	if err := s.ensureJWTSecret(); err != nil {
+		return nil, err
+	}
 	return s, nil
+}
+
+// ensureJWTSecret guarantees the singleton SystemConfig row carries a stable,
+// per-instance HMAC key. The first run generates one and persists it; later
+// runs reuse it so issued tokens survive restarts. Because the key is unique
+// per deployment (not the old compile-time constant), any token a browser
+// cached from a previous instance is rejected, forcing the login screen.
+func (s *Store) ensureJWTSecret() error {
+	var cfg SystemConfig
+	if err := s.DB.First(&cfg, "id = ?", "singleton").Error; err != nil {
+		return err
+	}
+	if cfg.JWTSecret != "" {
+		return nil
+	}
+	buf := make([]byte, 32)
+	if _, err := rand.Read(buf); err != nil {
+		return err
+	}
+	cfg.JWTSecret = hex.EncodeToString(buf)
+	return s.DB.Save(&cfg).Error
 }
 
 func (s *Store) seed() error {

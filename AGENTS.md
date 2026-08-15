@@ -66,9 +66,27 @@ Go 方式重建，或显式引入受控的外部组件；水平多租户扩展�
    all core media endpoints must stay contract-compatible with the official
    clients. New multi-user code MUST keep working under SQLite (no assumption
    of a horizontally-sharded store) until the Postgres backend lands.
-6. **Original frontend port.** Aim to fully port the official Immich web
-   frontend; at minimum the web UI must correctly browse, play, and manage
-   images and videos.
+6. **Package the OFFICIAL Immich Web UI — no hand-written SPA as the product UI.**
+   The shipped web UI MUST be the **official Immich web frontend** built from
+   the immich monorepo and embedded into the Go binary, NOT a from-scratch
+   replacement. A hand-written vanilla-JS SPA (the interim one under
+   `internal/webroot/assets/`) is explicitly **not** the product UI and is being
+   removed/replaced. Concrete requirements:
+   - Build the official Immich web app at a pinned immich release tag; embed its
+     compiled static `dist` via `//go:embed` and serve it (with SPA
+     history-fallback to `index.html` for every non-`/api` route — already wired
+     in `main.go`).
+   - The advertised server version (`IMMICH_COMPAT_VERSION` / `Config.CompatVersion`)
+     MUST match the immich release whose web is packaged, so the official client
+     accepts the connection instead of refusing on a version mismatch.
+   - Any conflict between the official web's expectations and our backend (missing
+     endpoints, DTO-shape gaps, base-href / asset-path differences) must be
+     resolved by **fixing the backend to the official contract** (per rule 7) or,
+     where a capability is genuinely infeasible under our hard rules, returning an
+     **honest** 4xx/501 — never by quietly swapping in a custom UI or a fake
+     endpoint. The official web UI is the source of truth for the contract.
+   - The official immich web source / release used is a build-time dependency and
+     MUST be recorded in `THIRD_PARTY.md` (exact tag, URL, license).
 7. **No stubs, no mocking — every endpoint must do real work.** This is a
    real, production-grade product, **not** an API mock. It is forbidden to
    register any API route or ship any feature that:

@@ -1,0 +1,1 @@
+import{n as e}from"../chunks/QTnfLwEv.js";import"../chunks/Bk6hEwef.js";import"../chunks/xihTtKlq.js";import"../chunks/C7YodD6l.js";import{t}from"../chunks/BqeU1WiQ2.js";import{r as n}from"../chunks/CXGjOO3M.js";var r=e({load:()=>i}),i=(async({url:e})=>(await t(e,{admin:!0}),{meta:{title:(await n())(`admin.user_details`)}}));function a(e){}export{a as component,r as universal};

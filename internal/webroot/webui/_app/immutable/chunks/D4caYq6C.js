@@ -1,0 +1,1 @@
+import{bt as e}from"./B67yn771.js";import{y as t}from"./CYmP2l6C.js";import{t as n}from"./DXKfvAeo.js";import{b as r}from"./LfKStwGC.js";import{t as i}from"./DZeqK4cP.js";import{t as a}from"./BUcx-yFw.js";async function o(r){e.fetch=r,await t(),await n.init(),await i.load(),n.value.maintenanceMode||await a.init()}var s=r(o,()=>`singlevalue`);export{s as t};

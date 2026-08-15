@@ -16,6 +16,11 @@ type App struct {
 	store *Store
 	video video.Processor
 
+	// jwtSecret is the per-instance HMAC key (loaded from SystemConfig). It
+	// overrides cfg.JWTSecret for token signing/verification so a browser
+	// token from a prior deployment is rejected.
+	jwtSecret string
+
 	// geocoder provides offline reverse-geocoding (lat/lon -> place name).
 	// It is nil if the embedded dataset failed to load; callers must guard.
 	geocoder *geo.Geocoder
@@ -30,6 +35,15 @@ type App struct {
 
 func NewApp(cfg *Config, store *Store) *App {
 	a := &App{cfg: cfg, store: store, video: video.New()}
+	// Resolve the effective JWT secret: prefer the per-instance value
+	// persisted in SystemConfig; fall back to the configured secret only if
+	// the row has none (should not happen after ensureJWTSecret).
+	var sc SystemConfig
+	if err := store.DB.First(&sc, "id = ?", "singleton").Error; err == nil && sc.JWTSecret != "" {
+		a.jwtSecret = sc.JWTSecret
+	} else {
+		a.jwtSecret = cfg.JWTSecret
+	}
 	a.bus = newEventBus()
 	if g, err := geo.Load(); err != nil {
 		log.Printf("[geo] reverse-geocoder unavailable: %v", err)
@@ -75,6 +89,12 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.GET("/auth/validate", a.handleValidate)
 		api.POST("/auth/change-password", a.handleChangePassword)
 		api.POST("/auth/logout", a.handleLogout)
+
+		// notifications (list / update / delete — single-user instance has no
+		// generator, so these return the real, usually-empty state)
+		api.GET("/notifications", a.handleListNotifications)
+		api.PUT("/notifications", a.handleUpdateNotifications)
+		api.DELETE("/notifications/:id", a.handleDeleteNotification)
 		api.GET("/api-keys", a.handleApiKeys)
 		api.POST("/api-keys", a.handleApiKeys)
 		api.GET("/api-keys/me", a.handleApiKeys)

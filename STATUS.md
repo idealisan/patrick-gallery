@@ -369,3 +369,24 @@ immich-go 的全部「可在纯 Go 单二进制 / 私域 / 无外部服务前提
 - **未改动工程硬规则**：纯 Go / 无 CGO / 进程内视频 / `store.Store` 抽象 / 禁止 stub 全部保持不变。多用户代码须先在 SQLite 单实例跑通；Postgres 仅用于解除「水平扩展」约束。
 - 本次仅为**文档对齐**，无代码改动；多用户功能在 `admin_users.go` 之后进入实现排期（见 `docs/GAP_ANALYSIS.md` §13 多用户路线）。
 
+### O. 前端方针修正：改用**官方 Immich Web UI**，替换手写 vanilla-JS SPA（2026-08-15）
+
+用户明确要求：产品 Web UI 必须是**官方 Immich web 前端**构建后嵌入 Go 二进制，
+**不是**手写的前端。此原则已写入 `AGENTS.md` 硬规则 6。
+
+- **现状偏差（需纠正）**：此前 `internal/webroot/assets/` 下的 `app.js`/`styles.css`
+  是一个从零手写的 vanilla-JS SPA，被 `STATUS.md` 第 32 行表格误标为「官方前端完整
+  移植 [done]」。这是偏差——它**不是**官方前端，只是契合单二进制纯 Go 模型的权宜实现，
+  现定为**临时占位**，将被官方 web 构建产物替换。
+- **目标做法**：从 immich monorepo（已 clone 至 `/root/immich-src`，pin 到具体 release
+  tag）构建官方 web（`web/` → `dist`），以 `//go:embed` 嵌入并服务；保留 `main.go` 中
+  已有的「非 `/api` 路由回退到 `index.html`」的 SPA history-fallback。
+- **版本对齐**：`Config.CompatVersion` / `IMMICH_COMPAT_VERSION` 必须设为**所构建 web
+  对应的官方 release 版本**，否则官方客户端会因版本校验拒绝连接。当前硬编码的 `3.1.0`
+  是占位值（官方并无此版本），需随打包的 web 版本一并更正。
+- **冲突处理**：官方 web 与后端之间的契约冲突（缺失端点 / DTO 形状 / base-href /
+  资源路径）一律按 `AGENTS.md` 硬规则 7 修复后端以贴合官方契约；确属硬规则约束内不可行的
+  能力，返回诚实 4xx/501，绝不退回手写 UI 或假端点。
+- **进度**：克隆完成；构建与目标版本待定（见下）。完成后在 `THIRD_PARTY.md` 记录所引
+  用的 immich web 源码 tag / URL / license。
+

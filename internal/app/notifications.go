@@ -63,3 +63,67 @@ func (a *App) handleNotificationRemove(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
+
+// handleListNotifications returns the current user's notifications as a
+// NotificationDto[] (Immich: GET /api/notifications?unread=true). The private
+// instance has no notification generator, so this returns the real (usually
+// empty) rows — the honest state that lets the official web client proceed.
+func (a *App) handleListNotifications(c *gin.Context) {
+	uid := currentUserID(c)
+	q := a.store.DB.Where("user_id = ?", uid)
+	if c.Query("unread") == "true" {
+		q = q.Where("read_at IS NULL")
+	}
+	var notes []Notification
+	if err := q.Order("created_at DESC").Find(&notes).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error(), "statusCode": 500})
+		return
+	}
+	out := make([]gin.H, 0, len(notes))
+	for _, n := range notes {
+		out = append(out, gin.H{
+			"id":          n.ID,
+			"userId":      n.UserID,
+			"type":        n.Type,
+			"level":       n.Level,
+			"title":       n.Title,
+			"description": n.Description,
+			"readAt":      n.ReadAt,
+			"createdAt":   n.CreatedAt,
+			"updatedAt":   n.UpdatedAt,
+		})
+	}
+	c.JSON(http.StatusOK, out)
+}
+
+// handleUpdateNotifications applies a bulk action (e.g. mark-all-read) to the
+// current user's notifications (Immich: PUT /api/notifications).
+func (a *App) handleUpdateNotifications(c *gin.Context) {
+	uid := currentUserID(c)
+	var body struct {
+		Action string `json:"action"`
+	}
+	_ = c.ShouldBindJSON(&body)
+	now := time.Now().UTC()
+	switch body.Action {
+	case "read-all":
+		a.store.DB.Model(&Notification{}).Where("user_id = ? AND read_at IS NULL", uid).
+			Update("read_at", now)
+	case "archive-all", "remove-all":
+		a.store.DB.Where("user_id = ?", uid).Delete(&Notification{})
+	}
+	c.Status(http.StatusOK)
+}
+
+// handleDeleteNotification removes a single notification (Immich:
+// DELETE /api/notifications/:id).
+func (a *App) handleDeleteNotification(c *gin.Context) {
+	uid := currentUserID(c)
+	id := c.Param("id")
+	if err := a.store.DB.Where("id = ? AND user_id = ?", id, uid).Delete(&Notification{}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error(), "statusCode": 500})
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+

@@ -1,0 +1,1 @@
+import{n as e}from"../chunks/QTnfLwEv.js";import{t}from"../chunks/LfKStwGC.js";import{t as n}from"../chunks/gaw8GWTo.js";var r=e({load:()=>i}),i=(()=>n(307,t.queues()));export{r as universal};

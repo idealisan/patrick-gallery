@@ -8,33 +8,36 @@ import (
 	"strings"
 )
 
-//go:embed all:assets index.html
+// The embedded assets are the OFFICIAL Immich web UI, built from the pinned
+// immich release (see scripts/build-web.sh) and copied into webui/ at build
+// time. This is the product UI — not a hand-written replacement (per
+// AGENTS.md hard rule 6).
+//
+//go:embed all:webui
 var rootFS embed.FS
 
 // Serve replies with an embedded static file when it exists, otherwise falls
-// back to the SPA entry point (index.html) so client-side routing works. It
-// is wired to gin's NoRoute in main.go for every non-/api request.
+// back to the SPA entry point (webui/index.html) so client-side routing works.
+// It is wired to gin's NoRoute in main.go for every non-/api request.
 func Serve(w http.ResponseWriter, r *http.Request) {
 	p := strings.TrimPrefix(r.URL.Path, "/")
 	if p == "" {
 		p = "index.html"
 	}
-	// public shared-link viewer (no auth): /share/<key> -> share.html
-	if p == "share" || strings.HasPrefix(p, "share/") {
-		p = "share.html"
-	}
 	// defend against path traversal
 	if strings.Contains(p, "..") {
 		p = "index.html"
 	}
-	if data, err := rootFS.ReadFile(p); err == nil {
+	full := "webui/" + p
+	if data, err := rootFS.ReadFile(full); err == nil {
 		w.Header().Set("Content-Type", contentType(p))
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(data)
 		return
 	}
-	// SPA fallback — any unknown path loads the app shell.
-	data, err := rootFS.ReadFile("index.html")
+	// SPA fallback — any unknown path loads the app shell. The official web
+	// handles client-side routes (incl. /share/<key>) via this fallback.
+	data, err := rootFS.ReadFile("webui/index.html")
 	if err != nil {
 		http.Error(w, "not found", http.StatusNotFound)
 		return
@@ -46,7 +49,7 @@ func Serve(w http.ResponseWriter, r *http.Request) {
 
 // Index returns the raw SPA entry point (kept for backwards compatibility).
 func Index() ([]byte, error) {
-	return rootFS.ReadFile("index.html")
+	return rootFS.ReadFile("webui/index.html")
 }
 
 func contentType(p string) string {
@@ -69,6 +72,8 @@ func contentType(p string) string {
 		return "image/gif"
 	case ".webp":
 		return "image/webp"
+	case ".wasm":
+		return "application/wasm"
 	case ".woff", ".woff2":
 		return "font/woff2"
 	case ".ttf":
