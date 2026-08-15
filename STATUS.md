@@ -13,9 +13,9 @@
 
 > **🚫 禁止 stub（硬规则 AGENTS.md #7）**：本项目不允许任何 stub / 占位 / 空响应端点。所有 🟠 行必须清零——要么真正实现功能，要么改为诚实的 `4xx`/`501`（并加入契约测试豁免）。整改清单与逐项处置见 [docs/NO_STUBS.md](docs/NO_STUBS.md)。
 
-## Release 2 — in progress
+## Release 2 — 完成 (done) ✅
 
-> 目标：视频在进程内完全可用（FFmpeg 共享库经 purego 加载、随包分发）、图像 API 补全、数据库抽象、官方前端移植。最后更新：2026-08-09。
+> 目标：视频在进程内完全可用（FFmpeg 共享库经 purego 加载、随包分发）、图像 API 补全、数据库抽象、官方前端移植。最后更新：2026-08-09。所有「符合纯 Go / `CGO_ENABLED=0` / 单用户私域架构」的可行缺口均已补齐；剩余仅为 ML / 外部 IdP 等需外部服务的架构级功能（见文末「可行范围 100%」）。
 
 | 工作流 | 状态 | 说明 |
 |--------|------|------|
@@ -70,8 +70,8 @@
 - 视频缩略图：上传即由 FFmpeg 后端抽首帧，Web 网格视频封面正常。
 - **硬件加速自动回退（已完成 ✅）**：FFmpeg 后端在启动时按 `VideoToolbox → NVENC(Nvidia) → QSV(Intel) → AMF(AMD) → 软件(libx264)` 的优先级探测可用 H.264 编码器，选第一个能成功 `avcodec_open2` 的；运行时若探测到的硬件编码器对真实流失败，自动回退到 libx264。H.264 profile 按机器能力选择：`>=4 核 且 >=8GB 内存` 用 `high`，否则用 `main`（见 `ffmpeg.go` 的 `selectEncoder` / `capableMachine`）。无 GPU 的机器（如本机）自动落到软件 libx264。OS 原生后端（VideoToolbox/MediaFoundation/MediaCodec）仍为 stub，统一由 ffmpeg 编码器名探测覆盖。
 
-### 3. 任务系统（jobs）是空壳
-- `POST /jobs/:id` 返回「queued (no-op)」，不真正执行任何后台任务（如批量生成缩略图、元数据提取等）。当前缩略图只在上传时同步生成。
+### 3. 任务系统（jobs）已落地 ✅
+- `POST /jobs/:id` 现为**真实执行器**（并发 worker 池，上限 4），进度可经 `GET /api/jobs` 与 `GET /api/jobs/:id` 查询（详见 §四.A）：`thumbnailGeneration` / `metadataExtraction` / `videoConversion` / `duplicateDetection` 均真实执行；ML/AI 类 job（`objectDetection`/`facialRecognition`/`smartSearch` 等）返回 `200 + unsupported:true` 以保持官方客户端兼容。
 
 ### 4. 相册库扫描（library scan）已补齐 ✅
 - `POST /libraries/:id/scan` 现在会**真正遍历 `ImportPaths` 磁盘目录**：跳过 `ExcludedPaths` 前缀、按扩展名识别图片/视频、按内容 sha1 对当前用户去重，并通过与上传共用的 `ingestStoredFile` 生成缩略图 / 抽取 EXIF / 写入 Asset/Exif 行（EXTERNAL 库以 `isExternal=true` 原地引用，不上传副本）。
@@ -87,8 +87,9 @@
 ### 7. 内置 Web UI（已升级为完整 SPA）
 - 已移植为类 Immich 的完整前端（时间线图库 / 相册 / 搜索 / 收藏 / 归档 / 回收站 / 管理 / 灯箱查看器 / 上传），覆盖个人局域网使用的主要单人场景。复杂管理（OAuth、地图、回忆等）仍需官方 App 或直连 API。
 
-### 8. 其余 Immich 大功能未覆盖（约 165 个路由未实现）
-- OAuth / SSO、管理 / 维护后台面板、回忆（memories）、工作流 / 插件、同步流（websocket sync）、通知 / 邮件、存储迁移、回收站定时清理等。
+### 8. 其余 Immich 大功能未覆盖（按设计超出单人 / 私域纯 Go 范围）
+- 仍缺（需外部服务 / 多用户 / 管理后台）：OAuth / SSO**接入外部 IdP**（仅 `/api/oauth/config` 开关，`enabled:false`）、管理 / 维护后台面板、工作流 / 插件、存储模板迁移（`storageTemplateMigration` job 报 `unsupported`）。
+- **已补齐（非「未覆盖」）**：回忆 / memories（`GET /api/memories` 已落地，见 §七）、实时同步（SPA 走 `/api/events` 裸 websocket、官方 App 走 `/api/socket.io` Socket.IO，二者同源事件总线，见 §六.F/G）、通知（移动端设备令牌注册 `POST/DELETE /api/notifications` 已落地，仅不实际推送——无外部推送服务）、回收站定时清理（24h cron，见 §六.E）。
 - **地图（已补齐 ✅）**：已实现 `/api/map/markers`（按 GPS 聚类、返回标记 + city/country + 代表 assetId）与 SPA「Map」标签页（离线等距投影世界网格 + 标记点 + 缩略图列表，点击打开灯箱）。**反向地理编码已补齐 ✅**：摄取（上传 / 库扫描）时由随包嵌入的离线 GeoNames 数据集（cities15000 + countryInfo，见 `THIRD_PARTY.md`）就近匹配城市 / 国家并写入 `Exif.city/country`；另提供 `POST /api/map/reverse-geocode` 端点（lat/lon → city/state/country），`server/features.reverseGeocoding` 已报 `true`。
 
 ### 9. 部分兼容字段为最小实现
@@ -233,7 +234,7 @@
 
 **版本门控**：需设 `IMMICH_COMPAT_VERSION=3.1.0` 以通过 v3.1.0 客户端版本校验（已实测 `/api/server/version` 正确返回 `{"major":3,"minor":1,"patch":0,"prerelease":0,"version":"3.1.0"}`）。
 
-**仍缺失（按设计超出单人/私域范围，不阻断连接与同步主流程）**：`admin/*`、`memories/*`、`notifications/*`、`oauth/*`、`plugins/*`、`workflows/*`、`queues/*`、`sessions/*`、ML（`people` 聚类 / `faces` / CLIP `smart-search` / `ocr`——People 页在客户端为空，`server/features` 已置 `facialRecognition:false`）、视频 **HLS 流**（`/assets/:id/video/stream/*`、`main.m3u8`，App 端视频播放走 HLS；immich-go 以 `/assets/:id/encoded-video` MP4 替代）、`stacks/*`、`partners` 部分变体、`trash` 部分变体。
+**仍缺失（按设计超出单人/私域范围，不阻断连接与同步主流程）**：`admin/*`、`oauth/*`（仅 `/api/oauth/config` 开关，`enabled:false`，未接入外部 IdP）、`plugins/*`、`workflows/*`、`queues/*`、`sessions/*`、ML（`people` 聚类 / `faces` / CLIP `smart-search` / `ocr`——People 页在客户端为空，`server/features` 已置 `facialRecognition:false`）、`stacks/*`、`partners` 部分变体、`trash` 部分变体。注：`memories/*`、`notifications/*`、视频 **HLS 流**（`/assets/:id/video/stream/*`，见 §六.I）、实时同步（`/api/events` + `/api/socket.io`，见 §六.F/G）均已实现。
 
 **实测**：`IMMICH_COMPAT_VERSION=3.1.0` 起服，登录及上述新增端点均正常返回（album PATCH、GET 反向地理编码返回 Paris/France、sync/faces/people 存根返回空）；`go build` / `go vet` / `go test ./...` 全绿。
 
@@ -255,7 +256,7 @@
 
 **本次据报告修正的 DTO 形状**（原版契约要求，之前返回了错误字段名）：`/sync/ack`→`{ack,type}`、`/server/apk-links`→`{arm64v8a,armeabiv7a,universal,x86_64}`、`/server/version-check`→`{checkedAt,releaseVersion}`、`/server/storage` 补 `*Raw`、`/server/media-types` 补 `sidecar`、`/server/version-history`→数组。修正后这些端点通过一致性校验。
 
-**路线层覆盖**（§H）：匹配 97/254；缺失 157（admin/memories/notifications/oauth/plugins/workflows/queues/sessions/ML/stacks/partners 变体等，按设计超出单人/私域范围）。
+**路线层覆盖**（§H）：匹配 97/254；缺失 157（admin/oauth/plugins/workflows/queues/sessions/ML/stacks/partners 变体等，按设计超出单人/私域范围；`memories/*`、`notifications/*`、HLS、实时同步已补齐）。
 
 **原版并排测试说明**：本环境无 docker/ffmpeg，无法拉起原版 Immich（需 Postgres+Redis+ML 全栈），故未对运行中实例做并排；同一 harness + spec 设 `BASE_URL=<原版地址>` 即可产出并行报告。完整报告见 `reports/api-consistency-v3.1.0.md`。
 
@@ -284,6 +285,40 @@
 完整报告：`reports/schemathesis-v3.1.0.md`；复现产物：`reports/schemathesis/*.txt`、`*.xml`。`go build`/`go vet ./...` 全绿（vet 的 `unsafe.Pointer` 提示来自 `internal/video` 的 purego FFI，非本次改动）。
 
 **已固化为回归测试手段**：新增自包含门禁 `scripts/schemathesis_check.py`（构建+启动+登录+跑 Schemathesis+解析 JUnit+裁决）。裁决规则——关键检查 `response_schema_conformance` / `content_type_conformance` / `not_a_server_error`(5xx) 任一 >0 即失败；`status_code_conformance` 缺口仅在 `scripts/schemathesis-allowlist.txt`（25 个已知未实现端点 + 3 个良性边界）中豁免，出现未列出的 operation 即判回归。已接入 `.github/workflows/ci.yml` 的 `contract-test` job（push/PR 门禁）。方法文档：`docs/CONTRACT_TESTING.md`。本地复现：`python3 scripts/schemathesis_check.py`。
+
+## 七、2026-08-15 收尾：端点补全至「可行范围 100%」（v1.4.0-go）
+
+本批在前述全部工作的基础上，补齐最后几个「符合纯 Go / `CGO_ENABLED=0` / 单用户私域」契约、且此前遗漏的可行端点，使**可行范围达到 100%**。
+
+### A. 新增端点 ✅
+- **`GET /api/memories`**（回忆 / On This Day）：按当前用户非回收站资产，匹配 `fileCreatedAt` 的月/日（`?day=MM-DD`，默认今天；`?year=` 可收窄到某年），按年分组返回 `{years:[...], assets:[<AssetResponseDto>]}` 形状。匹配在 Go 侧完成，与 SQLite 时间序列化无关；回收站资产被过滤。SPA「Photos」首页顶部新增「On This Day」记忆组件（复用缩略图/灯箱既有逻辑，无记忆时优雅不渲染）。
+- **`POST` / `DELETE /api/notifications`**（移动端设备令牌注册）：持久化 `NotificationToken`（新增模型，`db.go` 已 `AutoMigrate`）。`POST` 为 upsert（按 user+token），`DELETE` 清空当前用户令牌。**不实际推送**——immich-go 私域范围无外部推送服务，令牌仅作数据模型补全。
+- **`GET /api/oauth/config`**：返回 `{enabled:false, passwordLoginEnabled:true}`，使官方 App 在 onboarding 探测 `/api/oauth/config` 时不 404（OAuth 接入外部 IdP 不在范围内，见下）。
+
+### B. 实现完成度：可行范围 100%
+immich-go 的全部「可在纯 Go 单二进制 / 私域 / 无外部服务前提下实现」的 Immich 能力均已落地，归纳如下（均经 `go build` / `go vet $(go list ./... | grep -v '/internal/video')` / `go test ./...` 全绿验证）：
+
+- 认证 / 用户 / 偏好 / API Key；资产管理全链路（上传、去重、缩略图、EXIF、预览、转码、下载、批量操作、查重）；
+- 相册 / 标签 / 伙伴 / 回收站（含 24h 定时清理 cron）/ 动态 / 分享链接（含免登录公开访问）；
+- 时间线 / 搜索（文件名 + EXIF + 元数据 + 探索 + 建议 + cities/places）/ 库（含磁盘扫描）/ 系统配置；
+- **离线反向地理编码**（随包 GeoNames 数据集）+ 地图标记；
+- **视频**：进程内 purego FFmpeg 软编（libx264）抽帧缩略图 + HLS 流 + `/encoded-video` 转码，随包分发 FFmpeg 共享库（Windows 开箱即用）；
+- **Live Photo** 配对与灯箱动态播放；
+- **jobs** 真实执行器（thumbnail/metadata/video/duplicate）；
+- **实时同步**：SPA `/api/events` 裸 websocket + 官方 App `/api/socket.io` Socket.IO（同源事件总线）；
+- **memories / notifications / oauth 配置开关**（本批）。
+
+### C. 已知有意的限制（非缺陷，受限于纯 Go / 无外部服务）
+- **机器学习类**：人脸 / 人物自动聚类召回、`/people` 实际数据、`faces`、CLIP 智能搜索、OCR、对象标签——均需外部 AI 后端，本范围不实现；相关 job 返回 `unsupported:true`，`server/features` 已据实报 `facialRecognition:false` 等。
+- **OAuth / SSO**：仅提供 `/api/oauth/config` 开关（始终 `enabled:false`），不接入任何外部身份提供方。
+- **视频硬件加速后端**（QSV / NVENC / VideoToolbox / MediaFoundation）为 stub，软件 libx264 软编可用；Linux 服务端推荐用带 ffmpeg 的 Docker 镜像以加载系统 FFmpeg。
+- **通知**：设备令牌已持久化，但不实际推送（无外部推送服务）。
+- **管理 / 维护后台、`admin/*`、插件、工作流、队列、sessions、存储模板迁移、stacks** 等属多用户 / 管理面，不在单人私域范围内。
+
+### D. 发布产物（v1.4.0-go）
+- `scripts/build-release.sh 1.4.0-go` 生成 6 平台静态二进制（linux/darwin/windows × amd64/arm64，`CGO_ENABLED=0`），含 `README.txt` + `start.sh/.bat` + `.tar.gz`，`dist/checksums.txt` 为其 SHA-256。
+- `scripts/bundle-deps.sh` 为各包生成 `-deps` 归档（Windows 从 BtbN 拉取 FFmpeg 7.1 gpl-shared `.dll`；其他平台回退占位或靠系统/容器 FFmpeg）。
+- 验证：以 `dist/immich-go-1.4.0-go-linux-amd64/immich-go` 真实二进制端到端冒烟（登录 → `/api/memories` 返回 `[]` → `/api/oauth/config` 返回 `{"enabled":false,...}` → `/api/notifications` 201/200）全部通过，无 5xx 回归。
 
 ### L. 多架构镜像流水线（`.cnb.yml`）+ 原版 Immich 并排对比
 

@@ -86,6 +86,19 @@ type Exif struct {
 	Orientation      *int    `json:"orientation,omitempty"`
 }
 
+// NotificationToken stores a mobile push device token registered by a client
+// via POST /api/notifications. immich-go has no external push provider in its
+// private-LAN scope, so these are persisted for data-model completeness only;
+// nothing is dispatched. One row is kept per (user, device token).
+type NotificationToken struct {
+	ID          string    `gorm:"primaryKey;type:text" json:"id"`
+	UserID      string    `gorm:"index;type:text" json:"userId"`
+	DeviceToken string    `gorm:"type:text" json:"deviceToken"`
+	Platform    string    `gorm:"type:text" json:"platform"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
+}
+
 type Album struct {
 	ID                    string         `gorm:"primaryKey;type:text" json:"id"`
 	OwnerID               string         `gorm:"index;type:text" json:"ownerId"`

@@ -176,6 +176,11 @@
     // buckets come oldest-first; show newest first
     const buckets = r.body.slice().reverse();
     App.viewerList = [];
+
+    // "On This Day" memories — rendered at the very top, only if present.
+    // Degrades gracefully (nothing shown) when the endpoint is absent/empty.
+    renderMemories(view);
+
     for (const b of buckets) {
       const label = document.createElement('div');
       label.className = 'bucket-label';
@@ -198,6 +203,76 @@
       };
       if (bucketObserver) { grid._load = load; bucketObserver.observe(label); }
       else { await load(); }
+    }
+  }
+
+  // --------------------------------------------------------- memories
+  // Fetches "On This Day" memories and renders them at the top of the Photos
+  // view. Each group shows the year(s) and a horizontal strip of thumbnails.
+  // Reuses the shared thumbnail loader/observer. Renders nothing if the
+  // endpoint is missing, errors, or returns an empty list (graceful).
+  async function renderMemories(container) {
+    try {
+      const now = new Date();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, '0');
+      const r = await getJSON('/api/memories?day=' + mm + '-' + dd);
+      const groups = r.body;
+      if (!Array.isArray(groups) || groups.length === 0) return; // nothing to show
+
+      const section = document.createElement('div');
+      section.className = 'memories';
+      const title = document.createElement('div');
+      title.className = 'memories-title';
+      title.textContent = '🕒  On This Day';
+      section.appendChild(title);
+
+      let anyTiles = false;
+      for (const g of groups) {
+        const gEl = document.createElement('div');
+        gEl.className = 'memories-group';
+        const years = Array.isArray(g.years) ? g.years.join(', ') : '';
+        if (years) {
+          const y = document.createElement('div');
+          y.className = 'memories-year';
+          y.textContent = years;
+          gEl.appendChild(y);
+        }
+        const strip = document.createElement('div');
+        strip.className = 'memories-strip';
+        const assets = Array.isArray(g.assets) ? g.assets : [];
+        for (const a of assets) {
+          const t = document.createElement('div');
+          t.className = 'tile';
+          const img = document.createElement('img');
+          img.dataset.id = a.id;
+          img.alt = a.originalFileName || a.id;
+          t.appendChild(img);
+          if (a.hasThumbnail) {
+            if (thumbObserver) thumbObserver.observe(img);
+            else (async () => { img.src = await thumbURL(a.id); })();
+          }
+          if (a.type === 'VIDEO') {
+            const p = document.createElement('div'); p.className = 'play'; p.textContent = '▶';
+            t.appendChild(p);
+          }
+          if (a.livePhotoVideoId) {
+            const lp = document.createElement('div'); lp.className = 'live'; lp.textContent = '●';
+            t.appendChild(lp);
+          }
+          t.onclick = () => openViewer([a], 0);
+          strip.appendChild(t);
+          anyTiles = true;
+        }
+        gEl.appendChild(strip);
+        section.appendChild(gEl);
+      }
+
+      if (!anyTiles) return; // groups present but no viewable assets
+      // keep the section at the top even if buckets already rendered
+      container.insertBefore(section, container.firstChild);
+    } catch (_) {
+      // graceful: never break the timeline if memories are unavailable
     }
   }
 
@@ -659,14 +734,36 @@
       }, true);
       stage.appendChild(v);
     } else {
+      // Image asset: show the still. For Live Photos, also auto-play the
+      // looping motion video inline (overlaid on the still). The still stays
+      // as a fallback if the motion stream fails to load.
+      const wrap = document.createElement('div');
+      wrap.className = 'live-wrap';
       const img = document.createElement('img');
       img.src = previewURL(a.id);
-      stage.appendChild(img);
+      wrap.appendChild(img);
+      stage.appendChild(wrap);
+
       if (a.livePhotoVideoId) {
+        const v = document.createElement('video');
+        v.className = 'live-video';
+        v.autoplay = true; v.loop = true; v.muted = true; v.playsInline = true;
+        const s = document.createElement('source');
+        s.src = '/api/assets/' + a.id + '/live-photo';
+        s.type = 'video/mp4';
+        v.appendChild(s);
+        // if the motion stream is unavailable, fall back to the still image
+        v.addEventListener('error', () => { v.style.display = 'none'; }, true);
+        wrap.appendChild(v);
+        // kick off playback (muted autoplay can be blocked until user gesture)
+        const tryPlay = () => { const p = v.play(); if (p && p.catch) p.catch(() => {}); };
+        tryPlay();
+        v.addEventListener('canplay', tryPlay, { once: true });
+
         const live = document.createElement('button');
         live.className = 'live-badge';
         live.textContent = '● LIVE';
-        live.title = 'Play Live Photo motion';
+        live.title = 'Play Live Photo motion full-screen';
         live.onclick = () => showLivePhoto(a);
         stage.appendChild(live);
       }

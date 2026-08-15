@@ -140,6 +140,15 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
 .empty { text-align: center; color: var(--muted); padding: 60px 20px; }
 .spinner { text-align: center; color: var(--muted); padding: 30px; }
 
+/* ---------- memories (On This Day) ---------- */
+.memories { margin-bottom: 8px; }
+.memories-title { font-size: 15px; font-weight: 700; color: var(--text); margin: 4px 4px 12px; }
+.memories-group { margin-bottom: 16px; }
+.memories-year { font-size: 13px; font-weight: 700; color: var(--muted); margin: 0 4px 8px; }
+.memories-strip { display: flex; gap: 10px; overflow-x: auto; padding: 2px 4px 10px; scrollbar-width: thin; }
+.memories-strip .tile { flex: 0 0 140px; width: 140px; }
+.tile .live { position: absolute; bottom: 6px; right: 8px; color: #ff5a5f; font-size: 12px; pointer-events: none; }
+
 /* ---------- toolbar (selection / album detail) ---------- */
 .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
 .toolbar .spacer { flex: 1; }
@@ -171,6 +180,10 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
   border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 700; letter-spacing: .04em;
 }
 .live-badge:hover { background: rgba(0,0,0,.75); }
+/* Live Photo: still image as base + overlaid looping motion video */
+.live-wrap { position: relative; max-width: 100%; max-height: 100%; display: flex; align-items: center; justify-content: center; }
+.live-wrap img { display: block; }
+.live-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
 .viewer-panel {
   width: 320px; flex: 0 0 320px; background: var(--bg-elev); border-left: 1px solid var(--border);
   padding: 20px; overflow-y: auto;

@@ -193,6 +193,12 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.POST("/search/statistics", a.handleSearchStatistics)
 		api.POST("/search/smart", a.handleSearchSmart)
 
+		// memories (on-this-day) + notifications + oauth config
+		api.GET("/memories", a.handleMemories)
+		api.POST("/notifications", a.handleNotificationRegister)
+		api.DELETE("/notifications", a.handleNotificationRemove)
+		api.GET("/oauth/config", a.handleOAuthConfig)
+
 		// tags
 		api.GET("/tags", a.handleTagList)
 		api.POST("/tags", a.handleTagCreate)
