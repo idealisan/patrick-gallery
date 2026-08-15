@@ -169,19 +169,33 @@
     : null;
 
   async function viewPhotos(view) {
-    const r = await getJSON('/api/timeline/buckets?size=MONTH');
-    if (!r.body || !Array.isArray(r.body)) { view.innerHTML = '<div class="empty">Failed to load timeline.</div>'; return; }
-    if (r.body.length === 0) { view.innerHTML = '<div class="empty">No photos yet — upload some above.</div>'; return; }
+    let r;
+    try {
+      r = await getJSON('/api/timeline/buckets?size=MONTH');
+    } catch (e) {
+      // fetch failed / session expired → offer to sign in again instead of
+      // leaving the bare shell (sidebar + page chrome, no content).
+      view.innerHTML = '<div class="empty">Could not load your library. ' +
+        '<a href="#" id="relogin">Sign in again</a>.</div>';
+      const a = $('relogin');
+      if (a) a.onclick = (ev) => { ev.preventDefault(); localStorage.removeItem('immich_token'); App.token = null; showLogin(); };
+      return;
+    }
+    const buckets = Array.isArray(r.body) ? r.body : [];
+    if (buckets.length === 0) {
+      view.innerHTML = '<div class="empty">No photos yet — drag &amp; drop files here, or click <b>Upload</b> above.</div>';
+      return;
+    }
 
     // buckets come oldest-first; show newest first
-    const buckets = r.body.slice().reverse();
+    const ordered = buckets.slice().reverse();
     App.viewerList = [];
 
     // "On This Day" memories — rendered at the very top, only if present.
     // Degrades gracefully (nothing shown) when the endpoint is absent/empty.
     renderMemories(view);
 
-    for (const b of buckets) {
+    for (const b of ordered) {
       const label = document.createElement('div');
       label.className = 'bucket-label';
       label.textContent = formatBucket(b.timeBucket) + '  ·  ' + b.count;
