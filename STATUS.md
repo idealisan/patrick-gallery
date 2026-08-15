@@ -11,6 +11,8 @@
 >
 > **逐端点 API 实现清单**：见 [docs/API_STATUS.md](docs/API_STATUS.md)——以官方 v3.1.0 契约 254 个 operation 为基准，三列（原版方法+路径 / Go 版现状 ✅🟡🟠❌ / 与原版差距）逐条核对，统计 ✅76 · 🟡23 · 🟠25 · ❌130。
 
+> **🚫 禁止 stub（硬规则 AGENTS.md #7）**：本项目不允许任何 stub / 占位 / 空响应端点。所有 🟠 行必须清零——要么真正实现功能，要么改为诚实的 `4xx`/`501`（并加入契约测试豁免）。整改清单与逐项处置见 [docs/NO_STUBS.md](docs/NO_STUBS.md)。
+
 ## Release 2 — in progress
 
 > 目标：视频在进程内完全可用（FFmpeg 共享库经 purego 加载、随包分发）、图像 API 补全、数据库抽象、官方前端移植。最后更新：2026-08-09。

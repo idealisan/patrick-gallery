@@ -58,6 +58,49 @@ target described below.
 6. **Original frontend port.** Aim to fully port the official Immich web
    frontend; at minimum the web UI must correctly browse, play, and manage
    images and videos.
+7. **No stubs, no mocking — every endpoint must do real work.** This is a
+   real, production-grade product, **not** an API mock. It is forbidden to
+   register any API route or ship any feature that:
+   - returns a 2xx with an empty / zeroed / constant DTO while performing no
+     real logic (the old "graceful stub that lets the client proceed"),
+   - is a no-op that silently ignores its inputs, or
+   - fakes a result the server cannot actually produce.
+   Every endpoint that is part of the official client contract MUST be
+   genuinely implemented. For a capability that is genuinely infeasible in
+   this codebase (e.g. ML clustering under the pure-Go constraint), the only
+   acceptable alternatives are:
+   - implement it for real (preferred), or
+   - return an explicit, honest error (4xx / `501 Not Implemented`) so the
+     client knows the capability is unsupported. This is **NOT** a stub, but
+     it MUST be recorded in the gap tracker (`docs/GAP_ANALYSIS.md`) and added
+     to the contract-test allowlist (`scripts/schemathesis-allowlist.txt`) so
+     it is never silently shipped as a fake success.
+   Returning an empty `200` "so the client proceeds" is explicitly prohibited.
+   **Runtime degradation that still does real work** (e.g. video falls back to
+   a software transcoder, or serves the original file, when an optional
+   hardware backend is absent) is NOT a "feature stub" and remains allowed; a
+   backend that returns nothing while claiming success is not allowed.
+
+### No-stub policy (operational)
+
+- **Definition.** A *stub* is any code path that claims success/availability
+  but does not perform its real function. Two shapes:
+  (a) *fake-success* — hard-coded empty / zero / constant responses or no-op
+  `200`s that ignore their inputs (e.g. `handleSyncStream` returning `[]any{}`,
+  `handleServerStorage` returning `0 B` for everything, `handlePersonMerge`
+  returning `200` with no state change);
+  (b) *honest-but-missing* — returns the truthful (often empty) current state
+  because an upstream capability is absent (e.g. an empty people list because
+  face clustering is not implemented). Both violate this rule: the endpoint
+  must either do the real work or return an honest error.
+- **No new stubs.** A handler that returns a constant / empty success body
+  without reading or acting on its inputs is a review blocker. Do not add them.
+- **Inventory.** The current known stubs and their required disposition are
+  tracked in `docs/NO_STUBS.md` (file:line, contract operation, stub shape,
+  target = implement / honest-error). Drive the list to zero.
+- **CI gate.** The contract-test allowlist (`scripts/schemathesis-allowlist.txt`)
+  may only cover endpoints that return an *honest* 4xx/501, never fake-success
+  `200`s. See `docs/CONTRACT_TESTING.md`.
 
 ### Notes for agents
 
