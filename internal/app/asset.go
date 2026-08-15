@@ -292,6 +292,7 @@ func (a *App) handleAssetUpload(c *gin.Context) {
 		a.store.DB.Model(&asset).Updates(patch)
 	}
 
+	a.emitAsset("asset.create", asset.ID)
 	c.JSON(http.StatusCreated, gin.H{"id": asset.ID, "status": "created"})
 }
 
@@ -450,6 +451,7 @@ func (a *App) handleAssetUpdate(c *gin.Context) {
 	}
 	asset.UpdatedAt = time.Now().UTC()
 	a.store.DB.Save(&asset)
+	a.emitAsset("asset.update", asset.ID)
 	c.JSON(http.StatusOK, a.toResponse(asset))
 }
 
@@ -479,6 +481,13 @@ func (a *App) handleAssetBulkDelete(c *gin.Context) {
 			now := time.Now().UTC()
 			asset.TrashedAt = &now
 			a.store.DB.Save(&asset)
+		}
+	}
+	if len(b.IDs) > 0 {
+		if b.Force {
+			a.emit("asset.delete", map[string]any{"ids": b.IDs})
+		} else {
+			a.emit("asset.trash", map[string]any{"ids": b.IDs})
 		}
 	}
 	c.Status(http.StatusOK)
@@ -559,6 +568,13 @@ func (a *App) handleAssetBulkUpdate(c *gin.Context) {
 		}
 		asset.UpdatedAt = time.Now().UTC()
 		a.store.DB.Save(&asset)
+	}
+	if len(b.IDs) > 0 {
+		if b.IsTrash != nil && *b.IsTrash {
+			a.emit("asset.trash", map[string]any{"ids": b.IDs})
+		} else {
+			a.emit("asset.update", map[string]any{"ids": b.IDs})
+		}
 	}
 	c.Status(http.StatusOK)
 }

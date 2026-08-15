@@ -153,7 +153,7 @@
 1. **Live Photo 配对（已补齐 ✅）**：`livePhotoVideoId` 已存储并打通——新增 `GET /api/assets/:id/live-photo` 流式返回配对视频（优先 encoded-video，否则原文件），SPA 灯箱新增「● LIVE」角标与「▶ Live Photo」按钮播放动态。资产响应 DTO 已含 `livePhotoVideoId`。
 2. **反向地理编码（已补齐 ✅）**：见 §二.8；摄取时写库 + `POST /api/map/reverse-geocode` 端点，`server/features.reverseGeocoding` 已报 `true`。
 3. **回收站定时清理（已补齐 ✅）**：新增 `TrashedAt` 列与后台调度（`startSchedulers`，启动 30s 后首次、之后每 24h）调用 `runTrashCleanup`，永久删除超过 `trashDays`（默认 30，`IMMICH_TRASH_DAYS` 可调，已接入 `server/config`）的回收站资产（含原图 / 缩略图 / 转码文件与 Exif 行）；另提供 `POST /api/trash/cleanup` 手动触发与 `trashCleanup` job（进度可经 `/api/jobs` 查询）。
-4. **架构级大功能**：人脸聚类/`people` 召回、智能(CLIP)搜索、websocket 实时同步、OAuth/SSO、memories、通知/邮件、管理后台——仍属 ML / 外部后端 / 多用户范畴，超出单人 / 私域范围（约 160+ 路由未覆盖）。`/api/people/:id/assets` 已返回正确的空形状以兼容官方客户端。
+4. **架构级大功能**：人脸聚类/`people` 召回、智能(CLIP)搜索、OAuth/SSO、memories、通知/邮件、管理后台——仍属 ML / 外部后端 / 多用户范畴，超出单人 / 私域范围（约 160+ 路由未覆盖）。`/api/people/:id/assets` 已返回正确的空形状以兼容官方客户端。**websocket 实时同步已补齐 ✅**：新增 `GET /api/events` 纯 websocket 事件流（RFC6455，依赖 `gorilla/websocket`，纯 Go / CGO-free），资产 / 相册变更（创建 / 更新 / 移入回收站 / 删除 / 恢复 / 相册增删成员等）经内存事件总线实时推送给所有已连接客户端；SPA 自动重连并在收到事件后防抖刷新当前视图。
 5. **版本门控**：`IMMICH_COMPAT_VERSION` 默认 `1.130.0`；若用户所用 App 版本不同，需按客户端实际期望版本调整该环境变量，否则可能出现「服务器版本不匹配」提示。
 
 ## 六、2026-08-15 发布 v1.2.0-go（克隆原版后端 + 发布产物 + Docker 镜像）
@@ -187,6 +187,13 @@
 - **回收站定时清理 ✅**：`Asset` 新增 `TrashedAt` 列；`startSchedulers` 启动 30s 后首次、之后每 24h 调用 `runTrashCleanup` 永久删除超过 `trashDays`（默认 30，`IMMICH_TRASH_DAYS`，已接入 `server/config`）的回收站资产（含原图 / 缩略图 / 转码文件与 Exif 行）；另提供 `POST /api/trash/cleanup` 手动触发与 `trashCleanup` job（进度可经 `/api/jobs` 查询）。
 - **兼容路由补齐 ✅**：`GET /api/server/statistics`（全局计数）、`GET /api/people/:id/assets`（正确空形状）。
 - **测试**：新增 `internal/app/geo/geocoder_test.go`（巴黎 / 东京 / 公海）、`internal/app/features_test.go`（反向地理编码端点、Live Photo 流式、回收站清理、statistics/people 兼容路由），全部通过。
+
+### F. websocket 实时同步（2026-08-15 补充）
+- 新增 `internal/app/events.go`：内存事件总线 `EventBus`（pub/sub，每客户端 64 缓冲、慢客户端丢帧不阻塞）+ `GET /api/events` 纯 websocket 端点（gorilla/websocket，25s 心跳 ping、断线由客户端指数退避重连）。
+- 事件发射接入：资产上传（`asset.create`）、单/批量更新（`asset.update`）、移入回收站 / 批量删除（`asset.trash` / `asset.delete`）、回收站恢复（`asset.restore`）、回收站清空（`asset.delete`）；相册创建 / 更新 / 删除 / 增删成员（`album.create` / `album.update` / `album.delete` / `album.addAssets` / `album.removeAssets`）。
+- SPA 新增 `connectSync()`：登录后 / 启动后连接 `/api/events`，收到事件防抖 600ms 后调用 `route()` 刷新当前视图；断线指数退避重连（上限 30s）。
+- 测试：`internal/app/events_test.go`（连接收到 init、发布 `asset.create` 被流式推送、无 token 握手失败），全部通过。`go build` / `go vet` / `go test ./...` 全绿。
+- 兼容性说明：官方手机 App 使用的是 Socket.IO（在 websocket 之上的私有协议 + 命名空间），本端点为**纯 websocket** 事件流，主要服务自带 SPA 与任意 plain-websocket 客户端；要与官方 App 的 Socket.IO 客户端互通需再实现 Socket.IO 协议层（超出本次范围，记录于上 §二/五 架构级项中）。
 
 ### 仍待补全（发布相关）
 - Windows/arm64 视频开箱即用需 BtbN 提供 `win-arm64-gpl-shared`（上游缺失）；可改从其他渠道取 arm64 共享库。

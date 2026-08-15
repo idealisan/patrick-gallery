@@ -61,6 +61,7 @@ func (a *App) handleAlbumCreate(c *gin.Context) {
 		a.store.DB.Save(&al)
 	}
 	c.JSON(http.StatusCreated, a.albumToResponse(al))
+	a.emit("album.create", map[string]any{"id": al.ID})
 }
 
 // handleAlbumAssets returns the assets belonging to an album, in the order
@@ -126,6 +127,7 @@ func (a *App) handleAlbumUpdate(c *gin.Context) {
 	}
 	al.UpdatedAt = time.Now().UTC()
 	a.store.DB.Save(&al)
+	a.emit("album.update", map[string]any{"id": al.ID})
 	c.JSON(http.StatusOK, a.albumToResponse(al))
 }
 
@@ -134,6 +136,7 @@ func (a *App) handleAlbumDelete(c *gin.Context) {
 	id := c.Param("id")
 	a.store.DB.Where("id = ? AND owner_id = ?", id, uid).Delete(&Album{})
 	a.store.DB.Where("album_id = ?", id).Delete(&AlbumAsset{})
+	a.emit("album.delete", map[string]any{"id": id})
 	c.Status(http.StatusOK)
 }
 
@@ -168,6 +171,9 @@ func (a *App) handleAlbumAddAssets(c *gin.Context) {
 		al.UpdatedAt = now
 		a.store.DB.Save(&al)
 	}
+	if len(added) > 0 {
+		a.emit("album.addAssets", map[string]any{"id": id, "assetIds": added})
+	}
 	c.JSON(http.StatusOK, gin.H{"added": added, "album": a.albumToResponse(al)})
 }
 
@@ -182,6 +188,9 @@ func (a *App) handleAlbumRemoveAssets(c *gin.Context) {
 	var b albumAssetsBody
 	_ = c.ShouldBindJSON(&b)
 	a.store.DB.Where("album_id = ? AND asset_id IN ?", id, b.IDs).Delete(&AlbumAsset{})
+	if len(b.IDs) > 0 {
+		a.emit("album.removeAssets", map[string]any{"id": id, "assetIds": b.IDs})
+	}
 	c.JSON(http.StatusOK, gin.H{"removed": b.IDs, "album": a.albumToResponse(al)})
 }
 

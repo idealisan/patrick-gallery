@@ -890,6 +890,48 @@ function fmtDate(s) {
   }
 
   // --------------------------------------------------------------- wiring
+  // --------------------------------------------------- realtime sync (ws)
+  let syncWS = null;
+  let syncRetry = 0;
+  let syncRefreshTimer = null;
+
+  function connectSync() {
+    if (!App.token) return;
+    if (syncWS && syncWS.readyState <= 1) return; // already connecting/open
+    const proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
+    let ws;
+    try {
+      ws = new WebSocket(proto + location.host + '/api/events');
+    } catch (e) {
+      scheduleSyncReconnect();
+      return;
+    }
+    syncWS = ws;
+    ws.onopen = () => { syncRetry = 0; };
+    ws.onmessage = (ev) => {
+      let msg;
+      try { msg = JSON.parse(ev.data); } catch (_) { return; }
+      if (!msg || !msg.type || msg.type === 'init') return;
+      // A realtime event arrived (asset/album change): debounce-refresh the
+      // current view so another client's changes show up without a manual reload.
+      scheduleSyncRefresh();
+    };
+    ws.onclose = () => { syncWS = null; scheduleSyncReconnect(); };
+    ws.onerror = () => { try { syncWS.close(); } catch (_) {} };
+  }
+  function scheduleSyncReconnect() {
+    syncRetry++;
+    const delay = Math.min(30000, 1000 * Math.pow(2, Math.min(syncRetry, 5)));
+    setTimeout(connectSync, delay);
+  }
+  function scheduleSyncRefresh() {
+    if (syncRefreshTimer) clearTimeout(syncRefreshTimer);
+    syncRefreshTimer = setTimeout(() => {
+      syncRefreshTimer = null;
+      if (App.token) route(); // re-render current view from the API
+    }, 600);
+  }
+
   function init() {
     // login
     $('login-form').addEventListener('submit', async (e) => {
@@ -901,6 +943,7 @@ function fmtDate(s) {
         const me = await getJSON('/api/users/me');
         App.user = me.body;
         showApp();
+        connectSync();
       } else {
         $('login-msg').className = 'msg err';
         $('login-msg').textContent = 'Sign in failed';
@@ -925,6 +968,7 @@ function fmtDate(s) {
     window.addEventListener('hashchange', route);
     initUpload();
     bootstrap();
+    connectSync();
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

@@ -20,12 +20,17 @@ type App struct {
 	// It is nil if the embedded dataset failed to load; callers must guard.
 	geocoder *geo.Geocoder
 
+	// bus is the in-memory realtime event pub/sub backing the websocket sync
+	// endpoint.
+	bus *EventBus
+
 	// jobStates tracks progress of background jobs keyed by job id.
 	jobStates sync.Map
 }
 
 func NewApp(cfg *Config, store *Store) *App {
 	a := &App{cfg: cfg, store: store, video: video.New()}
+	a.bus = newEventBus()
 	if g, err := geo.Load(); err != nil {
 		log.Printf("[geo] reverse-geocoder unavailable: %v", err)
 	} else {
@@ -195,6 +200,9 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.GET("/jobs", a.handleJobsList)
 		api.POST("/jobs/:id", a.handleJobCommand)
 		api.GET("/jobs/:id", a.handleJobStatus)
+
+		// realtime sync (websocket)
+		api.GET("/events", a.handleEventsWS)
 
 		// download (basic)
 		api.GET("/download/archive", a.handleDownloadArchive)

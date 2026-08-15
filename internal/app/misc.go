@@ -80,6 +80,9 @@ func (a *App) handleTrashRestore(c *gin.Context) {
 	for _, id := range b.IDs {
 		a.store.DB.Model(&Asset{}).Where("id = ? AND owner_id = ?", id, uid).Update("is_trash", false)
 	}
+	if len(b.IDs) > 0 {
+		a.emit("asset.restore", map[string]any{"ids": b.IDs})
+	}
 	c.JSON(http.StatusOK, gin.H{"restored": b.IDs})
 }
 
@@ -94,6 +97,7 @@ func (a *App) handleTrashEmpty(c *gin.Context) {
 		}
 	}
 	a.store.DB.Where("owner_id = ? AND is_trash = ?", uid, true).Delete(&Asset{})
+	a.emit("asset.delete", map[string]any{"ids": []string{}})
 	c.Status(http.StatusOK)
 }
 
