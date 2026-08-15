@@ -1,5 +1,9 @@
 # immich-go — User Manual
 
+> 🇨🇳 A comprehensive **Chinese** user manual is available at
+> [USER_MANUAL_ZH.md](USER_MANUAL_ZH.md) — it covers every config variable,
+> how to configure, connect, and use the server (current version **v1.4.0-go**).
+
 `immich-go` is a self-contained, single-binary reimplementation of the
 Immich photo/video server API, written in Go. It stores everything in a
 local SQLite database and the filesystem, serves a built-in web gallery,
@@ -17,16 +21,23 @@ search (filename/EXIF text + metadata + explore + suggestions), tags,
 partners, trash, activities, shared-links, system-config, and a small
 web UI.
 
-**Not included / stubbed** (require the upstream ML stack or a server
-cluster, and are intentionally out of scope):
-- Facial recognition / `people` recall, smart (semantic) search, CLIP.
-  (`/api/people`, `/api/search/person`, smart search) return minimal data.
-- Video transcoding. `encoded-video` serves the original file.
-- OAuth / SSO, admin & maintenance dashboards, map/reverse-geocoding,
-  stacks, memories, workflows, plugins, sync streaming, notifications.
-- `POST /api/assets/bulk-upload-check` and a few admin endpoints are
-  absent. The full upstream API surface is ~250 routes; `immich-go`
-  implements the core ~90 used by the library experience.
+**Not included / deferred** (require the upstream ML stack or a clustered
+server, and are intentionally out of scope for now):
+- Facial recognition / auto person clustering, smart (semantic) search, CLIP,
+  OCR. `/api/people` *list/get/merge/reassign* are real, but **face
+  detection** (`/faces`) returns an honest `501` (no ML backend bundled).
+- OAuth / SSO, email / external notifications, memories, workflows, plugins,
+  horizontal multi-tenant scaling.
+- The full upstream API surface is ~254 routes; `immich-go` implements the
+  core ~100+ used by the library experience and is contract-tested against
+  the v3.1.0 OpenAPI spec.
+
+**Now implemented (correcting older docs):** in-process video transcoding
+(`/encoded-video` + HLS via purego-loaded FFmpeg 7.1), map markers + offline
+reverse-geocoding, admin user-management dashboard (`/admin/users/*`),
+shared-link public access, on-disk library scan, and real background jobs
+(`thumbnailGeneration` / `metadataExtraction` / `videoConversion` /
+`duplicateDetection` / `trashCleanup`).
 
 The web UI is a lightweight built-in gallery (login, upload, thumbnail
 grid, counts), **not** the full React Immich web app. To use the official
@@ -136,9 +147,9 @@ server falls back to a **placeholder video backend**: video still
 uploads and plays its original file, but no thumbnail is extracted and
 `/encoded-video` serves the original without transcoding.
 
-> The environment variable `IMMICH_VIDEO_BACKEND` is **reserved** (the
-> backend selector) but currently optional — the bundled libs are used
-> automatically when present.
+> Note: there is **no** `IMMICH_VIDEO_BACKEND` env var — the video backend
+> is selected automatically at runtime (purego-loaded FFmpeg 7.1 when the
+> shared libs are found, otherwise the placeholder backend).
 
 Video endpoints:
 
@@ -160,11 +171,14 @@ All are optional; defaults shown.
 | `IMMICH_HOST` | `0.0.0.0` | Listen address |
 | `IMMICH_DB` | `immich.db` | SQLite database file path |
 | `IMMICH_RESOURCE` | `resources` | Media/thumbnail storage directory |
-| `IMMICH_JWT_SECRET` | random per run | JWT signing key |
-| `IMMICH_API_KEY_SALT` | random per run | API-key hashing salt |
+| `IMMICH_JWT_SECRET` | `immich-dev-secret-change-me` | JWT signing key (**set a fixed value in prod**) |
+| `IMMICH_API_KEY_SALT` | `immich-dev-api-salt` | API-key hashing salt (**set a fixed value in prod**) |
 | `IMMICH_LOGIN_REQUIRED` | `true` | If `false`, anonymous access as admin |
-| `IMMICH_ADMIN_EMAIL` | `admin@immich.app` | Admin email (first run) |
-| `IMMICH_ADMIN_PASSWORD` | `password` | Admin password (first run) |
+| `IMMICH_ADMIN_EMAIL` | `admin@immich.app` | Admin email (first run / empty DB) |
+| `IMMICH_ADMIN_PASSWORD` | `password` | Admin password (first run / empty DB) |
+| `IMMICH_EXTERNAL_DOMAIN` | `` (empty) | External domain for share-link URLs |
+| `IMMICH_COMPAT_VERSION` | `3.1.0` | Immich server version advertised to clients |
+| `IMMICH_TRASH_DAYS` | `30` | Days before trashed assets are permanently deleted |
 
 Examples:
 

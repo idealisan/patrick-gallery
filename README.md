@@ -31,13 +31,16 @@ counts) served at `/`.
 These require the upstream ML stack or a clustered server and are out of
 scope (stubbed or omitted):
 
-- Facial recognition / `people` recall, smart (semantic) search, CLIP
+- Facial recognition / auto person clustering, smart (semantic) search, CLIP,
+  OCR — `/api/people` *list/get/merge/reassign* are real, but face detection
+  (`/faces`) returns an honest `501` (no ML backend bundled).
 - Hardware-accelerated / OS-native video backends (VideoToolbox, Media
   Foundation, MediaCodec) — the **software libx264 backend works in-process**;
   hardware paths are stubs that fall back to software.
-- OAuth / SSO, admin & maintenance dashboards, reverse-geocoding (markers
-  exist; city/country come from EXIF), stacks, memories, workflows, plugins,
-  sync streaming, notifications
+- OAuth / SSO, email / external notifications, memories, workflows, plugins,
+  horizontal multi-tenant scaling. (Admin user-management (`/admin/users/*`),
+  on-disk library scan, offline reverse-geocoding, shared links, and real
+  background jobs are now implemented — see [USER_MANUAL_ZH.md](USER_MANUAL_ZH.md).)
 
 The official React web/mobile apps can still point at this server (set
 their API base URL to it); the built-in UI at `/` is always available.
@@ -84,8 +87,8 @@ Prebuilt artifacts for Linux/macOS/Windows × x64/arm64 are in `dist/`
 
 Verify: `sha256sum -c dist/checksums.txt`.
 
-> Compatibility: the server speaks the latest Immich contract and reports
-> `IMMICH_COMPAT_VERSION` (default `1.130.0`). Point the official mobile/desktop
+> Compatibility: the server speaks the Immich v3.1.0 contract and reports
+> `IMMICH_COMPAT_VERSION` (default `3.1.0`). Point the official mobile/desktop
 > app at it and set that env var to match your app's expected version if needed.
 
 ## Docker image (CNB Container Registry)
