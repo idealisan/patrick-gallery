@@ -204,6 +204,12 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		// realtime sync (websocket)
 		api.GET("/events", a.handleEventsWS)
 
+		// Socket.IO (Engine.IO v4) for official Immich clients
+		api.GET("/socket.io", a.handleSocketIO)
+		api.GET("/socket.io/", a.handleSocketIO)
+		api.POST("/socket.io", a.handleSocketIO)
+		api.POST("/socket.io/", a.handleSocketIO)
+
 		// download (basic)
 		api.GET("/download/archive", a.handleDownloadArchive)
 	}

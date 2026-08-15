@@ -193,7 +193,23 @@
 - 事件发射接入：资产上传（`asset.create`）、单/批量更新（`asset.update`）、移入回收站 / 批量删除（`asset.trash` / `asset.delete`）、回收站恢复（`asset.restore`）、回收站清空（`asset.delete`）；相册创建 / 更新 / 删除 / 增删成员（`album.create` / `album.update` / `album.delete` / `album.addAssets` / `album.removeAssets`）。
 - SPA 新增 `connectSync()`：登录后 / 启动后连接 `/api/events`，收到事件防抖 600ms 后调用 `route()` 刷新当前视图；断线指数退避重连（上限 30s）。
 - 测试：`internal/app/events_test.go`（连接收到 init、发布 `asset.create` 被流式推送、无 token 握手失败），全部通过。`go build` / `go vet` / `go test ./...` 全绿。
-- 兼容性说明：官方手机 App 使用的是 Socket.IO（在 websocket 之上的私有协议 + 命名空间），本端点为**纯 websocket** 事件流，主要服务自带 SPA 与任意 plain-websocket 客户端；要与官方 App 的 Socket.IO 客户端互通需再实现 Socket.IO 协议层（超出本次范围，记录于上 §二/五 架构级项中）。
+- 兼容性说明：SPA 走 `/api/events` 纯 websocket；官方 App 走 Socket.IO。Socket.IO 协议层已实现，见 §六.G。
+
+### G. 对接官方 App：Socket.IO 实时通道（2026-08-15）
+官方 Immich 手机 / 网页 App 的实时通道是 **Socket.IO**（Engine.IO v4 传输 + Socket.IO 消息层），而非裸 websocket。本批补齐该协议层，使官方客户端可直接连接并接收实时事件。
+
+- 新增 `internal/app/socketio.go`：实现 Engine.IO v4 + Socket.IO（纯 Go / `CGO_ENABLED=0`，复用 `gorilla/websocket`）：
+  - **握手**：`GET /api/socket.io/?EIO=4&transport=websocket` 返回 Engine.IO `open` 包（含 sid、pingInterval/pingTimeout、`upgrades`）；
+  - **websocket 传输**（App 实际使用的路径，支持带/不带前期轮询 sid）：发送 `open` → 收到 `40`(connect) 回 `40`(ack) → 周期 `2`(ping)/`3`(pong) 心跳；
+  - **轮询传输**（尽力兼容）：握手返回带 sid 的 `open` 包，长轮询 GET 等待下个事件，POST 回 200（App 随后升级到 websocket）；
+  - 事件名对齐 Immich 网关：`onAssetUpload` / `onAssetUpdate` / `onAssetTrash` / `onAssetDelete` / `onAlbumUpdate` / `onAlbumDelete` / `onAlbumAddAssets` / `onAlbumRemoveAssets`，与现有内存事件总线同源广播（SPA 的 `/api/events` 与官方 App 的 `/api/socket.io` 收到同一批事件）。
+- 路由：`api.GET/POST("/socket.io")` 与 `"/socket.io/"`。
+- 测试：`internal/app/socketio_test.go` 用手写 Socket.IO 客户端验证握手 → connect ack → 事件投递（42[...]）、轮询握手返回带 sid 的 `open` 包；`go build` / `go vet` / `go test ./...` 全绿。
+
+### 与官方 App 对接的其余前提（重要）
+- **版本门控**：官方 App 启动会校验服务器版本，不匹配则拒绝连接。本服务通过 `IMMICH_COMPAT_VERSION`（默认 `1.130.0`）宣告版本；**请用你客户端实际期望的版本覆盖该变量**（如 App 为 v1.13x 保持 1.130.0 即可，其他版本按客户端提示调整），否则 App 报「服务器版本不匹配」。
+- **REST 兼容性**：timeline / 上传 / 相册 / 地图 / 搜索 / 回收站等核心 REST 已对齐最新 Immich 契约（见 §五），官方 App 可浏览、上传、播放。仍属 ML / 多用户范畴未覆盖的约 160 路由（人脸聚类召回、`/people` 实际数据、CLIP 搜索、OAuth/SSO、memories、通知/邮件、管理后台）在官方 App 中对应页可能为空或报错，但不影响主流程连接与同步。
+- 本环境无法运行真实官方 App 做端到端验证；Socket.IO 实现经**线级协议测试**（手写客户端走完整握手 + 事件投递）验证，建议在你自己的设备/App 上以匹配的 `IMMICH_COMPAT_VERSION` 实测确认。
 
 ### 仍待补全（发布相关）
 - Windows/arm64 视频开箱即用需 BtbN 提供 `win-arm64-gpl-shared`（上游缺失）；可改从其他渠道取 arm64 共享库。
