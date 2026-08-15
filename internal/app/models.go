@@ -29,7 +29,7 @@ type User struct {
 	// admin-managed fields (mirror Immich's UserAdminResponseDto)
 	PinCode           string    `gorm:"type:text" json:"-"`
 	QuotaSizeInBytes  *int64    `gorm:"type:bigint" json:"quotaSizeInBytes,omitempty"`
-	ProfileImagePath  string    `gorm:"type:text" json:"profileImagePath,omitempty"`
+	ProfileImagePath  string    `gorm:"type:text" json:"profileImagePath"`
 	ProfileChangedAt  time.Time `json:"profileChangedAt"`
 	OAuthId           string    `gorm:"type:text" json:"oauthId,omitempty"`
 }

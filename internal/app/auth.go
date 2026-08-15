@@ -140,6 +140,11 @@ func (a *App) handleLogin(c *gin.Context) {
 		"name":                 u.Name,
 		"isAdmin":              u.IsAdmin,
 		"shouldChangePassword": u.ShouldChangePassword,
+		// Required by the official v3.1.0 LoginResponseDto contract. Without
+		// these the openapi-generated iOS/Android client throws on
+		// deserialization and reports "login failed".
+		"isOnboarded":      true,
+		"profileImagePath": u.ProfileImagePath,
 	})
 }
 
@@ -183,7 +188,7 @@ func (a *App) handleSignup(c *gin.Context) {
 	}
 	token, _ := a.issueToken(u.ID)
 	a.recordSession(u.ID)
-	c.JSON(http.StatusCreated, gin.H{"accessToken": token, "userId": u.ID, "userEmail": u.Email, "name": u.Name, "isAdmin": true})
+	c.JSON(http.StatusCreated, gin.H{"accessToken": token, "userId": u.ID, "userEmail": u.Email, "name": u.Name, "isAdmin": true, "isOnboarded": true, "profileImagePath": u.ProfileImagePath, "shouldChangePassword": false})
 }
 
 func (a *App) handleValidate(c *gin.Context) {
@@ -200,6 +205,8 @@ func (a *App) handleValidate(c *gin.Context) {
 		"name":                 u.Name,
 		"isAdmin":              u.IsAdmin,
 		"shouldChangePassword": u.ShouldChangePassword,
+		"isOnboarded":          true,
+		"profileImagePath":     u.ProfileImagePath,
 	})
 }
 

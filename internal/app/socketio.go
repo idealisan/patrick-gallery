@@ -43,33 +43,73 @@ func socketIOOpen(sid string) string {
 }
 
 // socketIOEventName maps an immich-go internal event type to the Socket.IO
-// event name the official clients subscribe to.
+// event name the official Immich v3.1.0 clients subscribe to. The upstream
+// gateway uses snake_case names (on_asset_delete, on_asset_update, ...); an
+// earlier build emitted camelCase (onAssetDelete) which the clients never
+// matched, so realtime push was silently dead. See docs/COMPAT_FINDINGS.md.
 func socketIOEventName(typ string) string {
 	switch typ {
 	case "asset.create":
-		return "onAssetUpload"
-	case "asset.update", "asset.restore":
-		return "onAssetUpdate"
+		return "on_upload_success"
+	case "asset.update":
+		return "on_asset_update"
+	case "asset.restore":
+		return "on_asset_restore"
 	case "asset.trash":
-		return "onAssetTrash"
+		return "on_asset_trash"
 	case "asset.delete":
-		return "onAssetDelete"
+		return "on_asset_delete"
+	case "asset.hide":
+		return "on_asset_hidden"
+	case "asset.stack":
+		return "on_asset_stack_update"
 	case "album.create", "album.update":
-		return "onAlbumUpdate"
+		return "on_album_update"
 	case "album.delete":
-		return "onAlbumDelete"
+		return "on_album_delete"
 	case "album.addAssets":
-		return "onAlbumAddAssets"
+		return "on_album_add_assets"
 	case "album.removeAssets":
-		return "onAlbumRemoveAssets"
+		return "on_album_remove_assets"
+	case "user.delete":
+		return "on_user_delete"
+	case "config.update":
+		return "on_config_update"
+	case "server.version":
+		return "on_server_version"
+	case "new_release":
+		return "on_new_release"
+	case "session.delete":
+		return "on_session_delete"
+	case "person.thumbnail":
+		return "on_person_thumbnail"
+	case "notification":
+		return "on_notification"
 	default:
 		return ""
 	}
 }
 
+// socketIOPayload reshapes an internal EventBus payload into the shape the
+// official client expects for the given event: delete/trash/restore events
+// carry {"ids":[...]} internally but the client handlers take a bare string[]
+// (the payload is forwarded straight to the local store as the id list), while
+// other events keep their object payload. This transform only affects the
+// Socket.IO wire format; the plain /api/events websocket keeps the internal
+// shape untouched (so the bundled SPA is unaffected).
+func socketIOPayload(typ string, payload map[string]any) any {
+	switch typ {
+	case "asset.delete", "asset.trash", "asset.restore":
+		if ids, ok := payload["ids"].([]string); ok {
+			return ids
+		}
+	}
+	return payload
+}
+
 // socketIOPacket encodes an engine message carrying a Socket.IO event.
-func socketIOPacket(name string, payload map[string]any) string {
-	arr := []any{name, payload}
+func socketIOPacket(typ string, name string, payload map[string]any) string {
+	arr := []any{name, socketIOPayload(typ, payload)}
 	b, err := json.Marshal(arr)
 	if err != nil {
 		return ""
@@ -120,7 +160,7 @@ func (a *App) socketIOWebsocket(c *gin.Context) {
 					return
 				}
 				if name := socketIOEventName(e.Type); name != "" {
-					if pkt := socketIOPacket(name, e.Payload); pkt != "" {
+					if pkt := socketIOPacket(e.Type, name, e.Payload); pkt != "" {
 						writePkt(pkt)
 					}
 				}
@@ -188,7 +228,7 @@ func (a *App) socketIOPolling(c *gin.Context) {
 			return
 		}
 		if name := socketIOEventName(e.Type); name != "" {
-			if pkt := socketIOPacket(name, e.Payload); pkt != "" {
+			if pkt := socketIOPacket(e.Type, name, e.Payload); pkt != "" {
 				c.Data(http.StatusOK, "text/plain; charset=UTF-8", []byte(pkt+"\n"))
 				return
 			}

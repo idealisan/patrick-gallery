@@ -13,6 +13,12 @@
 
 > **🚫 禁止 stub（硬规则 AGENTS.md #7）**：本项目不允许任何 stub / 占位 / 空响应端点。所有 🟠 行必须清零——要么真正实现功能，要么改为诚实的 `4xx`/`501`（并加入契约测试豁免）。整改清单与逐项处置见 [docs/NO_STUBS.md](docs/NO_STUBS.md)。
 
+> **与官方客户端兼容性核查（v3.1.0）**：已比对官方 `web` 客户端源码，发现并修复
+> Socket.IO 实时事件名大小写不匹配（camelCase→snake_case）、删除/回收站事件
+> payload 形状、缺失的 `user.delete`/`config.update` emit。详见
+> [docs/COMPAT_FINDINGS.md](docs/COMPAT_FINDINGS.md)。官方客户端的实时刷新
+> （上传成功/资产变更/回收站/用户被删/配置热更新）现已可正常推送。
+
 ## Release 2 — 完成 (done) ✅
 
 > 目标：视频在进程内完全可用（FFmpeg 共享库经 purego 加载、随包分发）、图像 API 补全、数据库抽象、官方前端移植。最后更新：2026-08-09。所有「符合纯 Go / `CGO_ENABLED=0` / 单用户私域架构」的可行缺口均已补齐；剩余仅为 ML / 外部 IdP 等需外部服务的架构级功能（见文末「可行范围 100%」）。

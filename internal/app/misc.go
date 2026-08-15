@@ -629,6 +629,9 @@ func (a *App) handleSystemConfigUpdate(c *gin.Context) {
 		cfg.Onboarded = v
 	}
 	a.store.DB.Save(&cfg)
+	// Fan out a realtime config-update event so connected official clients
+	// (web/mobile) re-fetch system config.
+	a.emit("config.update", map[string]any{})
 	c.JSON(http.StatusOK, gin.H{
 		"loginRequired":  cfg.LoginRequired,
 		"isPublic":       cfg.IsPublic,

@@ -289,6 +289,10 @@ func (a *App) handleAdminDeleteUser(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	// Fan out a realtime user-delete event so connected official clients
+	// (web/mobile) refresh / log the user out.
+	a.emit("user.delete", map[string]any{"id": id})
+
 	// When forced, also soft-delete the user's assets so they stop appearing.
 	if b.Force {
 		a.store.DB.Where("owner_id = ?", id).Delete(&Asset{})
