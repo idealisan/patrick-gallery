@@ -8,6 +8,24 @@ The release packaging step (`scripts/bundle-deps.sh`) downloads the pinned
 artifacts below and bundles the shared libraries inside each
 `immich-go-<os>-<arch>` package, so video works out of the box.
 
+## Official Immich web UI (embedded SPA source)
+
+The product web UI is the **official Immich web frontend**, built from the
+immich monorepo and embedded into the Go binary via `//go:embed`
+(`internal/webroot/webui`, produced by `scripts/build-web.sh`). See
+`AGENTS.md` hard rule 6 — the hand-written SPA was replaced by this.
+
+- **Pinned version: immich `v3.1.0`** (the web's `package.json` version and our
+  `Config.CompatVersion` are aligned to this release).
+- **Source (canonical, exact):** https://github.com/immich-app/immich — tag
+  `v3.1.0` (web app at `web/`, API client at `packages/sdk`).
+- **License:** **AGPL-3.0** (the web UI and `@immich/sdk` are AGPL-3.0). The
+  embedded build output under `internal/webroot/webui/` is derived from this
+  source; the AGPL-3.0 license/notices ship inside that build output.
+- **Build:** SvelteKit + Vite, via pnpm (`pnpm install --filter "immich-web..."`,
+  then `pnpm --filter @immich/sdk build` and `pnpm --filter immich-web build`).
+  Output (`web/build/`) is copied into `internal/webroot/webui/`.
+
 ## FFmpeg (shared libraries)
 
 Used by the software video backend (`internal/video`, purego-loaded). We load
