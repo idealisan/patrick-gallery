@@ -110,6 +110,47 @@ Go 方式重建，或显式引入受控的外部组件；水平多租户扩展�
    hardware backend is absent) is NOT a "feature stub" and remains allowed; a
    backend that returns nothing while claiming success is not allowed.
 
+8. **The official client is the contract — verify against REAL clients, not
+   assumptions.** Every contract claim MUST be checked against the actual
+   official Immich source and confirmed with a REAL client, never inferred:
+   - **Read the original.** Before implementing or "fixing" any endpoint, read
+     the matching official server code (`immich-src/server/src/...`) AND the
+     official client code (`immich-src/web/src/...`, `packages/sdk/src/...`)
+     to learn the EXACT contract: request **path, method, headers, query,
+     body**, AND the response DTO shape. Do not guess at auth flow, cookie
+     names, or DTO fields.
+   - **Behavioral parity, statement by statement.** The backend MUST match the
+     original's logic at every **step, branch, and loop** — the same
+     precedence of auth sources, the same cookie attributes, the same DTO
+     fields (including nested sub-objects), the same error codes. A response
+     that omits a nested object the client reads (e.g. `preferences.folders`
+     must be `{enabled, sidebarWeb}`, not `null`) is a contract violation even
+     if it returns 200.
+   - **Real-browser test is a HARD REQUIREMENT (not optional).** Web UI changes
+     MUST be verified with a **real headless browser driving the official web
+     UI** through the **reverse-proxied public URL** (the service is designed
+     to sit behind a reverse proxy, so test exactly that way). The test MUST:
+     1. perform a real login (fill the form, click Sign in) — not just `curl`,
+     2. assert the app reaches the authenticated home (`/photos`) and the
+        **login form is NOT visible**,
+     3. confirm authenticated calls (`/api/users/me`, `/api/users/me/preferences`,
+        `/api/notifications?unread=true`, timeline/albums) return 200,
+     4. capture **console + network** and confirm there is **no client-side
+        pageerror** (a 200 with a DTO-shape mismatch still crashes the SPA and
+        looks like "login failed").
+     `curl` alone is NOT sufficient proof of Web UI correctness — the browser
+     is the only authority. A change that passes `curl` but fails in the real
+     browser is NOT done.
+   - **Why this is a hard rule:** we shipped two consecutive Web UI regressions
+     that `curl` could not catch — (a) login returned 401 in the browser because
+     auth was keyed to the `x-api-key` header while the official web authenticates
+     via the `immich_access_token` **cookie**; (b) login "succeeded" (201) but the
+     photos page crashed with `Cannot read properties of null (reading 'enabled')`
+     because `/api/users/me/preferences` returned a legacy flat shape instead of
+     the official nested `UserPreferencesResponseDto`. Both were invisible to
+     `curl` and only surfaced in a real browser. See the post-mortem in
+     `STATUS.md` §P.
+
 ### No-stub policy (operational)
 
 - **Definition.** A *stub* is any code path that claims success/availability
@@ -147,6 +188,12 @@ Go 方式重建，或显式引入受控的外部组件；水平多租户扩展�
 - Video backends that fail to load (library absent) MUST degrade gracefully
   (server still starts, video endpoints return a placeholder / the original)
   so the cross-platform binaries keep working everywhere.
+- **Real-browser Web UI smoke test (rule 8).** Before claiming any Web UI /
+  auth change works, run the headless-browser smoke test:
+  `node scripts/browser-smoke.mjs` (setup in the script header). It performs a
+  real login through the reverse-proxied URL and fails unless the app reaches
+  `/photos`, the login form is gone, authenticated calls return 200, and there
+  is no client-side `pageerror`. `curl` does NOT satisfy this requirement.
 - Record any intentional limitation in `STATUS.md`.
 - The authoritative gap tracker (endpoint coverage + parity verdict) is
   [docs/GAP_ANALYSIS.md](docs/GAP_ANALYSIS.md). Core media functions

@@ -14,6 +14,45 @@ import (
 
 const ctxUserID = "userID"
 
+// Cookie names mirror the official Immich server (server/src/enum.ts ->
+// ImmichCookie). The official v3.1.0 web reads `immich_is_authenticated`
+// (non-httpOnly, so JS can see auth state) to decide whether to call the API,
+// and sends `immich_access_token` (httpOnly) on every same-origin request.
+const (
+	cookieAccessToken  = "immich_access_token"
+	cookieIsAuth       = "immich_is_authenticated"
+	authCookieMaxAge   = 400 * 24 * 3600 // seconds, matches official (400 days)
+)
+
+// isSecureRequest reports whether the connection to the *client* is TLS,
+// accounting for a TLS-terminating reverse proxy that forwards the original
+// scheme via X-Forwarded-Proto. This is required so the Secure cookie
+// attribute is set correctly when deployed behind a reverse proxy.
+func isSecureRequest(c *gin.Context) bool {
+	if c.Request.TLS != nil {
+		return true
+	}
+	proto := c.GetHeader("X-Forwarded-Proto")
+	return proto == "https" || proto == "HTTPS"
+}
+
+// setAuthCookies replicates the official server's login cookie behaviour so
+// the official web UI authenticates correctly. See server/src/utils/response.ts
+// respondWithCookie for the attribute source of truth.
+func (a *App) setAuthCookies(c *gin.Context, token string) {
+	secure := isSecureRequest(c)
+	// immich_access_token: httpOnly session token.
+	c.SetCookie(cookieAccessToken, token, authCookieMaxAge, "/", "", secure, true)
+	// immich_is_authenticated: readable by JS so the web knows auth state.
+	c.SetCookie(cookieIsAuth, "true", authCookieMaxAge, "/", "", secure, false)
+}
+
+func (a *App) clearAuthCookies(c *gin.Context) {
+	secure := isSecureRequest(c)
+	c.SetCookie(cookieAccessToken, "", -1, "/", "", secure, true)
+	c.SetCookie(cookieIsAuth, "", -1, "/", "", secure, false)
+}
+
 // Claims is the JWT payload (mirrors Immich's auth token shape loosely).
 type Claims struct {
 	UserID string `json:"userID"`
@@ -50,33 +89,60 @@ func (a *App) parseToken(t string) (*Claims, error) {
 	return claims, nil
 }
 
-// AuthGuard authenticates via Bearer JWT or an Immich-Api-Key / X-Api-Key header.
+// AuthGuard authenticates the request. immich-go issues stateless JWT access
+// tokens (the official server uses DB-backed sessions, but the *client
+// contract* is identical: a bearer token string). We accept that token from
+// every source the official Immich web & mobile clients actually use, in the
+// same precedence the official server uses (server/src/services/auth.service.ts
+// validate()): x-immich-user-token / x-immich-session-token / Authorization:
+// Bearer / immich_access_token cookie, then x-api-key (real API keys are
+// bcrypt-hashed in the api_keys table; a JWT sent via x-api-key is also
+// accepted for compatibility with SDK clients).
 func (a *App) AuthGuard() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var uid string
-		if key := c.GetHeader("x-api-key"); key != "" {
-			var ak ApiKey
-			if err := a.store.DB.Where("key = ?", hashKey(a.cfg.APIKeySalt, key)).First(&ak).Error; err == nil {
-				uid = ak.UserID
+		var token string
+
+		if token == "" {
+			token = c.GetHeader("x-immich-user-token")
+		}
+		if token == "" {
+			token = c.GetHeader("x-immich-session-token")
+		}
+		if token == "" {
+			if h := c.GetHeader("Authorization"); strings.HasPrefix(h, "Bearer ") {
+				token = strings.TrimPrefix(h, "Bearer ")
 			}
 		}
-		if uid == "" {
-			h := c.GetHeader("Authorization")
-			if strings.HasPrefix(h, "Bearer ") {
-				if claims, err := a.parseToken(strings.TrimPrefix(h, "Bearer ")); err == nil {
-					uid = claims.UserID
+		if token == "" {
+			if ck, err := c.Cookie(cookieAccessToken); err == nil {
+				token = ck
+			}
+		}
+		if token == "" {
+			token = c.GetHeader("x-api-key")
+		}
+
+		if token != "" {
+			if claims, err := a.parseToken(token); err == nil {
+				uid = claims.UserID
+			} else if key := c.GetHeader("x-api-key"); key != "" {
+				// Real API key (bcrypt lookup) sent via x-api-key.
+				var ak ApiKey
+				if err := a.store.DB.Where("key = ?", hashKey(a.cfg.APIKeySalt, key)).First(&ak).Error; err == nil {
+					uid = ak.UserID
 				}
 			}
 		}
-		if uid == "" {
-			if !a.cfg.LoginRequired {
-				// anonymous mode: fall back to the admin user
-				var admin User
-				if err := a.store.DB.Where("is_admin = ?", true).First(&admin).Error; err == nil {
-					uid = admin.ID
-				}
+
+		if uid == "" && !a.cfg.LoginRequired {
+			// anonymous mode: fall back to the admin user
+			var admin User
+			if err := a.store.DB.Where("is_admin = ?", true).First(&admin).Error; err == nil {
+				uid = admin.ID
 			}
 		}
+
 		if uid == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized", "statusCode": 401})
 			return
@@ -132,6 +198,7 @@ func (a *App) handleLogin(c *gin.Context) {
 		return
 	}
 	a.recordSession(u.ID)
+	a.setAuthCookies(c, token)
 	c.JSON(http.StatusCreated, gin.H{
 		"accessToken":          token,
 		"userToken":            token,
@@ -188,6 +255,7 @@ func (a *App) handleSignup(c *gin.Context) {
 	}
 	token, _ := a.issueToken(u.ID)
 	a.recordSession(u.ID)
+	a.setAuthCookies(c, token)
 	c.JSON(http.StatusCreated, gin.H{"accessToken": token, "userId": u.ID, "userEmail": u.Email, "name": u.Name, "isAdmin": true, "isOnboarded": true, "profileImagePath": u.ProfileImagePath, "shouldChangePassword": false})
 }
 
@@ -239,7 +307,9 @@ func (a *App) handleChangePassword(c *gin.Context) {
 }
 
 func (a *App) handleLogout(c *gin.Context) {
-	// Stateless JWT: logout is a client-side no-op. Kept for API compatibility.
+	// Stateless JWT: logout is a client-side no-op, but we must clear the
+	// auth cookies the official web UI relies on so the session ends.
+	a.clearAuthCookies(c)
 	c.Status(http.StatusOK)
 }
 

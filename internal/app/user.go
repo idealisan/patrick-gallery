@@ -1,6 +1,7 @@
 package app
 
 import (
+	"encoding/json"
 	"net/http"
 	"path/filepath"
 
@@ -54,44 +55,35 @@ func (a *App) handleUpdateMe(c *gin.Context) {
 func (a *App) handlePreferences(c *gin.Context) {
 	uid := currentUserID(c)
 	if c.Request.Method == http.MethodGet {
-		c.JSON(http.StatusOK, gin.H{
-			"id":                    uid,
-			"email":                 "",
-			"name":                  "",
-			"avatarColor":           "primary",
-			"memories":              gin.H{"enabled": true},
-			"people":                gin.H{"enabled": true},
-			"rating":                false,
-			"theme":                 "system",
-			"album":                 nil,
-			"library":               nil,
-			"tags":                  nil,
-			"folders":               nil,
-			"sharedLinks":           nil,
-			"map":                   gin.H{"enabled": false, "reverseGeocoding": false},
-			"jobOffset":             0,
-			"stack":                 gin.H{"enabled": true},
-			"search":                gin.H{"enabled": true},
-			"sharedAlbums":          nil,
-			"assetAdditionalInfo":   nil,
-			"language":              "en-US",
-			"download":              gin.H{"includeEmbeddedVideo": true},
-			"trash":                 gin.H{"enabled": true, "days": 30},
-			"oauthButtonColor":      nil,
-			"foldersEnabled":        false,
-			"archiveOnTimeline":     false,
-			"duplicateDetection":    false,
-			"rawOverlay":            false,
-			"similarityDetection":   false,
-			"downloadArchiveSize":   100,
-			"thumbnailCacheEnabled": true,
-		})
+		// Must match the official v3.1.0 UserPreferencesResponseDto exactly:
+		// a fixed set of nested sub-objects (albums, cast, download,
+		// emailNotifications, folders, memories, people, purchase, ratings,
+		// recentlyAdded, sharedLinks, tags), each with its own fields. The
+		// official web reads e.g. preferences.folders.enabled /
+		// preferences.tags.enabled / preferences.ratings.enabled; returning a
+		// legacy flat shape (folders:null, rating:false, ...) throws
+		// "Cannot read properties of null (reading 'enabled')" and the SPA
+		// falls back to the login screen.
+		c.JSON(http.StatusOK, a.loadPreferences(uid))
 		return
 	}
-	// PUT: accept and echo back (scaffold stores only basic prefs on user row)
-	var b map[string]interface{}
-	_ = c.ShouldBindJSON(&b)
-	c.JSON(http.StatusOK, b)
+	// PUT: merge provided top-level sections over stored preferences (the
+	// official client sends complete sub-objects). Mirrors the admin endpoint.
+	existing := a.loadPreferences(uid)
+	var patch map[string]json.RawMessage
+	if err := c.ShouldBindJSON(&patch); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid body", "statusCode": 400})
+		return
+	}
+	merged := mergePreferences(patch, existing)
+	data, err := json.Marshal(merged)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	upd := UserPreferences{UserID: uid, Data: string(data)}
+	a.store.DB.Save(&upd)
+	c.JSON(http.StatusOK, merged)
 }
 
 func (a *App) handleGetUser(c *gin.Context) {

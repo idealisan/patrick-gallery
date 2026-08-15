@@ -390,3 +390,69 @@ immich-go 的全部「可在纯 Go 单二进制 / 私域 / 无外部服务前提
 - **进度**：克隆完成；构建与目标版本待定（见下）。完成后在 `THIRD_PARTY.md` 记录所引
   用的 immich web 源码 tag / URL / license。
 
+
+### P. 复盘：Web UI 登录两次回归（2026-08-16）—— 必须用真实浏览器验证
+
+本次修复了 Web UI 登录的两个连续回归。两次都用 `curl` 验证「通过」，但在**真实浏览器
+（官方 web SPA）经反向代理访问**时均失败。`curl` 无法暴露这类问题，故将「真实浏览器测试」
+定为硬规则（`AGENTS.md` 规则 8），并沉淀可复现脚本 `scripts/browser-smoke.mjs`。
+
+#### 回归 1：登录返回 401（浏览器）/ 但 `curl -H "x-api-key:..."` 通过
+
+- **现象**：官方 web 在登录后访问 `GET /api/notifications?unread=true` 返回 `401`；
+  用户用 devtools 去掉 overlay 后看到登录页，登录提示 "Sign in failed"。
+- **错误假设**：凭印象以为官方 web 把 JWT 放在 `x-api-key` 头。据此在 `AuthGuard` 里
+  先解析 `x-api-key` 为 JWT。用 `curl -H "x-api-key:<token>"` 测，返回 200 —— 于是误判已修复。
+- **真实根因（读官方源码后确认）**：官方 v3.1.0 web **根本不发送 `x-api-key`**（`web/src`
+  里从不调用 SDK 的 `setApiKey`）。它登录后在 `POST /api/auth/login` 的响应里由服务端
+  **种下 `immich_access_token`（HttpOnly）与 `immich_is_authenticated`（非 HttpOnly）两个
+  cookie**（`server/src/controllers/auth.controller.ts` → `respondWithCookie`，属性
+  `path=/, sameSite=lax, maxAge=400d, secure=HTTPS`），之后**同一源**请求由浏览器自动带上
+  `immich_access_token` cookie 完成认证。服务端 `validate()` 的令牌来源优先级为
+  `x-immich-user-token` → `x-immich-session-token` → `Authorization: Bearer` →
+  `immich_access_token` cookie → `x-api-key`（仅作 API key 表查）。`x-api-key` 在官方服务端
+  **只按 API key（bcrypt）查表，不是 JWT**。
+- **修复**：
+  1. `auth.go` 登录/注册成功时调用 `setAuthCookies()`，按官方属性种 `immich_access_token`
+     （HttpOnly）与 `immich_is_authenticated`（可读）两个 cookie；登出清掉它们。
+  2. `AuthGuard` 按官方优先级收集令牌，新增读取 `immich_access_token` cookie（解析为 JWT，
+     immich-go 用无状态 JWT，等价契约），并保留 `x-api-key` 作为「JWT 或 API key 查表」的
+     兼容分支；转发场景通过 `X-Forwarded-Proto: https` 决定 `Secure` 属性。
+- **为何 `curl` 看不见**：`curl` 是我手工加 `x-api-key` 才通过的；真实浏览器从不发
+  `x-api-key`，只发 cookie。服务端没种 cookie → 浏览器每次认证请求都 401。
+
+#### 回归 2：登录「成功」(201) 但照片页空白/仍显示登录框
+
+- **现象**：修复 cookie 后登录返回 201、cookie 已种、可到达 `/photos`，但页面仍显示登录框，
+  且控制台报 `Cannot read properties of null (reading 'enabled')`。
+- **根因**：`handlePreferences`（`/api/users/me/preferences`）返回的是**旧的扁平偏好结构**
+  （`folders:null`、`rating:false`、`tags:null`、`map/search/stack/...`），而官方 web 读取
+  的是嵌套对象 `preferences.folders.enabled` / `preferences.tags.enabled` /
+  `preferences.ratings.enabled` / `preferences.sharedLinks.enabled`（见
+  `web/src/lib/commands.ts`、`UserSidebar.svelte` 等）。`folders` 为 `null` 时读
+  `.enabled` 直接抛错，SPA 抛错后退回到登录态，表现为「登录失败」。
+- **修复**：`handlePreferences` GET 直接返回早已存在且**形状正确**的 `loadPreferences(uid)`
+  （`preferencesDTO`，与官方 `UserPreferencesResponseDto` 的 12 个嵌套子对象逐一对应）；
+  PUT 改为按官方方式合并各顶层 section 并落库。删除了那段手工拼的 legacy 扁平结构。
+
+#### 深刻反思（why this happened / how to avoid）
+
+1. **「猜」是不行的，必须读原版。** 两次根因都是凭记忆/印象假设契约（"web 用 x-api-key"、
+   "preferences 是扁平结构"），而没有去读官方 `server/src` 与 `web/src`/`packages/sdk/src`。
+   官方代码就在 `/root/immich-src`，同源即权威。任何 auth 流、cookie 名、DTO 字段，都应以
+   原版为准，**逐字段**对齐，不允许偏差。
+2. **`curl` 不是 Web UI 正确性的证据。** `curl` 只证明某个头/路径在服务端能跑通；它无法
+   复现浏览器「自动带 cookie、按 SPA 逻辑渲染、读嵌套字段」的真实行为。凡是涉及 Web UI /
+   认证/DTO 形状，必须用真实无头浏览器跑通整条登录链路才算完成（规则 8）。
+3. **「返回 200 但形状错」比 404 更隐蔽。** 回归 2 是 200 + 错误 DTO，SPA 拿着 `null`
+   去读 `.enabled` 直接崩。契约一致性要查到**响应体的每一个嵌套字段**，不只是 HTTP 状态。
+4. **行为一致性要到语句级。** 令牌来源优先级、cookie 属性（path/sameSite/maxAge/secure）、
+   DTO 的每一个分支与子对象，都要与原版逐条对齐。immich-go 用无状态 JWT 而非 DB session，
+   这是允许的等价实现，但**客户端契约（header/body 形状）必须一致**。
+5. **基础设施先行。** 装好浏览器 + 控制程序、用反向代理地址测试，是正确且高效的验证方式
+   （服务大概率部署在反向代理之后）。本次已装好 chromium（含系统依赖）、`playwright-core`，
+   沉淀 `scripts/browser-smoke.mjs` 作为可复现的硬门槛。
+
+**验证（真实浏览器）**：`node scripts/browser-smoke.mjs` 通过——真实登录后到达 `/photos`、
+登录框不可见、`document.cookie` 含 `immich_is_authenticated=true`、`/api/users/me` /
+`/api/users/me/preferences` / `/api/notifications?unread=true` 均 200、**无客户端 pageerror**。
