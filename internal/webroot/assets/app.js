@@ -662,8 +662,32 @@
       const img = document.createElement('img');
       img.src = previewURL(a.id);
       stage.appendChild(img);
+      if (a.livePhotoVideoId) {
+        const live = document.createElement('button');
+        live.className = 'live-badge';
+        live.textContent = '● LIVE';
+        live.title = 'Play Live Photo motion';
+        live.onclick = () => showLivePhoto(a);
+        stage.appendChild(live);
+      }
     }
     renderPanel(a);
+  }
+  // showLivePhoto replaces the still image in the viewer with the motion
+  // (video) component streamed by the backend's /api/assets/:id/live-photo.
+  function showLivePhoto(a) {
+    const stage = $('viewer-stage');
+    stage.innerHTML = '';
+    const v = document.createElement('video');
+    v.controls = true; v.autoplay = true; v.loop = true; v.muted = true; v.playsInline = true;
+    const s = document.createElement('source');
+    s.src = '/api/assets/' + a.id + '/live-photo';
+    s.type = 'video/mp4';
+    v.appendChild(s);
+    v.addEventListener('error', () => {
+      if (v.currentSrc.indexOf('/live-photo') !== -1) toast('Live Photo motion unavailable', false);
+    }, true);
+    stage.appendChild(v);
   }
   function renderPanel(a) {
     const ex = a.exif || {};
@@ -717,6 +741,10 @@
       await delJSON('/api/assets', { ids: [a.id] });
       toast('Moved to trash'); closeViewer(); route();
     }, true);
+    if (a.livePhotoVideoId) {
+      const liveBtn = mkBtn('▶ Live Photo', () => showLivePhoto(a), true);
+      actions.append(liveBtn);
+    }
     actions.append(favBtn, archBtn, addAlbum, share, dl, del);
     p.appendChild(actions);
   }

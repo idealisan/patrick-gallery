@@ -1,10 +1,12 @@
 package app
 
 import (
+	"log"
 	"net/http"
 	"sync"
 
 	"github.com/gin-gonic/gin"
+	"immich-go/internal/app/geo"
 	"immich-go/internal/video"
 )
 
@@ -14,12 +16,24 @@ type App struct {
 	store *Store
 	video video.Processor
 
+	// geocoder provides offline reverse-geocoding (lat/lon -> place name).
+	// It is nil if the embedded dataset failed to load; callers must guard.
+	geocoder *geo.Geocoder
+
 	// jobStates tracks progress of background jobs keyed by job id.
 	jobStates sync.Map
 }
 
 func NewApp(cfg *Config, store *Store) *App {
-	return &App{cfg: cfg, store: store, video: video.New()}
+	a := &App{cfg: cfg, store: store, video: video.New()}
+	if g, err := geo.Load(); err != nil {
+		log.Printf("[geo] reverse-geocoder unavailable: %v", err)
+	} else {
+		a.geocoder = g
+		log.Printf("[geo] reverse-geocoder loaded with %d cities", g.Cities())
+	}
+	a.startSchedulers()
+	return a
 }
 
 // RegisterRoutes wires every Immich-compatible endpoint. Public endpoints
@@ -96,6 +110,7 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.GET("/assets/:id/thumbnail/:ts", a.handleAssetThumbnail)
 		api.GET("/assets/:id/preview", a.handleAssetPreview)
 		api.GET("/assets/:id/encoded-video/:ts", a.handleAssetEncodedVideo)
+		api.GET("/assets/:id/live-photo", a.handleAssetLivePhoto)
 
 		// albums
 		api.GET("/albums", a.handleAlbumList)
@@ -126,6 +141,7 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 
 		// map (geo-tagged assets)
 		api.GET("/map/markers", a.handleMapMarkers)
+		api.POST("/map/reverse-geocode", a.handleMapReverseGeocode)
 
 		// search
 		api.POST("/search", a.handleSearch)
@@ -152,6 +168,7 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.GET("/trash", a.handleTrashList)
 		api.POST("/trash/restore", a.handleTrashRestore)
 		api.POST("/trash/empty", a.handleTrashEmpty)
+		api.POST("/trash/cleanup", a.handleTrashCleanup)
 
 		// activity
 		api.GET("/activities", a.handleActivityList)
@@ -169,10 +186,12 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		// people (stub)
 		api.GET("/people", a.handlePeopleList)
 		api.GET("/people/:id", a.handlePersonGet)
+		api.GET("/people/:id/assets", a.handlePersonAssets)
 
 		// system config / jobs
 		api.GET("/system-config", a.handleSystemConfigGet)
 		api.PUT("/system-config", a.handleSystemConfigUpdate)
+		api.GET("/server/statistics", a.handleServerStatistics)
 		api.GET("/jobs", a.handleJobsList)
 		api.POST("/jobs/:id", a.handleJobCommand)
 		api.GET("/jobs/:id", a.handleJobStatus)

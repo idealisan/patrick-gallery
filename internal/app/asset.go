@@ -427,6 +427,10 @@ func (a *App) handleAssetUpdate(c *gin.Context) {
 	}
 	if b.IsTrash != nil {
 		asset.IsTrash = *b.IsTrash
+		if *b.IsTrash {
+			now := time.Now().UTC()
+			asset.TrashedAt = &now
+		}
 	}
 	if b.DateTimeOriginal != "" || b.Latitude != nil || b.Longitude != nil {
 		var exif Exif
@@ -472,6 +476,8 @@ func (a *App) handleAssetBulkDelete(c *gin.Context) {
 			}
 		} else {
 			asset.IsTrash = true
+			now := time.Now().UTC()
+			asset.TrashedAt = &now
 			a.store.DB.Save(&asset)
 		}
 	}
@@ -530,6 +536,10 @@ func (a *App) handleAssetBulkUpdate(c *gin.Context) {
 		}
 		if b.IsTrash != nil {
 			asset.IsTrash = *b.IsTrash
+			if *b.IsTrash {
+				now := time.Now().UTC()
+				asset.TrashedAt = &now
+			}
 		}
 		if b.DateTimeOriginal != "" || b.Latitude != nil || b.Longitude != nil {
 			var exif Exif
@@ -689,6 +699,52 @@ func (a *App) handleAssetEncodedVideo(c *gin.Context) {
 	}
 	c.Header("Content-Type", "video/mp4")
 	c.Data(http.StatusOK, "video/mp4", out)
+}
+
+// handleAssetLivePhoto streams the motion (video) component of a Live Photo.
+// A Live Photo is stored as two assets: a still IMAGE and a paired VIDEO whose
+// id is recorded on the image's LivePhotoVideoID. The official clients render
+// the still and play this endpoint's bytes on long-press / motion. We prefer
+// the transcoded encoded-video when present, else the original.
+func (a *App) handleAssetLivePhoto(c *gin.Context) {
+	uid := currentUserID(c)
+	id := c.Param("id")
+	var asset Asset
+	if err := a.store.DB.First(&asset, "id = ?", id).Error; err != nil {
+		c.Status(http.StatusNotFound)
+		return
+	}
+	if asset.OwnerID != uid && !a.isAdmin(uid) {
+		c.Status(http.StatusForbidden)
+		return
+	}
+	if asset.LivePhotoVideoID == "" {
+		c.Status(http.StatusNotFound)
+		return
+	}
+	var video Asset
+	if err := a.store.DB.First(&video, "id = ?", asset.LivePhotoVideoID).Error; err != nil {
+		c.Status(http.StatusNotFound)
+		return
+	}
+	if video.OwnerID != uid && !a.isAdmin(uid) {
+		c.Status(http.StatusForbidden)
+		return
+	}
+	path := video.EncodedVideoPath
+	if path == "" {
+		path = video.OriginalPath
+	}
+	if path == "" {
+		c.Status(http.StatusNotFound)
+		return
+	}
+	if ct := mimeByExt(path); ct != "" {
+		c.Header("Content-Type", ct)
+	} else {
+		c.Header("Content-Type", "video/mp4")
+	}
+	c.File(path)
 }
 
 func (a *App) handleAssetRandom(c *gin.Context) {

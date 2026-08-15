@@ -57,7 +57,7 @@ func (a *App) handleServerConfig(c *gin.Context) {
 		"minFaces":           1,
 		"oauthButtonText":    "",
 		"publicUsers":        true,
-		"trashDays":          30,
+		"trashDays":          a.cfg.TrashDays,
 		"userDeleteDelay":    0,
 		// extra keys official clients also read
 		"isConnected":                 true,
@@ -106,7 +106,7 @@ func (a *App) handleServerFeatures(c *gin.Context) {
 		"ocr":                 false,
 		"passwordLogin":       true,
 		"realtimeTranscoding": true,
-		"reverseGeocoding":    false,
+		"reverseGeocoding":    true,
 		"search":              true,
 		"sidecar":             false,
 		"smartSearch":         false,
@@ -122,6 +122,28 @@ func (a *App) handleAssetStatistics(c *gin.Context) {
 	a.store.DB.Model(&Asset{}).Where("owner_id = ? AND is_trash = ? AND type = ?", uid, false, "IMAGE").Count(&images)
 	a.store.DB.Model(&Asset{}).Where("owner_id = ? AND is_trash = ? AND type = ?", uid, false, "VIDEO").Count(&videos)
 	c.JSON(http.StatusOK, gin.H{"images": images, "videos": videos, "total": total})
+}
+
+// handleServerStatistics mirrors GET /api/server/statistics (global counts
+// across all non-trashed assets).
+func (a *App) handleServerStatistics(c *gin.Context) {
+	var images, videos, total int64
+	a.store.DB.Model(&Asset{}).Where("is_trash = ?", false).Count(&total)
+	a.store.DB.Model(&Asset{}).Where("is_trash = ? AND type = ?", false, "IMAGE").Count(&images)
+	a.store.DB.Model(&Asset{}).Where("is_trash = ? AND type = ?", false, "VIDEO").Count(&videos)
+	c.JSON(http.StatusOK, gin.H{
+		"photos": images,
+		"videos": videos,
+		"total":  total,
+		"usage":  gin.H{"photos": images, "videos": videos, "total": total},
+	})
+}
+
+// handlePersonAssets mirrors GET /api/people/:id/assets. immich-go does not
+// cluster faces (no ML backend), so a person has no associated assets yet; we
+// return the correct, empty shape so the official clients don't error.
+func (a *App) handlePersonAssets(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"assets": []any{}, "count": 0, "total": 0})
 }
 
 // handleAlbumStatistics mirrors GET /api/albums/statistics.
@@ -158,7 +180,7 @@ func (a *App) handleSearchSuggestions(c *gin.Context) {
 func (a *App) handleSystemConfigDefaults(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"loginPageMessage":         "",
-		"trashDays":                30,
+		"trashDays":                a.cfg.TrashDays,
 		"isSavedPhotosHidden":      false,
 		"isEmailEnabled":           false,
 		"isOauthAutoLaunch":        false,

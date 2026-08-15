@@ -45,6 +45,7 @@ type Asset struct {
 	IsFavorite       bool          `json:"isFavorite"`
 	IsArchived       bool          `json:"isArchived"`
 	IsTrash          bool          `json:"isTrash"`
+	TrashedAt        *time.Time    `gorm:"type:datetime" json:"-"`
 	IsExternal       bool          `json:"isExternal"`
 	LibraryId        string        `gorm:"type:text" json:"libraryId"`
 	LivePhotoVideoID string        `gorm:"type:text" json:"-"`

@@ -250,6 +250,18 @@ func (a *App) jobRegistry() map[string]jobSpec {
 				return true, nil
 			},
 		},
+		// Periodic trash-expiry cleanup (Immich's "userDeleteCheck" cron).
+		// Supported: it permanently deletes assets older than trashDays.
+		"trashCleanup": {
+			supported: true,
+			items: func(a *App) ([]jobItem, error) {
+				return []jobItem{{ID: "trash"}}, nil
+			},
+			run: func(a *App, it jobItem) (bool, error) {
+				_, err := a.runTrashCleanup()
+				return err == nil, err
+			},
+		},
 		// The following are advertised for client compatibility but require
 		// ML/AI backends this server does not ship. They succeed as no-ops with
 		// a clear unsupported marker so the official apps don't error out.

@@ -81,7 +81,7 @@
 
 ### 8. 其余 Immich 大功能未覆盖（约 165 个路由未实现）
 - OAuth / SSO、管理 / 维护后台面板、回忆（memories）、工作流 / 插件、同步流（websocket sync）、通知 / 邮件、存储迁移、回收站定时清理等。
-- **地图（已基本补齐 ✅）**：已实现 `/api/map/markers`（按 GPS 聚类、返回标记 + city/country + 代表 assetId）与 SPA「Map」标签页（离线等距投影世界网格 + 标记点 + 缩略图列表，点击打开灯箱）。**反向地理编码（经纬度→地名）尚未做**，标记地名依赖已写入 EXIF 的 city/country。
+- **地图（已补齐 ✅）**：已实现 `/api/map/markers`（按 GPS 聚类、返回标记 + city/country + 代表 assetId）与 SPA「Map」标签页（离线等距投影世界网格 + 标记点 + 缩略图列表，点击打开灯箱）。**反向地理编码已补齐 ✅**：摄取（上传 / 库扫描）时由随包嵌入的离线 GeoNames 数据集（cities15000 + countryInfo，见 `THIRD_PARTY.md`）就近匹配城市 / 国家并写入 `Exif.city/country`；另提供 `POST /api/map/reverse-geocode` 端点（lat/lon → city/state/country），`server/features.reverseGeocoding` 已报 `true`。
 
 ### 9. 部分兼容字段为最小实现
 - 为让官方客户端能加载，新增的 compat 端点（config / features 等）返回的是「形状正确但内容最小化」的 JSON（如 ML 标志一律为 false），并非完整语义。
@@ -150,10 +150,11 @@
 - `owner`：`AssetResponseDto` 新增 `owner`（独立 `UserResponse` DTO，含 id/email/name/avatarColor/profileChangedAt/profileImagePath），按 `ownerId` 填充，用于伙伴/共享场景。
 
 ### 仍待补全（最新手机 APP 兼容性差距，按优先级）
-1. **Live Photo 配对**：`livePhotoVideoId` 已存储但未做视频+照片关联与合并播放。
-2. **反向地理编码**：`/api/map/markers` 已有，但标记地名（city/country）依赖 EXIF，缺经纬度→地名解析。
-3. **架构级大功能**：人脸聚类/`people` 召回、智能(CLIP)搜索、websocket 实时同步、OAuth/SSO、memories、回收站定时清理、通知/邮件、管理后台——均未按最新契约补齐（约 160+ 路由）。
-4. **版本门控**：`IMMICH_COMPAT_VERSION` 默认 `1.130.0`；若用户所用 App 版本不同，需按客户端实际期望版本调整该环境变量，否则可能出现「服务器版本不匹配」提示。
+1. **Live Photo 配对（已补齐 ✅）**：`livePhotoVideoId` 已存储并打通——新增 `GET /api/assets/:id/live-photo` 流式返回配对视频（优先 encoded-video，否则原文件），SPA 灯箱新增「● LIVE」角标与「▶ Live Photo」按钮播放动态。资产响应 DTO 已含 `livePhotoVideoId`。
+2. **反向地理编码（已补齐 ✅）**：见 §二.8；摄取时写库 + `POST /api/map/reverse-geocode` 端点，`server/features.reverseGeocoding` 已报 `true`。
+3. **回收站定时清理（已补齐 ✅）**：新增 `TrashedAt` 列与后台调度（`startSchedulers`，启动 30s 后首次、之后每 24h）调用 `runTrashCleanup`，永久删除超过 `trashDays`（默认 30，`IMMICH_TRASH_DAYS` 可调，已接入 `server/config`）的回收站资产（含原图 / 缩略图 / 转码文件与 Exif 行）；另提供 `POST /api/trash/cleanup` 手动触发与 `trashCleanup` job（进度可经 `/api/jobs` 查询）。
+4. **架构级大功能**：人脸聚类/`people` 召回、智能(CLIP)搜索、websocket 实时同步、OAuth/SSO、memories、通知/邮件、管理后台——仍属 ML / 外部后端 / 多用户范畴，超出单人 / 私域范围（约 160+ 路由未覆盖）。`/api/people/:id/assets` 已返回正确的空形状以兼容官方客户端。
+5. **版本门控**：`IMMICH_COMPAT_VERSION` 默认 `1.130.0`；若用户所用 App 版本不同，需按客户端实际期望版本调整该环境变量，否则可能出现「服务器版本不匹配」提示。
 
 ## 六、2026-08-15 发布 v1.2.0-go（克隆原版后端 + 发布产物 + Docker 镜像）
 
@@ -177,6 +178,15 @@
 
 ### D. 提交与推送 ✅
 - 源码 + 文档（`BACKEND_ALIGNMENT.md`、更新后的 `STATUS.md`/`README.md`/`THIRD_PARTY.md`）+ `dist/` 产物 + 修复后的 `bundle-deps.sh` 一并提交并推送至 `origin/main`（CNB）；并打 `v1.2.0-go` 标签推送，作为本次发布快照。
+
+### E. 可行性缺口闭环（2026-08-15 同源补充，非发布）
+本批在**不违背 AGENTS.md 硬规则**（纯 Go / `CGO_ENABLED=0` / 视频仅进程内 purego / 单用户私域）前提下，补齐 `STATUS.md` 中全部「符合架构规则且可行」的剩余缺口。`go build` / `go vet` / `go test ./...` 全绿，并经真实二进制端到端冒烟验证。
+
+- **离线反向地理编码（见 `internal/app/geo`）✅**：随包嵌入 GeoNames `cities15000`（34,073 城市，裁为 `cities.tsv`）+ `countryInfo.txt`（ISO→国名），进程内 1°×1° 空间网格最近邻匹配；摄取时把城市 / 国家写入 `Exif.city/country`，并新增 `POST /api/map/reverse-geocode`（lat/lon→city/state/country）。`server/features.reverseGeocoding` 已报 `true`；数据集来源 / 许可已记入 `THIRD_PARTY.md`。
+- **Live Photo 配对 ✅**：新增 `GET /api/assets/:id/live-photo` 流式返回配对视频（优先 encoded-video，否则原文件），资产响应 DTO 已含 `livePhotoVideoId`；SPA 灯箱新增「● LIVE」角标 + 「▶ Live Photo」按钮播放动态。
+- **回收站定时清理 ✅**：`Asset` 新增 `TrashedAt` 列；`startSchedulers` 启动 30s 后首次、之后每 24h 调用 `runTrashCleanup` 永久删除超过 `trashDays`（默认 30，`IMMICH_TRASH_DAYS`，已接入 `server/config`）的回收站资产（含原图 / 缩略图 / 转码文件与 Exif 行）；另提供 `POST /api/trash/cleanup` 手动触发与 `trashCleanup` job（进度可经 `/api/jobs` 查询）。
+- **兼容路由补齐 ✅**：`GET /api/server/statistics`（全局计数）、`GET /api/people/:id/assets`（正确空形状）。
+- **测试**：新增 `internal/app/geo/geocoder_test.go`（巴黎 / 东京 / 公海）、`internal/app/features_test.go`（反向地理编码端点、Live Photo 流式、回收站清理、statistics/people 兼容路由），全部通过。
 
 ### 仍待补全（发布相关）
 - Windows/arm64 视频开箱即用需 BtbN 提供 `win-arm64-gpl-shared`（上游缺失）；可改从其他渠道取 arm64 共享库。

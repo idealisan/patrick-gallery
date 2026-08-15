@@ -28,6 +28,10 @@ type Config struct {
 	CompatMajor   int
 	CompatMinor   int
 	CompatPatch   int
+
+	// TrashDays is how long a trashed asset is retained before the automatic
+	// cleanup job permanently deletes it. Mirrors Immich's trashDays setting.
+	TrashDays int
 }
 
 func getEnv(k, def string) string {
@@ -35,6 +39,17 @@ func getEnv(k, def string) string {
 		return v
 	}
 	return def
+}
+
+// trashDaysFromEnv reads IMMICH_TRASH_DAYS (defaults to 30) using the same
+// int-parse fallback pattern as the rest of LoadConfig.
+func trashDaysFromEnv() int {
+	if v := os.Getenv("IMMICH_TRASH_DAYS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			return n
+		}
+	}
+	return 30
 }
 
 func LoadConfig() *Config {
@@ -49,6 +64,7 @@ func LoadConfig() *Config {
 		LoginRequired:  getEnv("IMMICH_LOGIN_REQUIRED", "true") == "true",
 		ExternalDomain: getEnv("IMMICH_EXTERNAL_DOMAIN", ""),
 		CompatVersion:  getEnv("IMMICH_COMPAT_VERSION", "1.130.0"),
+		TrashDays:      trashDaysFromEnv(),
 	}
 	maj, min, pat := 1, 130, 0
 	if n, err := fmt.Sscanf(cfg.CompatVersion, "%d.%d.%d", &maj, &min, &pat); n >= 1 && err == nil {

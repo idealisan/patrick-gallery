@@ -51,6 +51,33 @@ Used by the software video backend (`internal/video`, purego-loaded). We load
 - Repo: https://github.com/ebitengine/purego
 - License: BSD-3-Clause.
 
+## GeoNames offline reverse-geocoding dataset (bundled runtime data)
+
+Used by the offline reverse geocoder (`internal/app/geo`, embedded via
+`go:embed`). It lets the server attach city / country names to GPS-tagged
+assets with **no external service and no internet egress** (keeps immich-go
+CGO-free and usable on a private LAN). This is *data*, not a native library,
+but it is a runtime dependency the binary loads, so it is pinned here.
+
+- **Source (exact):** GeoNames dumps
+  - https://download.geonames.org/export/dump/cities15000.zip
+    (processed into `internal/app/geo/cities.tsv`: name, lat, lon, country
+    code, admin1 code — 34,073 rows as of the 2026-08-15 snapshot)
+  - https://download.geonames.org/export/dump/countryInfo.txt
+    (ISO 3166-1 alpha-2 → country name map; embedded as-is)
+- **License:** GeoNames data is free for use with attribution under the
+  [GeoNames licensing terms](https://www.geonames.org/). The dataset is
+  trimmed/minimal (populated places only) and embedded read-only at build
+  time; no code from GeoNames is linked.
+- **Reproducibility:** the two files are committed under
+  `internal/app/geo/`; `geo.NewGeocoder()` parses them once into a 1°×1°
+  spatial grid. To refresh, re-download the two URLs and re-run the same
+  column extraction used originally (name, lat, lon, country, admin1).
+- **Fidelity note:** `state` returned by `/api/map/reverse-geocode` is the
+  GeoNames admin1 *code* (e.g. Paris → "11"), not a spelled-out province
+  name; the city and resolved country *name* are the primary fields used by
+  the Map view.
+
 ## Already-tracked Go dependencies (for reference)
 
 `go.mod` pins: `gin`, `gorm.io/gorm`, `github.com/glebarez/sqlite`

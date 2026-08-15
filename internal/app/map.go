@@ -72,3 +72,28 @@ func (a *App) handleMapMarkers(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"markers": out})
 }
+
+// handleMapReverseGeocode mirrors Immich's POST /api/map/reverse-geocode.
+// It takes a single point {lat, lon} and returns the nearest known city
+// within ~100km plus its admin1 code (state) and resolved country name,
+// using the embedded offline dataset (no external service / no internet).
+func (a *App) handleMapReverseGeocode(c *gin.Context) {
+	var b struct {
+		Lat float64 `json:"lat"`
+		Lon float64 `json:"lon"`
+	}
+	if err := c.ShouldBindJSON(&b); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "lat/lon required", "statusCode": 400})
+		return
+	}
+	if a.geocoder == nil {
+		c.JSON(http.StatusOK, gin.H{"city": "", "state": "", "country": ""})
+		return
+	}
+	city, state, country := a.geocoder.Reverse(b.Lat, b.Lon)
+	c.JSON(http.StatusOK, gin.H{
+		"city":    city,
+		"state":   state,
+		"country": country,
+	})
+}

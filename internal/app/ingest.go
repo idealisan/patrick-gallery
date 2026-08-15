@@ -100,6 +100,15 @@ func (a *App) processMedia(path, assetID, ownerID, typ string, fallbackDate time
 				o := info.Orientation
 				exif.Orientation = &o
 			}
+			// Offline reverse-geocode GPS coords into a place name so the
+			// Map view can show city/country without an external service.
+			if a.geocoder != nil && (info.Latitude != 0 || info.Longitude != 0) &&
+				exif.City == "" && exif.Country == "" {
+				if city, _, country := a.geocoder.Reverse(info.Latitude, info.Longitude); country != "" {
+					exif.City = city
+					exif.Country = country
+				}
+			}
 			res.exif = exif
 		}
 		// Pixel dimensions for any decodable format (Extract only resolves
