@@ -3,7 +3,7 @@
 > 回归测试结论见 [REGRESSION_REPORT.md](REGRESSION_REPORT.md)：已发布版本 v1.1.0-go 的全部受测端点均正常（无 5xx 回归），并标注了「部分可用 / 未做」的能力边界。自动化覆盖在 `.github/workflows/ci.yml`（每次 push/PR 在 GitHub Actions 上跑 `go test ./...`）。
 
 > 本文件基于 `internal/app/` 的实际路由与处理函数核对整理（非凭记忆）。
-> 项目别名：**patrick-gallery**。最后更新：2026-08-10。
+> 项目别名：**patrick-gallery**。最后更新：2026-08-15。
 
 ## Release 2 — in progress
 
@@ -123,3 +123,62 @@
 - 人脸识别 / 自动聚类人物、智能搜索（CLIP）、对象标签（ML）依赖外部 AI 后端。
 - OAuth/SSO、memories、websocket sync、存储模板迁移、回收站定时清理、通知/邮件等 immich 大功能未覆盖（约 160+ 路由）。
 - 反向地理编码（经纬度→地名）仍未做。
+
+## 五、2026-08-14 兼容性对齐（目标：最新 Immich 契约 / App Store 当前版本 ~v1.13x）
+
+经与官方 OpenAPI 规范（`immich-open-api-specs.json`）逐条比对，原实现实际对齐的是**旧版 Immich（~v1.0–v1.9x）**契约；为"对接原版手机 APP、兼容性一致"，本批将服务器契约向**最新 Immich**对齐。已落地（均通过 `go build` / `go vet` / `go test` + 运行时冒烟验证）：
+
+### A. 握手端点（App 启动即命中，原缺必填字段）✅
+- `GET /api/server/version`：补齐必填 `prerelease`（int）；版本号改为**可配置**（`IMMICH_COMPAT_VERSION`，默认 `1.130.0`），需与所连客户端期望版本匹配，否则 App 拒绝连接。
+- `GET /api/server/features`：补齐全部 16 个必填键（`configFile/duplicateDetection/email/facialRecognition/importFaces/map/oauth/oauthAutoLaunch/ocr/passwordLogin/realtimeTranscoding/reverseGeocoding/search/sidecar/smartSearch/trash`）；`map`/`duplicateDetection`/`realtimeTranscoding` 按**已实现**报 `true`（此前误报 `false` 会导致地图/去重 Tab 被隐藏）。
+- `GET /api/server/config`：补齐必填 `isOnboarded/maintenanceMode/mapDarkStyleUrl/mapLightStyleUrl/minFaces/oauthButtonText/publicUsers/trashDays/userDeleteDelay`。
+- `GET /api/server/about`：补齐必填 `version`/`licensed`/`versionUrl`；`build` 改为字符串。
+
+### B. 上传 / 去重契约（备份命脉）✅
+- `POST /api/assets`：改为接受**最新 multipart 契约**——独立字段 `filename` + `fileCreatedAt`/`fileModifiedAt`（ISO8601）、`duration`（**int 秒**）、`isFavorite`、`visibility` 枚举（archive/timeline/hidden/locked）、`livePhotoVideoId` 等；**不再依赖 `assetType`**（按扩展名 + 魔数嗅探 IMAGE/VIDEO）。保留对旧版单 `asset` JSON 字段的回退，兼容老客户端。
+- `POST /api/assets/bulk-upload-check`（**新增**，最新去重端点，旧 `/api/assets/check` 保留）：按内容 **checksum** 去重，返回 `{results:[{id, action: accept|reject, reason, assetId, isTrashed}]}`，与官方客户端握手一致。
+
+### C. 资产响应结构 `AssetResponseDto` ✅
+重写为独立 DTO（不再内嵌 DB 模型），字段/类型对齐最新规范：`exifInfo`（原 `exif`）、`isTrashed`（原 `isTrash`）、`duration` 为 **int**、`visibility` 枚举、移除响应中的 `deviceAssetId`/`deviceId`，新增 `resized`/`hasMetadata`/`thumbhash`/`originalMimeType`/`owner`/`duplicateId`/`isEdited`/`isOffline`/`livePhotoVideoId`/`people`/`tags` 等。运行时冒烟已验证字段正确。
+
+### D. 开发环境配置 ✅
+- 新增 `.cnb.yml`：`runner.cpus: 4`（云原生开发 4 核；内存按 cpus×2GB 自动分配）。
+
+### E. 画廊保真度（width/height/thumbhash/owner）✅
+- `width`/`height`：ingest 时记录像素尺寸——图片走 `image.DecodeConfig`（全格式，不限于 JPEG/TIFF），视频走 `video.Probe`，写入 `Asset` 并在 `AssetResponseDto` 输出（移动端据此做网格等宽高布局，避免 reflow）。
+- `thumbhash`：新增纯 Go 实现（`internal/image/thumbhash.go`），**逐行移植官方 reference（npm `thumbhash` v0.1.1）**，与 Immich 移动端解码字节兼容（已用参考 JS 交叉验证：同一像素 Go 与参考实现输出仅差末尾最低阶 AC 项——源于 `math.Cos` 与 V8 `Math.cos` 的次 ULP 差异，解码后观感一致；参考解码器验证 Go 生成的 hash 能正确还原红/绿/蓝布局）。零新第三方依赖（CGO-free）。
+- `owner`：`AssetResponseDto` 新增 `owner`（独立 `UserResponse` DTO，含 id/email/name/avatarColor/profileChangedAt/profileImagePath），按 `ownerId` 填充，用于伙伴/共享场景。
+
+### 仍待补全（最新手机 APP 兼容性差距，按优先级）
+1. **Live Photo 配对**：`livePhotoVideoId` 已存储但未做视频+照片关联与合并播放。
+2. **反向地理编码**：`/api/map/markers` 已有，但标记地名（city/country）依赖 EXIF，缺经纬度→地名解析。
+3. **架构级大功能**：人脸聚类/`people` 召回、智能(CLIP)搜索、websocket 实时同步、OAuth/SSO、memories、回收站定时清理、通知/邮件、管理后台——均未按最新契约补齐（约 160+ 路由）。
+4. **版本门控**：`IMMICH_COMPAT_VERSION` 默认 `1.130.0`；若用户所用 App 版本不同，需按客户端实际期望版本调整该环境变量，否则可能出现「服务器版本不匹配」提示。
+
+## 六、2026-08-15 发布 v1.2.0-go（克隆原版后端 + 发布产物 + Docker 镜像）
+
+本批工作：① 克隆原版 `immich-app/immich` 的 `server/`（NestJS 后端）作为**参考**（浅克隆、仅 `server/` 子树，存于本地 `/tmp/immich-ref`，不提交仓库——本项目按 `AGENTS.md` 是独立纯 Go 复刻，非 Node 代码 fork），据此补写 [BACKEND_ALIGNMENT.md](BACKEND_ALIGNMENT.md)（原版控制器/服务 ↔ `internal/app` 模块映射 + 契约对齐说明）；② 产出并发布 release 产物；③ 构建并推送 Docker 镜像；④ 全部提交并推送至 CNB。
+
+### A. 发布产物（dist/，依 `.gitignore` 刻意纳入版本库）✅
+- 6 平台静态二进制（`CGO_ENABLED=0`，`linux/darwin/windows × amd64/arm64`）由 `scripts/build-release.sh 1.2.0-go` 生成，命名 `immich-go-1.2.0-go-<os>-<arch>/`，配套 `README.txt` + `start.sh`/`.bat` 与 `.tar.gz` 归档，`checksums.txt` 含每个二进制 SHA-256。
+- 旧 `1.0.0-go` 产物已清理，仅保留 `1.2.0-go`。
+
+### B. FFmpeg 共享库随包分发（按 `scripts/bundle-deps.sh`）✅ / ⚠️
+- **Windows/amd64**：从 BtbN FFmpeg-Builds 拉取 **FFmpeg 7.1 gpl-shared**，实际拷入 8 个 `.dll`（`avcodec/avdevice/avfilter/avformat/avutil/postproc/swresample/swscale`），归档已含该 libs/，**开箱即用**。
+- **Windows/arm64**：BtbN **未发布** `win-arm64-gpl-shared`（已用 GitHub API 验证 asset 列表确认），该平台回退占位视频后端（服务其余正常）。
+- **Linux / macOS**：本沙箱无法取得完整可移植的共享库（linux `apt-get` 仅能取部分 `.so` 且缺传递依赖、macOS 无 Homebrew），统一回退占位；**推荐 Linux 服务端直接跑下面带 ffmpeg 的 Docker 镜像**，或宿主机 `apt install ffmpeg` 后由 purego 加载器在系统路径找到库。
+- 修复了 `bundle-deps.sh` 两个 bug：① 首个 glob 误把 `.tar.gz` 归档当二进制处理（已改为跳过归档/目录）；② BtbN 的 `grep` 用了 glob 风格 `*` 而非正则（已改为 `ffmpeg-n7.1-[^"]*-<winarch>-gpl-shared[^\"]*\.(zip|7z)`）。
+
+### C. Docker 镜像（CNB registry）✅
+- 已基于仓库 `Dockerfile`（`golang:1.23` 多阶段，`CGO_ENABLED=0`）构建并推送至 CNB 容器 registry：
+  `docker.cnb.cool/finalappstore/immich-go:latest` 与 `:v1.2.0-go`（已验证两 tag 均可拉取、server 正常监听、`[video] using backend: ffmpeg-software`）。
+- 运行时由 **alpine(musl) 改为 Debian bookworm(glibc)**：本仓二进制经 `modernc.org/sqlite` 栈为 **glibc 动态链接**（非完全静态），在 musl 下报 `no such file or directory`。镜像内 `apt-get install ffmpeg`，并在二进制 `libs/` 目录建**无版本软链**（`libavformat.so` → `libavformat.so.59` 等），使 purego 加载器按 `exeDir/libs/<soname>` 找到 FFmpeg；其传递依赖经系统 `ld.so` 缓存解析。**容器内视频缩略图/转码完整可用**，是 Linux 服务端部署的推荐方式。
+- 当前仅构建 **linux/amd64**（主容器无 `buildx`，多架构 arm64 需 `docker buildx` + QEMU，留待 CI/后续）；前端/Windows 客户端用对应 `dist/` 二进制即可。
+
+### D. 提交与推送 ✅
+- 源码 + 文档（`BACKEND_ALIGNMENT.md`、更新后的 `STATUS.md`/`README.md`/`THIRD_PARTY.md`）+ `dist/` 产物 + 修复后的 `bundle-deps.sh` 一并提交并推送至 `origin/main`（CNB）；并打 `v1.2.0-go` 标签推送，作为本次发布快照。
+
+### 仍待补全（发布相关）
+- Windows/arm64 视频开箱即用需 BtbN 提供 `win-arm64-gpl-shared`（上游缺失）；可改从其他渠道取 arm64 共享库。
+- Docker 镜像多架构（arm64）+ CNB 流水线自动发版（`.cnb.yml` stages）待接入。
+

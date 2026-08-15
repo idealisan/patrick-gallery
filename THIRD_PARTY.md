@@ -24,7 +24,7 @@ Used by the software video backend (`internal/video`, purego-loaded). We load
 | Platform | Arch | Source | Exact artifact pattern |
 |----------|------|--------|------------------------|
 | Windows  | amd64 | BtbN FFmpeg-Builds (GitHub) | `ffmpeg-n7.1-*-win64-gpl-shared.zip` |
-| Windows  | arm64 | BtbN FFmpeg-Builds (GitHub) | `ffmpeg-n7.1-*-win-arm64-gpl-shared.zip` (if published; otherwise unsupported — see note) |
+| Windows  | arm64 | BtbN FFmpeg-Builds (GitHub) | `ffmpeg-n7.1-*-win-arm64-gpl-shared.zip` — **not published by BtbN** (verified via GitHub API: only `win64` gpl-shared exists); package falls back to placeholder video backend |
 | macOS    | amd64 | Homebrew `ffmpeg` | `brew --prefix ffmpeg` → copy `libav*.dylib`, `libsw*.dylib` |
 | macOS    | arm64 | Homebrew `ffmpeg` | same as above (Apple Silicon) |
 | Linux    | amd64 | distro shared libs (Debian/Ubuntu `libavformat-dev` etc.) or `johnvansickle` is static (not usable) | copy `libav*.so*`, `libsw*.so*` from the system / pinned deb |

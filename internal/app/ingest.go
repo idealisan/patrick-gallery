@@ -60,6 +60,10 @@ type mediaResult struct {
 	thumbBytes []byte // jpeg-encoded thumbnail, empty if none could be made
 	exif       *Exif   // populated for images; nil for videos / failures
 	localDate  time.Time
+	// gallery-fidelity fields consumed by the asset response
+	width     int    // pixel width (image from EXIF/decode, video from probe)
+	height    int    // pixel height
+	thumbhash string // base64 ThumbHash placeholder (Immich-compatible)
 }
 
 // processMedia reads the file at path, generates a thumbnail and (for images)
@@ -98,9 +102,19 @@ func (a *App) processMedia(path, assetID, ownerID, typ string, fallbackDate time
 			}
 			res.exif = exif
 		}
+		// Pixel dimensions for any decodable format (Extract only resolves
+		// them for JPEG/TIFF).
+		if w, h := imgproc.Dimensions(raw); w > 0 && h > 0 {
+			res.width = w
+			res.height = h
+		}
 		if out, terr := imgproc.Thumbnail(raw, 256); terr == nil && len(out) > 0 {
 			res.thumbBytes = out
 			_ = os.WriteFile(tp, out, 0o644)
+			// ThumbHash placeholder from the generated thumbnail.
+			if th, perr := imgproc.Thumbhash(out); perr == nil {
+				res.thumbhash = th
+			}
 		}
 	} else if typ == "VIDEO" {
 		if out, terr := a.video.Thumbnail(raw, video.ThumbnailOptions{
@@ -109,6 +123,14 @@ func (a *App) processMedia(path, assetID, ownerID, typ string, fallbackDate time
 		}); terr == nil && len(out) > 0 {
 			res.thumbBytes = out
 			_ = os.WriteFile(tp, out, 0o644)
+			if th, perr := imgproc.Thumbhash(out); perr == nil {
+				res.thumbhash = th
+			}
+		}
+		// Pixel dimensions from the container probe (best-effort).
+		if md, perr := a.video.Probe(raw); perr == nil {
+			res.width = md.Width
+			res.height = md.Height
 		}
 	}
 
@@ -168,6 +190,9 @@ func (a *App) ingestStoredFile(opts ingestOptions) (*Asset, error) {
 		IsExternal:       opts.IsExternal,
 		LibraryId:        opts.LibraryID,
 		HasThumbnail:     thumbPath != "",
+		Width:            res.width,
+		Height:           res.height,
+		Thumbhash:        res.thumbhash,
 		CreatedAt:        now,
 		UpdatedAt:        now,
 	}

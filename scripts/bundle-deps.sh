@@ -33,11 +33,11 @@ fetch_btbn() {
     arm64) winarch=win-arm64 ;;
     386)   winarch=win32 ;;
   esac
-  local asset_pattern="ffmpeg-n${FFVER}-*-${winarch}-gpl-shared"
+  local asset_pattern="ffmpeg-n${FFVER}-[^\"]*-${winarch}-gpl-shared[^\"]*\.(zip|7z)"
   echo "[bundle-deps] windows/${arch}: BtbN asset '$asset_pattern'"
   local url
   url="$(curl -sL "https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/tags/${BTBN_TAG:-latest}" \
-    | grep -oE "https://github.com/BtbN/FFmpeg-Builds/releases/download/${BTBN_TAG:-latest}/${asset_pattern}(\.zip|\.7z)" \
+    | grep -oE "https://github.com/BtbN/FFmpeg-Builds/releases/download/${BTBN_TAG:-latest}/${asset_pattern}" \
     | head -n1)"
   if [ -z "$url" ]; then
     echo "[bundle-deps] WARNING: no BtbN asset for windows/${arch}; package falls back to placeholder video backend" >&2
@@ -113,9 +113,10 @@ EOF
   fi
 }
 
-# Collect binaries: immich-go-<os>-<arch>[.exe]
-for bin in "$DIR"/immich-go-*-*-* "$DIR"/immich-go-*.exe; do
+# Collect bare binaries: immich-go-<os>-<arch>[.exe] (skip dirs and archives)
+for bin in "$DIR"/immich-go-*; do
   [ -f "$bin" ] || continue
+  case "$bin" in *.tar.gz|*.zip) continue;; esac
   base="$(basename "$bin")"; base="${base%.exe}"
   name="${base#immich-go-}"            # e.g. linux-arm64
   os="${name%-*}"; arch="${name##*-}"

@@ -29,9 +29,7 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 	r.GET("/api/server/ping", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"res": "pong"}) })
 	r.GET("/api/server/health", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "ok", "checks": []any{}}) })
 	r.GET("/api/server/about", a.handleAbout)
-	r.GET("/api/server/version", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"major": 1, "minor": 0, "patch": 0, "version": "1.0.0-go"})
-	})
+	r.GET("/api/server/version", a.handleServerVersion)
 	r.GET("/api/server/config", a.handleServerConfig)
 	r.GET("/api/server/features", a.handleServerFeatures)
 	r.GET("/api/system-config/defaults", a.handleSystemConfigDefaults)
@@ -80,6 +78,7 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		// assets
 		api.POST("/assets", a.handleAssetUpload)
 		api.POST("/assets/check", a.handleAssetCheck)
+		api.POST("/assets/bulk-upload-check", a.handleAssetBulkUploadCheck)
 		api.PUT("/assets", a.handleAssetBulkUpdate)
 		api.GET("/assets", a.handleAssetSearch) // query-based listing
 		api.GET("/assets/random", a.handleAssetRandom)

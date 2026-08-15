@@ -135,6 +135,18 @@ func peekFormat(raw []byte) (string, int) {
 	return format, cfg.Width
 }
 
+// Dimensions returns the pixel width/height of raw image bytes for any
+// decodable raster format (JPEG/PNG/GIF/WebP/...). Returns 0,0 if the bytes
+// cannot be decoded. Used to populate asset dimensions for the response
+// regardless of container (Extract only resolves dimensions for JPEG/TIFF).
+func Dimensions(raw []byte) (int, int) {
+	cfg, _, err := stdimage.DecodeConfig(bytes.NewReader(raw))
+	if err != nil {
+		return 0, 0
+	}
+	return cfg.Width, cfg.Height
+}
+
 // Decode decodes raw bytes into an stdimage.Image, trying the standard library
 // decoders first (jpeg/png/gif, and tiff/bmp when the toolchain provides them)
 // and then WebP. It returns the image and a format string: "jpeg" | "png" |

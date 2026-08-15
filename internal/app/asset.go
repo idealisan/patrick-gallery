@@ -1,14 +1,17 @@
 package app
 
 import (
+	"bytes"
 	"fmt"
 	"image"
 	"image/jpeg"
 	"image/png"
 	"io"
+	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -16,41 +19,197 @@ import (
 	"immich-go/internal/video"
 )
 
-// AssetResponse nests EXIF under the asset, matching Immich's JSON shape.
+// AssetResponse is the immich-go representation of Immich's AssetResponseDto.
+// Field names/types follow the current Immich OpenAPI spec so the official
+// mobile/web clients parse it without error. It is intentionally a standalone
+// DTO (not an embedding of the DB model) so response shape is decoupled from
+// storage.
 type AssetResponse struct {
-	Asset
-	Exif *Exif `json:"exif,omitempty"`
+	ID               string    `json:"id"`
+	OwnerID          string    `json:"ownerId"`
+	Type             string    `json:"type"`
+	OriginalPath     string    `json:"originalPath"`
+	OriginalFileName string    `json:"originalFileName"`
+	OriginalMimeType string    `json:"originalMimeType,omitempty"`
+	ResizePath       string    `json:"resizePath"`
+	EncodedVideoPath string    `json:"encodedVideoPath"`
+	Checksum         string    `json:"checksum"`
+	FileCreatedAt    time.Time `json:"fileCreatedAt"`
+	FileModifiedAt   time.Time `json:"fileModifiedAt"`
+	LocalDateTime    time.Time `json:"localDateTime"`
+	Duration         int       `json:"duration"`
+	IsFavorite       bool      `json:"isFavorite"`
+	IsArchived       bool      `json:"isArchived"`
+	IsTrashed        bool      `json:"isTrashed"`
+	IsExternal       bool      `json:"isExternal"`
+	LibraryId        string    `json:"libraryId"`
+	HasThumbnail     bool      `json:"hasThumbnail"`
+	Resized          bool      `json:"resized"`
+	HasMetadata      bool      `json:"hasMetadata"`
+	Visibility       string    `json:"visibility,omitempty"`
+	Thumbhash        string    `json:"thumbhash,omitempty"`
+	Width            int       `json:"width,omitempty"`
+	Height           int       `json:"height,omitempty"`
+	DuplicateID      string    `json:"duplicateId,omitempty"`
+	IsEdited         bool      `json:"isEdited"`
+	IsOffline        bool      `json:"isOffline"`
+	LivePhotoVideoID string    `json:"livePhotoVideoId,omitempty"`
+	CreatedAt        time.Time `json:"createdAt"`
+	UpdatedAt        time.Time `json:"updatedAt"`
+	ExifInfo         *Exif        `json:"exifInfo,omitempty"`
+	People           []any        `json:"people"`
+	Tags             []any        `json:"tags"`
+	Owner            *UserResponse `json:"owner,omitempty"`
+}
+
+// UserResponse mirrors Immich's UserResponseDto (subset) used by the asset
+// owner field. It is a standalone DTO (not the GORM User model) so response
+// shape is decoupled from storage and no extra DB columns are required.
+type UserResponse struct {
+	ID               string `json:"id"`
+	Email            string `json:"email"`
+	Name             string `json:"name"`
+	AvatarColor      string `json:"avatarColor"`
+	ProfileChangedAt string `json:"profileChangedAt,omitempty"`
+	ProfileImagePath string `json:"profileImagePath,omitempty"`
 }
 
 func (a *App) toResponse(asset Asset) AssetResponse {
-	var exif Exif
-	if asset.ExifID != "" {
-		if err := a.store.DB.First(&exif, "id = ?", asset.ExifID).Error; err != nil {
-			return AssetResponse{Asset: asset}
-		}
-		return AssetResponse{Asset: asset, Exif: &exif}
+	r := AssetResponse{
+		ID:               asset.ID,
+		OwnerID:          asset.OwnerID,
+		Type:             asset.Type,
+		OriginalPath:     asset.OriginalPath,
+		OriginalFileName: asset.OriginalFileName,
+		ResizePath:       asset.ResizePath,
+		EncodedVideoPath: asset.EncodedVideoPath,
+		Checksum:         asset.Checksum,
+		FileCreatedAt:    asset.FileCreatedAt,
+		FileModifiedAt:   asset.FileModifiedAt,
+		LocalDateTime:    asset.LocalDateTime,
+		Duration:         parseDurationInt(asset.Duration),
+		IsFavorite:       asset.IsFavorite,
+		IsArchived:       asset.IsArchived,
+		IsTrashed:        asset.IsTrash,
+		IsExternal:       asset.IsExternal,
+		LibraryId:        asset.LibraryId,
+		HasThumbnail:     asset.HasThumbnail,
+		Resized:          asset.HasThumbnail,
+		HasMetadata:      asset.ExifID != "",
+		Visibility:       visibilityOf(asset.IsArchived),
+		IsEdited:         false,
+		IsOffline:        false,
+		LivePhotoVideoID: asset.LivePhotoVideoID,
+		Width:            asset.Width,
+		Height:           asset.Height,
+		Thumbhash:        asset.Thumbhash,
+		CreatedAt:        asset.CreatedAt,
+		UpdatedAt:        asset.UpdatedAt,
+		People:           []any{},
+		Tags:             []any{},
+		OriginalMimeType: mimeByExt(asset.OriginalFileName),
 	}
-	return AssetResponse{Asset: asset}
+	if asset.OwnerID != "" {
+		var owner User
+		if a.store.DB.First(&owner, "id = ?", asset.OwnerID).Error == nil {
+			r.Owner = &UserResponse{
+				ID:               owner.ID,
+				Email:            owner.Email,
+				Name:             owner.Name,
+				AvatarColor:      owner.AvatarColor,
+				ProfileChangedAt: owner.UpdatedAt.UTC().Format(time.RFC3339),
+				ProfileImagePath: "",
+			}
+		}
+	}
+	if asset.ExifID != "" {
+		var exif Exif
+		if a.store.DB.First(&exif, "id = ?", asset.ExifID).Error == nil {
+			r.ExifInfo = &exif
+		}
+	}
+	return r
+}
+
+// visibilityOf maps the boolean archive flag to Immich's AssetVisibility enum.
+func visibilityOf(isArchived bool) string {
+	if isArchived {
+		return "archive"
+	}
+	return "timeline"
+}
+
+// parseDurationInt converts the stored duration (seconds, possibly empty or a
+// non-numeric legacy value) into an integer the client expects.
+func parseDurationInt(s string) int {
+	if s == "" {
+		return 0
+	}
+	n, err := strconv.Atoi(strings.TrimSpace(s))
+	if err != nil {
+		return 0
+	}
+	return n
+}
+
+// mimeByExt derives a MIME type from a filename's extension.
+func mimeByExt(name string) string {
+	if t := mime.TypeByExtension(filepath.Ext(name)); t != "" {
+		return t
+	}
+	return ""
 }
 
 func (a *App) handleAssetUpload(c *gin.Context) {
 	uid := currentUserID(c)
-	metaRaw := c.Request.FormValue("asset")
-	var meta struct {
-		DeviceAssetId string `json:"deviceAssetId"`
-		DeviceId      string `json:"deviceId"`
-		FileCreatedAt string `json:"fileCreatedAt"`
+
+	// --- current Immich contract: individual multipart form fields ---
+	filename := c.PostForm("filename")
+	fileCreatedAt := c.PostForm("fileCreatedAt")
+	fileModifiedAt := c.PostForm("fileModifiedAt")
+	isFavorite := c.PostForm("isFavorite") == "true"
+	visibility := c.PostForm("visibility")
+	livePhotoVideoID := c.PostForm("livePhotoVideoId")
+	durationSec := parseDurationInt(c.PostForm("duration"))
+	deviceAssetId := c.PostForm("deviceAssetId")
+	deviceId := c.PostForm("deviceId")
+
+	// back-compat: older Immich clients send a single JSON `asset` field.
+	var legacy struct {
+		DeviceAssetId  string `json:"deviceAssetId"`
+		DeviceId       string `json:"deviceId"`
+		FileCreatedAt  string `json:"fileCreatedAt"`
 		FileModifiedAt string `json:"fileModifiedAt"`
-		LocalDateTime string `json:"localDateTime"`
-		FileExtension string `json:"fileExtension"`
-		IsFavorite    bool   `json:"isFavorite"`
-		IsArchived    bool   `json:"isArchived"`
-		Duration      string `json:"duration"`
-		Type          string `json:"type"`
-		Checksum      string `json:"checksum"`
-		IsExternal    bool   `json:"isExternal"`
+		LocalDateTime  string `json:"localDateTime"`
+		FileExtension  string `json:"fileExtension"`
+		IsFavorite     bool   `json:"isFavorite"`
+		IsArchived     bool   `json:"isArchived"`
+		Duration       string `json:"duration"`
+		Type           string `json:"type"`
+		Checksum       string `json:"checksum"`
 	}
-	_ = decodeJSONString(metaRaw, &meta)
+	_ = decodeJSONString(c.PostForm("asset"), &legacy)
+	if deviceAssetId == "" {
+		deviceAssetId = legacy.DeviceAssetId
+	}
+	if deviceId == "" {
+		deviceId = legacy.DeviceId
+	}
+	if fileCreatedAt == "" {
+		fileCreatedAt = legacy.FileCreatedAt
+	}
+	if fileModifiedAt == "" {
+		fileModifiedAt = legacy.FileModifiedAt
+	}
+	if !isFavorite && legacy.IsFavorite {
+		isFavorite = true
+	}
+	if durationSec == 0 {
+		durationSec = parseDurationInt(legacy.Duration)
+	}
+	if visibility == "" && legacy.IsArchived {
+		visibility = "archive"
+	}
 
 	fh, err := c.FormFile("assetData")
 	if err != nil {
@@ -69,26 +228,29 @@ func (a *App) handleAssetUpload(c *gin.Context) {
 		return
 	}
 
-	// default library for the user
+	// The current Immich client does NOT send assetType; infer it from the
+	// file (extension, then magic bytes).
+	ext := strings.ToLower(filepath.Ext(fh.Filename))
+	if ext == "" {
+		ext = "." + strings.TrimPrefix(strings.ToLower(legacy.FileExtension), ".")
+	}
+	assetType := sniffType(raw, ext)
+
+	if filename == "" {
+		filename = fh.Filename
+	}
+
+	// default upload library for the user
 	var lib Library
 	if err := a.store.DB.Where("owner_id = ?", uid).First(&lib).Error; err != nil {
 		lib = Library{ID: "", OwnerID: uid}
 	}
 
 	now := time.Now().UTC()
-	localDateTime := parseTime(meta.LocalDateTime, now)
-	assetType := normalizeType(meta.Type)
+	localDateTime := parseTime(fileCreatedAt, now)
 
-	ext := strings.ToLower(filepath.Ext(fh.Filename))
-	if ext == "" {
-		ext = "." + strings.TrimPrefix(strings.ToLower(meta.FileExtension), ".")
-	}
-	if assetType == "" {
-		assetType = extToType(ext)
-	}
-
-	// Persist the original to the upload dir, then run it through the shared
-	// ingest path (thumbnail + EXIF + asset rows), identical to a disk scan.
+	// Persist the original, then run it through the shared ingest path
+	// (thumbnail + EXIF + asset rows), identical to a disk scan.
 	upDir := filepath.Join(a.cfg.ResourceDir, "upload")
 	_ = os.MkdirAll(upDir, 0o755)
 	origPath := filepath.Join(upDir, newUUID()+ext)
@@ -100,7 +262,7 @@ func (a *App) handleAssetUpload(c *gin.Context) {
 	asset, err := a.ingestStoredFile(ingestOptions{
 		OwnerID:      uid,
 		LibraryID:    lib.ID,
-		FileName:     fh.Filename,
+		FileName:     filename,
 		Ext:          ext,
 		Type:         assetType,
 		OriginalPath: origPath,
@@ -113,7 +275,82 @@ func (a *App) handleAssetUpload(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"id": asset.ID, "status": "created", "assetId": asset.ID})
+
+	// Patch client-supplied flags onto the freshly created asset. We do this
+	// after ingest (rather than extending ingestOptions) so the shared
+	// library-scan path is unaffected. GORM skips zero values, so false/""
+	// simply keep the defaults.
+	patch := Asset{
+		DeviceAssetId:    deviceAssetId,
+		DeviceId:         deviceId,
+		IsFavorite:       isFavorite,
+		IsArchived:       visibility == "archive",
+		Duration:         strconv.Itoa(durationSec),
+		LivePhotoVideoID: livePhotoVideoID,
+	}
+	if deviceAssetId != "" || deviceId != "" || isFavorite || visibility == "archive" || durationSec != 0 || livePhotoVideoID != "" {
+		a.store.DB.Model(&asset).Updates(patch)
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"id": asset.ID, "status": "created"})
+}
+
+// sniffType resolves an asset type from the extension, falling back to magic
+// bytes for cases where the extension is missing/unknown.
+func sniffType(raw []byte, ext string) string {
+	if t := extToType(ext); t != "" {
+		return t
+	}
+	if len(raw) >= 12 {
+		if bytes.Equal(raw[4:8], []byte("ftyp")) { // mp4 / mov / m4v
+			return "VIDEO"
+		}
+		if bytes.HasPrefix(raw, []byte("RIFF")) && bytes.Contains(raw[:12], []byte("AVI ")) {
+			return "VIDEO"
+		}
+		if bytes.HasPrefix(raw, []byte("\x1A\x45\xDF\xA3")) { // webm / mkv (EBML)
+			return "VIDEO"
+		}
+	}
+	return "IMAGE"
+}
+
+// handleAssetBulkUploadCheck implements POST /api/assets/bulk-upload-check,
+// the current Immich deduplication handshake. Clients send a list of
+// {checksum, id} and receive, per item, whether the server already holds the
+// asset (action "reject"/reason "duplicate") or wants it uploaded
+// (action "accept"). Matching is by content checksum over the user's assets.
+func (a *App) handleAssetBulkUploadCheck(c *gin.Context) {
+	uid := currentUserID(c)
+	var b struct {
+		Assets []struct {
+			Checksum string `json:"checksum"`
+			ID       string `json:"id"`
+		} `json:"assets"`
+	}
+	_ = c.ShouldBindJSON(&b)
+	results := make([]gin.H, 0, len(b.Assets))
+	for _, item := range b.Assets {
+		res := gin.H{"id": item.ID}
+		if item.Checksum == "" {
+			res["action"] = "accept"
+			results = append(results, res)
+			continue
+		}
+		var existing Asset
+		err := a.store.DB.Where("owner_id = ? AND checksum = ? AND is_trash = ?", uid, item.Checksum, false).
+			First(&existing).Error
+		if err == nil {
+			res["action"] = "reject"
+			res["reason"] = "duplicate"
+			res["assetId"] = existing.ID
+			res["isTrashed"] = false
+		} else {
+			res["action"] = "accept"
+		}
+		results = append(results, res)
+	}
+	c.JSON(http.StatusOK, gin.H{"results": results})
 }
 
 func normalizeType(t string) string {

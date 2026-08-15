@@ -1,0 +1,11 @@
+# CNB 云原生开发环境配置
+# 说明：仅声明 4 核 CPU（文档来源 https://docs.cnb.cool/zh/workspaces/custom-dev-pipeline.md）
+# runner.cpus 最大 64 核；内存按 cpus × 2GB 自动分配（4 核 = 8GB）。
+$:
+  vscode:
+    - runner:
+        cpus: 4
+      docker:
+        image: cnbcool/default-dev-env
+      services:
+        - vscode

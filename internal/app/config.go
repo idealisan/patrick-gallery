@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 )
@@ -17,6 +18,16 @@ type Config struct {
 	APIKeySalt     string
 	LoginRequired  bool
 	ExternalDomain string
+
+	// CompatVersion is the Immich server version this Go port advertises to
+	// official clients (mobile/web). It MUST match the version the client
+	// expects or the app will refuse to connect. Default tracks a recent
+	// stable Immich release; override with IMMICH_COMPAT_VERSION if your
+	// client requires a specific version.
+	CompatVersion string
+	CompatMajor   int
+	CompatMinor   int
+	CompatPatch   int
 }
 
 func getEnv(k, def string) string {
@@ -28,7 +39,7 @@ func getEnv(k, def string) string {
 
 func LoadConfig() *Config {
 	port, _ := strconv.Atoi(getEnv("IMMICH_PORT", "8081"))
-	return &Config{
+	cfg := &Config{
 		Host:           getEnv("IMMICH_HOST", "0.0.0.0"),
 		Port:           port,
 		DBPath:         getEnv("IMMICH_DB", "immich.db"),
@@ -37,5 +48,13 @@ func LoadConfig() *Config {
 		APIKeySalt:     getEnv("IMMICH_API_KEY_SALT", "immich-dev-api-salt"),
 		LoginRequired:  getEnv("IMMICH_LOGIN_REQUIRED", "true") == "true",
 		ExternalDomain: getEnv("IMMICH_EXTERNAL_DOMAIN", ""),
+		CompatVersion:  getEnv("IMMICH_COMPAT_VERSION", "1.130.0"),
 	}
+	maj, min, pat := 1, 130, 0
+	if n, err := fmt.Sscanf(cfg.CompatVersion, "%d.%d.%d", &maj, &min, &pat); n >= 1 && err == nil {
+		cfg.CompatMajor, cfg.CompatMinor, cfg.CompatPatch = maj, min, pat
+	} else {
+		cfg.CompatMajor, cfg.CompatMinor, cfg.CompatPatch = 1, 130, 0
+	}
+	return cfg
 }

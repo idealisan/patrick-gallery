@@ -47,6 +47,10 @@ type Asset struct {
 	IsTrash          bool          `json:"isTrash"`
 	IsExternal       bool          `json:"isExternal"`
 	LibraryId        string        `gorm:"type:text" json:"libraryId"`
+	LivePhotoVideoID string        `gorm:"type:text" json:"-"`
+	Width            int           `gorm:"type:int" json:"-"`
+	Height           int           `gorm:"type:int" json:"-"`
+	Thumbhash        string        `gorm:"type:text" json:"-"`
 	HasThumbnail     bool          `json:"hasThumbnail"`
 	ExifID          string        `gorm:"type:text" json:"exifId"`
 	CreatedAt        time.Time     `json:"createdAt"`

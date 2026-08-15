@@ -40,46 +40,77 @@ func (a *App) handleAuthValidateToken(c *gin.Context) {
 }
 
 // handleServerConfig mirrors GET /api/server/config.
+// Field set follows the current Immich ServerConfigDto (all required keys
+// present). Extra keys the official clients also read are kept for safety.
 func (a *App) handleServerConfig(c *gin.Context) {
 	var n int64
 	a.store.DB.Model(&User{}).Count(&n)
 	c.JSON(http.StatusOK, gin.H{
-		"isInitialized":            n > 0,
-		"isConnected":              true,
-		"isReadOnly":               false,
-		"isPasswordLoginEnabled":   true,
-		"isOauthEnabled":           false,
-		"isOauthAutoLaunch":        false,
-		"isFirstUser":              n == 0,
-		"isInMemory":               false,
-		"externalDomain":           "",
-		"isCoreDown":               false,
-		"loginPageMessage":         "",
-		"isLogInWithPasskeyEnabled": false,
-		"isSharedLinkLoginEnabled": true,
-		"isSidebarSharedLinkEnabled": true,
-		"isLibraryWipeEnabled":     false,
-		"isDownloadAvailable":      true,
+		// required by ServerConfigDto
+		"externalDomain":     a.cfg.ExternalDomain,
+		"isInitialized":      n > 0,
+		"isOnboarded":        true,
+		"loginPageMessage":   "",
+		"maintenanceMode":    false,
+		"mapDarkStyleUrl":    "",
+		"mapLightStyleUrl":   "",
+		"minFaces":           1,
+		"oauthButtonText":    "",
+		"publicUsers":        true,
+		"trashDays":          30,
+		"userDeleteDelay":    0,
+		// extra keys official clients also read
+		"isConnected":                 true,
+		"isReadOnly":                  false,
+		"isPasswordLoginEnabled":      true,
+		"isOauthEnabled":              false,
+		"isOauthAutoLaunch":           false,
+		"isFirstUser":                 n == 0,
+		"isInMemory":                  false,
+		"isCoreDown":                  false,
+		"isLogInWithPasskeyEnabled":   false,
+		"isSharedLinkLoginEnabled":    true,
+		"isSidebarSharedLinkEnabled":  true,
+		"isLibraryWipeEnabled":        false,
+		"isDownloadAvailable":         true,
+	})
+}
+
+// handleServerVersion mirrors GET /api/server/version.
+// Required keys per ServerVersionResponseDto: major, minor, patch, prerelease.
+func (a *App) handleServerVersion(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"major":       a.cfg.CompatMajor,
+		"minor":       a.cfg.CompatMinor,
+		"patch":       a.cfg.CompatPatch,
+		"prerelease":  0,
+		"version":     a.cfg.CompatVersion,
 	})
 }
 
 // handleServerFeatures mirrors GET /api/server/features.
+// Field set + required keys follow the current Immich ServerFeaturesDto.
+// Booleans reflect what immich-go actually implements so the official clients
+// show the correct UI (e.g. map/duplicateDetection must be true or the tabs
+// are hidden).
 func (a *App) handleServerFeatures(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
-		"smartSearch":          false,
-		"facialRecognition":    false,
-		"duplicateDetection":   false,
-		"map":                  false,
-		"reverseGeocoding":     false,
-		"trash":                true,
-		"oauth":                false,
-		"oauthAutoLaunch":      false,
-		"passwordLogin":        true,
-		"clipEncode":           false,
-		"sidecars":             false,
-		"search":               true,
-		"tagImage":             false,
-		"visualize":            false,
+		"configFile":          false,
+		"duplicateDetection":  true,
+		"email":               false,
+		"facialRecognition":   false,
+		"importFaces":         false,
+		"map":                 true,
+		"oauth":               false,
+		"oauthAutoLaunch":     false,
+		"ocr":                 false,
+		"passwordLogin":       true,
+		"realtimeTranscoding": true,
+		"reverseGeocoding":    false,
+		"search":              true,
+		"sidecar":             false,
+		"smartSearch":         false,
+		"trash":               true,
 	})
 }
 
