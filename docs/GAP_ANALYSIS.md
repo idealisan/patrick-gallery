@@ -314,7 +314,54 @@ Web 管理后台 + 高级界面缺失：
 
 ---
 
-## 14. 复现方法
+## 14. 核心媒体闭环验证（非 ML / 非多用户功能）
+
+> 用户核心问题：除 ML 相关、以及个性化/多用户功能外，**照片/视频的上传、同步、管理是否真正做好了、真正能用、且与原版完全兼容？**
+> 结论：**是——核心媒体闭环已真正可用且与官方 v3.1.0 契约兼容**；残留项均为增强/边缘，且已列入 P0/P1，不构成阻断。下为逐项核验（基于实读 handler + 已跑通的构建/测试）。
+
+### 14.1 核验表（核心媒体功能）
+
+| 功能 | 端点 / 实现 | 契约兼容 | 真正可用 | 残留差距 |
+|------|-------------|----------|----------|----------|
+| 照片/视频上传 | `POST /assets`（v3.1.0 multipart：`filename`/`fileCreatedAt`/`duration`/`visibility`/`livePhotoVideoId` + 旧 JSON `asset` 回退） | ✅ | ✅ 单测+端到端 | 类型由扩展名+魔数嗅探（与原版一致，不依赖 `assetType`） |
+| 去重握手 | `/assets/bulk-upload-check`（checksum 按用户去重）、`/assets/check` | ✅ | ✅ | — |
+| 原图 / 缩略图 / 预览 | `/original`、`/thumbnail`、`/thumbnail/:ts`、`/preview`、`/original/download`（强制附件） | ✅ | ✅ | — |
+| 视频转码 / HLS | `/encoded-video`（进程内 purego libx264）、`/video/stream/*`（单变体 HLS） | ✅ | ✅ | 仅单分辨率（P1-13） |
+| Live Photo | `/live-photo`（优先 encoded-video 否则原文件） | ✅ | ✅ | — |
+| 资产元数据读取 | `/metadata`（无 EXIF 返回空对象而非 404） | ✅ | ✅ | 仅读，写入缺失（P0-2） |
+| 资产更新 / 批量 / 删除 | `PUT /assets`、`PUT /assets`(bulk)、`DELETE /assets`（`isTrash`/强制删+清文件） | ✅ | ✅ | favorite/archive/trash/exif 位置可改 |
+| 收藏 / 归档 | 经 asset update（`isFavorite`/`isArchived`） | ✅ | ✅ | `visibility` 仅 `archive`/`timeline` 持久化（hidden/locked 不持久化） |
+| 时间线 | `/timeline/buckets`、`/timeline/bucket`、`/timeline/assets` | ✅ | ✅ | — |
+| 相册 | CRUD + 成员增删 + 封面 + 统计 + `/albums/:id/assets` 顺序 | ✅ | ✅ | 相册内用户共享缺（P0-5） |
+| 标签 | CRUD + 资产绑定/解绑 | ✅ | ✅ | 批量标签操作小缺（P2） |
+| 回收站 | list/restore/empty + 定时清理（`TrashedAt` + 24h 调度） | ✅ | ✅ | — |
+| 搜索 | `/search`、`/search/metadata`、`/search/explore`、`/search/suggestions`（文件名+EXIF 文本） | ✅（文本/EXIF） | ✅ | `smart`/`person` 缺（ML） |
+| 地图 | `/map/markers`（裸 `array[MapMarkerResponseDto]`）、`/reverse-geocode` | ✅ | ✅ | 无真实瓦片；`/albums/:id/map-markers` 缺 |
+| 库磁盘扫描 | `/libraries/:id/scan`（walk `ImportPaths`、`ExcludedPaths` 跳过、扩展名识别、sha1 去重、复用 `ingestStoredFile`） | ✅ | ✅ | `/libraries/:id/validate` 缺 |
+| 作业 | `/jobs`（thumbnailGeneration/metadataExtraction/videoConversion/duplicateDetection 真实执行 + 进度查询；ML job 返回 `unsupported:true`） | ✅ | ✅ | — |
+| 分享链接（免登录） | `/share/:key` + `/api/share/:key/{thumbnail,original}/:assetId` | ✅ | ✅ | 字段未持久化（P0-3） |
+| 伙伴 | list/create/delete | ✅ 形状 | ⚠️ 共享资产未透出 | P0-4 |
+| 活动（评论） | `/activities`（asset/album） | ✅ | ✅ | — |
+| 实时同步（事件推送） | `/api/events`（websocket 内存总线）+ `/socket.io`（Engine.IO v4 + Socket.IO，`onAssetUpload/Update/Trash/Delete/Album*` 事件名） | ✅ 协议层 | ✅ | `/sync/stream` 为 stub（双向增量协议未做） |
+| 反向地理编码 | `/map/reverse-geocode` + 摄取写入 `Exif.city/country`（GeoNames 离线） | ✅ | ✅ | 1°×1° 最近城市近似 |
+| 下载归档 | `/download/archive`（**GET** 变体；原版为 POST） | ⚠️ 方法差异 | ✅ | 小差异（P2） |
+
+### 14.2 总体结论
+
+- **上传 / 去重 / 管理 / 媒体服务**：已真正可用，且与 v3.1.0 契约在「形状与状态码」层面一致。手机 APP 可完成备份、浏览、播放、收藏、归档、删除、相册、搜索、地图、分享、库扫描等主流程。
+- **同步**：实时事件推送（websocket + Socket.IO）已对等，客户端能即时刷新；仅原版专用的双向增量 `/sync/stream` 仍是 stub（不影响主流程连接与刷新）。
+- **真正的「硬缺口」不在核心媒体本身，而在账户/共享元数据层**：PIN/会话锁（P0-1）、资产元数据写入（P0-2）、分享链接字段持久化（P0-3）、伙伴共享资产透出（P0-4）、相册内用户共享（P0-5）、兼容版本漂移（P0-6）。这些属于「个性化/多用户」边缘，已在 P0 排期。
+
+### 14.3 验证证据（2026-08-15 实测）
+
+- `go build ./...` ✅（go1.23.4，CGO 关闭）
+- `go vet $(go list ./... | grep -v /internal/video)` ✅（`internal/video` 的 `unsafe.Pointer` FFI 按 AGENTS.md 规则豁免）
+- `go test ./...` ✅ —— **修复 2 个过时测试**：`TestMapMarkersReturnsGeoTagged`（`map_test.go`）与 `TestRegression/map-markers`（`regression_test.go`）仍期望旧的 `{markers:[...]}` 包裹，而 `GET /map/markers` 已按 v3.1.0 契约改为返回裸 `array[MapMarkerResponseDto]`（见 STATUS §K.2）。两测试现已改为裸数组解码，**套件转绿**。这说明此前 `STATUS.md` 反复宣称的「`go test ./...` 全绿」并不准确，已在此审计中纠正。
+- 契约回归：`STATUS.md` §K 的 Schemathesis（v3.1.0）结果显示 `response_schema_conformance` / `content_type_conformance` / 5xx 零违反（修复的 5 处 DTO 形状：UUID 格式、`/map/markers` 裸数组、`/timeline/bucket`、`/search/*`、`/shared-links`）。
+
+---
+
+## 15. 复现方法
 
 端点 diff 可复现（需 python3 + 仓库契约）：
 ```bash

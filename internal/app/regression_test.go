@@ -250,11 +250,9 @@ func TestRegression(t *testing.T) {
 		if w.Code != 200 {
 			t.Fatalf("map markers -> %d", w.Code)
 		}
-		var mr struct {
-			Markers []MapMarker `json:"markers"`
-		}
-		_ = json.Unmarshal(w.Body.Bytes(), &mr)
-		if len(mr.Markers) == 0 {
+		var markers []MapMarker
+		_ = json.Unmarshal(w.Body.Bytes(), &markers)
+		if len(markers) == 0 {
 			t.Errorf("expected at least 1 map marker")
 		}
 	})

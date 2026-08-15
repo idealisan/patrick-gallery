@@ -6,6 +6,8 @@
 > 项目别名：**patrick-gallery**。最后更新：2026-08-15。
 
 > **差距复盘（对照原版 Immich，逐端点 diff）**：见 [docs/GAP_ANALYSIS.md](docs/GAP_ANALYSIS.md)——以「手机 APP + Web UI 功能对等」为目标，端点覆盖 102/254（≈40%）、152 缺失，按客户端面（手机/Web/共有）归类，并逐块标注受 `AGENTS.md` 硬规则的约束可行性，给出 P0–P3 优先级。
+>
+> **核心媒体闭环已验证可用且契约兼容**（上传/去重/同步事件推送/管理/媒体服务）——详见 `docs/GAP_ANALYSIS.md` §14。2026-08-15 审计实测：`go build`/`go vet`/`go test ./...` 全绿（修复了 2 个过时的 `/map/markers` 单测，其期望旧 `{markers:[...]}` 包裹，而端点已按 v3.1.0 契约返回裸数组）。
 
 ## Release 2 — in progress
 

@@ -46,16 +46,14 @@ func TestMapMarkersReturnsGeoTagged(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
 	}
-	var body struct {
-		Markers []MapMarker `json:"markers"`
-	}
-	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+	var markers []MapMarker
+	if err := json.Unmarshal(w.Body.Bytes(), &markers); err != nil {
 		t.Fatalf("decode: %v body=%s", err, w.Body.String())
 	}
-	if len(body.Markers) != 1 {
-		t.Fatalf("expected 1 clustered marker, got %d: %+v", len(body.Markers), body.Markers)
+	if len(markers) != 1 {
+		t.Fatalf("expected 1 clustered marker, got %d: %+v", len(markers), markers)
 	}
-	m := body.Markers[0]
+	m := markers[0]
 	if m.Count != 2 {
 		t.Errorf("expected count 2, got %d", m.Count)
 	}
