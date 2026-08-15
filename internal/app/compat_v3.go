@@ -2,6 +2,7 @@ package app
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -19,31 +20,49 @@ import (
 // ---- startup / server-info endpoints the app polls ----
 
 func (a *App) handleServerVersionCheck(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"isAvailableUpdate": false, "isAllowAutoUpdate": false})
+	c.JSON(http.StatusOK, gin.H{
+		"checkedAt":      time.Now().UTC().Format(time.RFC3339),
+		"releaseVersion": a.cfg.CompatVersion,
+	})
 }
 
 func (a *App) handleServerMediaTypes(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
-		"video": []string{"mp4", "mov", "avi", "mkv", "webm", "m4v"},
-		"image": []string{"jpg", "jpeg", "png", "gif", "webp", "heic", "heif", "avif", "tif", "tiff", "bmp"},
+		"video":   []string{"mp4", "mov", "avi", "mkv", "webm", "m4v"},
+		"image":   []string{"jpg", "jpeg", "png", "gif", "webp", "heic", "heif", "avif", "tif", "tiff", "bmp"},
+		"sidecar": []string{"xmp", "yml", "yaml", "txt"},
 	})
 }
 
 func (a *App) handleServerStorage(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
-		"diskAvailable":       0,
-		"diskSize":            0,
-		"diskUse":             0,
-		"diskUsagePercentage": 0,
+		"diskAvailable":        "0 B",
+		"diskAvailableRaw":     0,
+		"diskSize":             "0 B",
+		"diskSizeRaw":          0,
+		"diskUse":              "0 B",
+		"diskUseRaw":           0,
+		"diskUsagePercentage":  0,
 	})
 }
 
 func (a *App) handleServerApkLinks(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"android": "", "ios": ""})
+	c.JSON(http.StatusOK, gin.H{
+		"arm64v8a":  "",
+		"armeabiv7a": "",
+		"universal":  "",
+		"x86_64":     "",
+	})
 }
 
 func (a *App) handleServerVersionHistory(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"lastVersionCheck": nil, "versions": []any{}})
+	c.JSON(http.StatusOK, []any{
+		gin.H{
+			"id":         "",
+			"version":    a.cfg.CompatVersion,
+			"createdAt":  time.Now().UTC().Format(time.RFC3339),
+		},
+	})
 }
 
 func (a *App) handleServerLicense(c *gin.Context) {
@@ -57,7 +76,7 @@ func (a *App) handleServerLicense(c *gin.Context) {
 // ---- sync service (graceful stub) ----
 
 func (a *App) handleSyncAck(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"acqSequence": 0, "syncedAt": nil})
+	c.JSON(http.StatusOK, gin.H{"ack": "", "type": "AssetV1"})
 }
 
 // handleSyncStream is a no-op delta stream. The official client opens it for

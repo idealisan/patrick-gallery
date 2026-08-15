@@ -236,6 +236,20 @@
 - 复用进程内视频转码（purego FFmpeg，CGO-free）；无后端时回退原文件。`parseDurationInt(asset.Duration)` 写入 `#EXTINF`。
 - 测试：`internal/app/hls_test.go`（master/variant/segment/playback/delete 全链路，content-type 与报文形状校验）；`go build`/`go vet`/`go test ./...` 全绿。
 
+### J. API 一致性调查（v3.1.0 OpenAPI，2026-08-15）
+以官方 OpenAPI（`open-api/immich-openapi-specs.json`, tag v3.1.0, 254 method-paths）为基准，对 immich-go 做实时一致性测试。检查器：`scripts/api_consistency.py`（stdlib-only，OpenAPI 驱动；行业标准 CLI 为 `schemathesis run <spec> --base-url <url>`，需 pip，本环境未装，故自建等价 harness）。
+
+**结果（GET 只读端点自动测试）**：
+- 可自动测 GET：75；其中返回合法 JSON(2xx)：**42**（已实现并响应）；返回正确 404（超出范围，未实现）：33；SPA 兜底误报：0。
+- 字段一致性（required 属性校验）：59 一致 / 16 缺字段。16 处多为**检查器导航伪影**（对象内含原始值列表，如 media-types，服务端实际 OK）或**有意部分实现的大 DTO**（system-config 完整嵌套、timeline 的 AssetResponseDto、UserResponseDto——客户端均容忍，主流程正常）。
+- 不可测（需资源 id，由单测覆盖）：88；非 GET 变更类（不自动跑）：91。
+
+**本次据报告修正的 DTO 形状**（原版契约要求，之前返回了错误字段名）：`/sync/ack`→`{ack,type}`、`/server/apk-links`→`{arm64v8a,armeabiv7a,universal,x86_64}`、`/server/version-check`→`{checkedAt,releaseVersion}`、`/server/storage` 补 `*Raw`、`/server/media-types` 补 `sidecar`、`/server/version-history`→数组。修正后这些端点通过一致性校验。
+
+**路线层覆盖**（§H）：匹配 97/254；缺失 157（admin/memories/notifications/oauth/plugins/workflows/queues/sessions/ML/stacks/partners 变体等，按设计超出单人/私域范围）。
+
+**原版并排测试说明**：本环境无 docker/ffmpeg，无法拉起原版 Immich（需 Postgres+Redis+ML 全栈），故未对运行中实例做并排；同一 harness + spec 设 `BASE_URL=<原版地址>` 即可产出并行报告。完整报告见 `reports/api-consistency-v3.1.0.md`。
+
 ### 仍待补全（发布相关）
 - Windows/arm64 视频开箱即用需 BtbN 提供 `win-arm64-gpl-shared`（上游缺失）；可改从其他渠道取 arm64 共享库。
 - Docker 镜像多架构（arm64）+ CNB 流水线自动发版（`.cnb.yml` stages）待接入。
