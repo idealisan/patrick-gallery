@@ -1,0 +1,777 @@
+Schemathesis v4.24.3
+━━━━━━━━━━━━━━━━━━━━
+
+
+ ✅  Loaded specification from /tmp/spec.json (in 0.19s)                        
+
+     Base URL:         http://localhost:8099/api                                
+     Specification:    Open API 3.0.0                                           
+     Operations:       254 selected / 254 total                                 
+
+
+ ✅  API capabilities:                                                          
+
+     Supports NULL byte in headers:                            ✘                
+     Accepts backslash and control characters in URL paths:    ✓                
+
+ ❌  Examples (in 1.80s)                                                        
+                                                                                
+     ✅   1 passed  ❌  29 failed  ⏭  224 skipped                               
+
+=================================== FAILURES ===================================
+____________________________ DELETE /auth/pin-code _____________________________
+1. Test Case ID: 4dWMPw
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 204
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X DELETE -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"password": "password", "pinCode": "123456"}' http://localhost:8099/api/auth/pin-code
+    
+    st replay 4dWMPw
+
+____________________ GET /admin/users/{id}/calendar-heatmap ____________________
+1. Test Case ID: d3Cmhe
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X GET -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Cookie: [Filtered]' 'http://localhost:8099/api/admin/users/038f9509-c832-49ea-9620-7ddb118f4b26/calendar-heatmap?from=2024-01-01&to=2024-01-01&type=Taken'
+    
+    st replay d3Cmhe
+
+_______________________________ GET /map/markers _______________________________
+1. Test Case ID: Oypc9t
+
+- Response violates schema
+
+    {"markers":[]} is not of type "array"
+
+    Validated against the response schema for status code 200.
+
+    Schema:
+
+        {
+            "type": "array",
+            "items": {
+                "$ref": "#/components/schemas/MapMarkerResponseDto"
+            },
+            "components": {
+                "schemas": {
+                    "MapMarkerResponseDto": {
+                        "properties": {
+                            "city": {
+                                "anyOf": [
+                                    {
+                                        "description": "City name",
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "null"
+                                    }
+                                ]
+            // Output truncated...
+        }
+
+    Value:
+
+        {
+            "markers": []
+        }
+
+[200] OK:
+
+    `{"markers":[]}`
+
+Reproduce with:
+
+    curl -X GET -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Cookie: [Filtered]' 'http://localhost:8099/api/map/markers?fileCreatedAfter=2024-01-01T00%3A00%3A00.000Z&fileCreatedBefore=2024-01-01T00%3A00%3A00.000Z'
+    
+    st replay Oypc9t
+
+________________________________ GET /memories _________________________________
+1. Test Case ID: Pccl9g
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X GET -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Cookie: [Filtered]' 'http://localhost:8099/api/memories?for=2024-01-01'
+    
+    st replay Pccl9g
+
+___________________________ GET /memories/statistics ___________________________
+1. Test Case ID: YChhGq
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X GET -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Cookie: [Filtered]' 'http://localhost:8099/api/memories/statistics?for=2024-01-01'
+    
+    st replay YChhGq
+
+_____________________________ GET /timeline/bucket _____________________________
+1. Test Case ID: faYu8b
+
+- Response violates schema
+
+    "createdAt" is a required property
+
+    Validated against the response schema for status code 200.
+
+    Schema at /components/schemas/TimeBucketAssetResponseDto:
+
+        {
+            "required": [
+                "createdAt",
+                "duration",
+                "fileCreatedAt",
+                "id",
+                "isFavorite",
+                "isImage",
+                "isTrashed",
+                "livePhotoVideoId",
+                "localOffsetHours",
+                "ownerId",
+                "projectionType",
+                "ratio",
+                "thumbhash",
+                "visibility"
+            ],
+            "properties": {
+                "city": {
+            // Output truncated...
+        }
+
+    Value:
+
+        {
+            "assets": [],
+            "count": 0
+        }
+
+[200] OK:
+
+    `{"assets":[],"count":0}`
+
+Reproduce with:
+
+    curl -X GET -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Cookie: [Filtered]' 'http://localhost:8099/api/timeline/bucket?bbox=11.075683%2C49.416711%2C11.117589%2C49.454875&timeBucket=2024-01-01'
+    
+    st replay faYu8b
+
+________________________ GET /users/me/calendar-heatmap ________________________
+1. Test Case ID: 0LNl14
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X GET -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Cookie: [Filtered]' 'http://localhost:8099/api/users/me/calendar-heatmap?from=2024-01-01&to=2024-01-01'
+    
+    st replay 0LNl14
+
+___________________________ PATCH /shared-links/{id} ___________________________
+1. Test Case ID: TLi28r
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found"}`
+
+Reproduce with:
+
+    curl -X PATCH -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"expiresAt": "2024-01-01T00:00:00.000Z", "allowDownload": false, "allowUpload": false, "description": null, "password": null, "showMetadata": false, "slug": null}' http://localhost:8099/api/shared-links/038f9509-c832-49ea-9620-7ddb118f4b26
+    
+    st replay TLi28r
+
+__________________________ POST /admin/notifications ___________________________
+1. Test Case ID: B86Dnn
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 201
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"readAt": "2024-01-01T00:00:00.000Z", "data": {}, "description": null, "level": "info", "title": "", "type": "Custom", "userId": "038f9509-c832-49ea-9620-7ddb118f4b26"}' http://localhost:8099/api/admin/notifications
+    
+    st replay B86Dnn
+
+______________________________ POST /admin/users _______________________________
+1. Test Case ID: xSUlWJ
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 201
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"pinCode": "123456", "avatarColor": null, "email": "0@a.com", "isAdmin": false, "name": "", "notify": false, "password": "", "quotaSizeInBytes": null, "shouldChangePassword": false, "storageLabel": null}' http://localhost:8099/api/admin/users
+    
+    st replay xSUlWJ
+
+_________________________________ POST /assets _________________________________
+1. Test Case ID: gVSL9K
+
+- Undocumented HTTP status code
+
+    Received: 400
+    Documented: 200, 201
+
+[400] Bad Request:
+
+    `{"error":"missing assetData","statusCode":400}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Cookie: [Filtered]' -H 'Content-Type: multipart/form-data; boundary=912517a008bd249274ffc3e1d2f09909' -d $'--dde8c5aa8ac764df254fd65ac4629d47\r\nContent-Disposition: form-data; name="fileCreatedAt"\r\n\r\n2024-01-01T00:00:00.000Z\r\n--dde8c5aa8ac764df254fd65ac4629d47\r\nContent-Disposition: form-data; name="fileModifiedAt"\r\n\r\n2024-01-01T00:00:00.000Z\r\n--dde8c5aa8ac764df254fd65ac4629d47\r\nContent-Disposition: form-data; name="assetData"\r\n\r\n\r\n--dde8c5aa8ac764df254fd65ac4629d47\r\nContent-Disposition: form-data; name="duration"\r\n\r\n0\r\n--dde8c5aa8ac764df254fd65ac4629d47\r\nContent-Disposition: form-data; name="filename"\r\n\r\n\r\n--dde8c5aa8ac764df254fd65ac4629d47\r\nContent-Disposition: form-data; name="isFavorite"\r\n\r\nFalse\r\n--dde8c5aa8ac764df254fd65ac4629d47\r\nContent-Disposition: form-data; name="livePhotoVideoId"\r\n\r\n038f9509-c832-49ea-9620-7ddb118f4b26\r\n--dde8c5aa8ac764df254fd65ac4629d47\r\nContent-Disposition: form-data; name="sidecarData"\r\n\r\n\r\n--dde8c5aa8ac764df254fd65ac4629d47\r\nContent-Disposition: form-data; name="visibility"\r\n\r\nhidden\r\n--dde8c5aa8ac764df254fd65ac4629d47--\r\n' http://localhost:8099/api/assets
+    
+    ⚠️  Request body contains non-printable characters. Actual value: b'--dde8c5aa8ac764df254fd65ac4629d47\r\nContent-Disposition: form-data; name="fileCreatedAt"\r\n\r\n2024-01-01T00:00:00.000Z\r\n--dde8c5aa8ac764df254fd65ac4629d47\r\nContent-Disposition: form-data; name="fileModifiedAt"\r\n\r\n2024-01-01T00:00:00.000Z\r\n--dde8c5aa8ac764df254fd65ac4629d47\r\nContent-Disposition: form-data; name="assetData"\r\n\r\n\r\n--dde8c5aa8ac764df254fd65ac4629d47\r\nContent-Disposition: form-data; name="duration"\r\n\r\n0\r\n--dde8c5aa8ac764df254fd65ac4629d47\r\nContent-Disposition: form-data; name="filename"\r\n\r\n\r\n--dde8c5aa8ac764df254fd65ac4629d47\r\nContent-Disposition: form-data; name="isFavorite"\r\n\r\nFalse\r\n--dde8c5aa8ac764df254fd65ac4629d47\r\nContent-Disposition: form-data; name="livePhotoVideoId"\r\n\r\n038f9509-c832-49ea-9620-7ddb118f4b26\r\n--dde8c5aa8ac764df254fd65ac4629d47\r\nContent-Disposition: form-data; name="sidecarData"\r\n\r\n\r\n--dde8c5aa8ac764df254fd65ac4629d47\r\nContent-Disposition: form-data; name="visibility"\r\n\r\nhidden\r\n--dde8c5aa8ac764df254fd65ac4629d47--\r\n'
+    
+    st replay gVSL9K
+
+___________________________ POST /auth/admin-sign-up ___________________________
+1. Test Case ID: qTHf3A
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 201
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'Content-Type: application/json' -d '{"email": "testuser@email.com", "name": "Admin", "password": "password"}' http://localhost:8099/api/auth/admin-sign-up
+    
+    st replay qTHf3A
+
+__________________________ POST /auth/change-password __________________________
+1. Test Case ID: 1TZ18U
+
+- Undocumented HTTP status code
+
+    Received: 204
+    Documented: 200
+
+[204] No Content:
+
+    <EMPTY>
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"newPassword": "password", "password": "password", "invalidateSessions": false}' http://localhost:8099/api/auth/change-password
+    
+    st replay 1TZ18U
+
+_______________________________ POST /auth/login _______________________________
+1. Test Case ID: YzcFrg
+
+- Undocumented HTTP status code
+
+    Received: 401
+    Documented: 201
+
+[401] Unauthorized:
+
+    `{"error":"invalid credentials","statusCode":401}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'Content-Type: application/json' -d '{"email": "testuser@email.com", "password": "password"}' http://localhost:8099/api/auth/login
+    
+    st replay YzcFrg
+
+_____________________________ POST /auth/pin-code ______________________________
+1. Test Case ID: 82Bfdz
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 204
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"pinCode": "123456"}' http://localhost:8099/api/auth/pin-code
+    
+    st replay 82Bfdz
+
+__________________________ POST /auth/session/unlock ___________________________
+1. Test Case ID: em85OR
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 204
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"password": "password", "pinCode": "123456"}' http://localhost:8099/api/auth/session/unlock
+    
+    st replay em85OR
+
+________________________________ POST /memories ________________________________
+1. Test Case ID: IXXXmq
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 201
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"hideAt": "2024-01-01T00:00:00.000Z", "memoryAt": "2024-01-01T00:00:00.000Z", "seenAt": "2024-01-01T00:00:00.000Z", "showAt": "2024-01-01T00:00:00.000Z", "assetIds": [], "data": {"year": 1000}, "isSaved": false, "type": "on_this_day"}' http://localhost:8099/api/memories
+    
+    st replay IXXXmq
+
+__________________________ POST /search/large-assets ___________________________
+1. Test Case ID: 1pHPZ9
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Cookie: [Filtered]' 'http://localhost:8099/api/search/large-assets?createdAfter=2024-01-01T00%3A00%3A00.000Z&createdBefore=2024-01-01T00%3A00%3A00.000Z&takenAfter=2024-01-01T00%3A00%3A00.000Z&takenBefore=2024-01-01T00%3A00%3A00.000Z&trashedAfter=2024-01-01T00%3A00%3A00.000Z&trashedBefore=2024-01-01T00%3A00%3A00.000Z&updatedAfter=2024-01-01T00%3A00%3A00.000Z&updatedBefore=2024-01-01T00%3A00%3A00.000Z'
+    
+    st replay 1pHPZ9
+
+____________________________ POST /search/metadata _____________________________
+1. Test Case ID: EIUjCg
+
+- Response violates schema (2 violations)
+
+    "albums" is a required property
+
+    Validated against the response schema for status code 200.
+
+    Schema at /components/schemas/SearchResponseDto:
+
+        {
+            "required": [
+                "albums",
+                "assets"
+            ],
+            "properties": {
+                "albums": {
+                    "$ref": "#/components/schemas/SearchAlbumResponseDto"
+                },
+                "assets": {
+                    "$ref": "#/components/schemas/SearchAssetResponseDto"
+                }
+            },
+            "type": "object"
+        }
+
+    Value:
+
+        {
+            "assets": [],
+            "count": 0,
+            "total": 0
+        }
+
+    [] is not of type "object"
+
+    Validated against the response schema for status code 200.
+
+    Schema at /components/schemas/SearchAssetResponseDto:
+
+        {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "description": "Number of assets in this page",
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                },
+                "facets": {
+                    "items": {
+                        "$ref": "#/components/schemas/SearchFacetResponseDto"
+                    },
+                    "type": "array"
+                },
+                "items": {
+                    "items": {
+                        "$ref": "#/components/schemas/AssetResponseDto"
+                    },
+            // Output truncated...
+        }
+
+    Value:
+
+        []
+
+[200] OK:
+
+    `{"assets":[],"count":0,"total":0}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"createdAfter": "2024-01-01T00:00:00.000Z", "createdBefore": "2024-01-01T00:00:00.000Z", "takenAfter": "2024-01-01T00:00:00.000Z", "takenBefore": "2024-01-01T00:00:00.000Z", "trashedAfter": "2024-01-01T00:00:00.000Z", "trashedBefore": "2024-01-01T00:00:00.000Z", "updatedAfter": "2024-01-01T00:00:00.000Z", "updatedBefore": "2024-01-01T00:00:00.000Z", "albumIds": [], "checksum": "", "city": null, "country": null, "description": "", "encodedVideoPath": "", "id": "038f9509-c832-49ea-9620-7ddb118f4b26", "isEncoded": false, "isFavorite": false, "isMotion": false, "isNotInAlbum": false, "isOffline": false, "lensModel": null, "libraryId": null, "make": null, "model": null, "ocr": "", "order": "asc", "originalFileName": "", "originalPath": "", "page": 1, "personIds": [], "previewPath": "", "rating": null, "size": 1, "state": null, "tagIds": null, "thumbnailPath": "", "type": "AUDIO", "visibility": "hidden", "withDeleted": false, "withExif": false, "withPeople": false, "withStacked": false}' http://localhost:8099/api/search/metadata
+    
+    st replay EIUjCg
+
+_____________________________ POST /search/random ______________________________
+1. Test Case ID: mC0F82
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"createdAfter": "2024-01-01T00:00:00.000Z", "createdBefore": "2024-01-01T00:00:00.000Z", "takenAfter": "2024-01-01T00:00:00.000Z", "takenBefore": "2024-01-01T00:00:00.000Z", "trashedAfter": "2024-01-01T00:00:00.000Z", "trashedBefore": "2024-01-01T00:00:00.000Z", "updatedAfter": "2024-01-01T00:00:00.000Z", "updatedBefore": "2024-01-01T00:00:00.000Z", "albumIds": [], "city": null, "country": null, "isEncoded": false, "isFavorite": false, "isMotion": false, "isNotInAlbum": false, "isOffline": false, "lensModel": null, "libraryId": null, "make": null, "model": null, "ocr": "", "personIds": [], "rating": null, "size": 1, "state": null, "tagIds": null, "type": "AUDIO", "visibility": "hidden", "withDeleted": false, "withExif": false, "withPeople": false, "withStacked": false}' http://localhost:8099/api/search/random
+    
+    st replay mC0F82
+
+______________________________ POST /search/smart ______________________________
+1. Test Case ID: ytjGJg
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"createdAfter": "2024-01-01T00:00:00.000Z", "createdBefore": "2024-01-01T00:00:00.000Z", "takenAfter": "2024-01-01T00:00:00.000Z", "takenBefore": "2024-01-01T00:00:00.000Z", "trashedAfter": "2024-01-01T00:00:00.000Z", "trashedBefore": "2024-01-01T00:00:00.000Z", "updatedAfter": "2024-01-01T00:00:00.000Z", "updatedBefore": "2024-01-01T00:00:00.000Z", "albumIds": [], "city": null, "country": null, "isEncoded": false, "isFavorite": false, "isMotion": false, "isNotInAlbum": false, "isOffline": false, "language": "", "lensModel": null, "libraryId": null, "make": null, "model": null, "ocr": "", "page": 1, "personIds": [], "query": "", "queryAssetId": "038f9509-c832-49ea-9620-7ddb118f4b26", "rating": null, "size": 1, "state": null, "tagIds": null, "type": "AUDIO", "visibility": "hidden", "withDeleted": false, "withExif": false}' http://localhost:8099/api/search/smart
+    
+    st replay ytjGJg
+
+___________________________ POST /search/statistics ____________________________
+1. Test Case ID: r1VlvP
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"createdAfter": "2024-01-01T00:00:00.000Z", "createdBefore": "2024-01-01T00:00:00.000Z", "takenAfter": "2024-01-01T00:00:00.000Z", "takenBefore": "2024-01-01T00:00:00.000Z", "trashedAfter": "2024-01-01T00:00:00.000Z", "trashedBefore": "2024-01-01T00:00:00.000Z", "updatedAfter": "2024-01-01T00:00:00.000Z", "updatedBefore": "2024-01-01T00:00:00.000Z", "albumIds": [], "city": null, "country": null, "description": "", "isEncoded": false, "isFavorite": false, "isMotion": false, "isNotInAlbum": false, "isOffline": false, "lensModel": null, "libraryId": null, "make": null, "model": null, "ocr": "", "personIds": [], "rating": null, "state": null, "tagIds": null, "type": "AUDIO", "visibility": "hidden"}' http://localhost:8099/api/search/statistics
+    
+    st replay r1VlvP
+
+______________________________ POST /shared-links ______________________________
+1. Test Case ID: WglGQs
+
+- Response violates schema (3 violations)
+
+    "3561d539f109490a830528fa40f0a191" does not match "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
+
+    Validated against the response schema for status code 201.
+
+    Schema at /components/schemas/SharedLinkResponseDto/properties/id:
+
+        {
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a...
+            "description": "Shared link ID",
+            "format": "uuid",
+            "type": "string"
+        }
+
+    Value:
+
+        "3561d539f109490a830528fa40f0a191"
+
+    "allowDownload" is a required property
+
+    Validated against the response schema for status code 201.
+
+    Schema at /components/schemas/SharedLinkResponseDto:
+
+        {
+            "required": [
+                "allowDownload",
+                "allowUpload",
+                "assets",
+                "createdAt",
+                "description",
+                "expiresAt",
+                "id",
+                "key",
+                "password",
+                "showMetadata",
+                "slug",
+                "type",
+                "userId"
+            ],
+            "description": "Shared link response",
+            "properties": {
+                "album": {
+            // Output truncated...
+        }
+
+    Value:
+
+        {
+            "albumId": "038f9509-c832-49ea-9620-7ddb118f4b26",
+            "createdAt": "2026-08-15T06:35:23.40322688Z",
+            "expiresAt": "2024-01-01T00:00:00Z",
+            "id": "3561d539f109490a830528fa40f0a191",
+            "key": "85770542c671490ebcedad4f4f04dbdb9ec3c5be33124f64aad96ad575e96f9b",
+            "type": "ALBUM",
+            "userId": "b644727b356b4175bb17620c3d95a474"
+        }
+
+    "b644727b356b4175bb17620c3d95a474" does not match "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$"
+
+    Validated against the response schema for status code 201.
+
+    Schema at /components/schemas/SharedLinkResponseDto/properties/userId:
+
+        {
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a...
+            "description": "Owner user ID",
+            "format": "uuid",
+            "type": "string"
+        }
+
+    Value:
+
+        "b644727b356b4175bb17620c3d95a474"
+
+[201] Created:
+
+    `{"id":"3561d539f109490a830528fa40f0a191","key":"85770542c671490ebcedad4f4f04dbdb9ec3c5be33124f64aad96ad575e96f9b","type":"ALBUM","albumId":"038f9509-c832-49ea-9620-7ddb118f4b26","userId":"b644727b356b4175bb17620c3d95a474","expiresAt":"2024-01-01T00:00:00Z","createdAt":"2026-08-15T06:35:23.40322688Z"}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"expiresAt": "2024-01-01T00:00:00.000Z", "albumId": "038f9509-c832-49ea-9620-7ddb118f4b26", "allowDownload": false, "allowUpload": false, "assetIds": [], "description": null, "password": null, "showMetadata": false, "slug": null, "type": "ALBUM"}' http://localhost:8099/api/shared-links
+    
+    st replay WglGQs
+
+___________________________ POST /shared-links/login ___________________________
+1. Test Case ID: rpCKla
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 201
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"password": "password"}' http://localhost:8099/api/shared-links/login
+    
+    st replay rpCKla
+
+____________________________ PUT /admin/users/{id} _____________________________
+1. Test Case ID: Ld5z9i
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X PUT -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"pinCode": "123456", "avatarColor": null, "email": "0@a.com", "isAdmin": false, "name": "", "password": "", "quotaSizeInBytes": null, "shouldChangePassword": false, "storageLabel": null}' http://localhost:8099/api/admin/users/038f9509-c832-49ea-9620-7ddb118f4b26
+    
+    st replay Ld5z9i
+
+______________________________ PUT /auth/pin-code ______________________________
+1. Test Case ID: kVe7E3
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 204
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X PUT -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"password": "password", "pinCode": "123456", "newPinCode": "000000"}' http://localhost:8099/api/auth/pin-code
+    
+    st replay kVe7E3
+
+______________________________ PUT /memories/{id} ______________________________
+1. Test Case ID: JR3UfG
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X PUT -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"memoryAt": "2024-01-01T00:00:00.000Z", "seenAt": "2024-01-01T00:00:00.000Z", "isSaved": false}' http://localhost:8099/api/memories/038f9509-c832-49ea-9620-7ddb118f4b26
+    
+    st replay JR3UfG
+
+______________________________ PUT /notifications ______________________________
+1. Test Case ID: rP1rXO
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 204
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X PUT -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"readAt": "2024-01-01T00:00:00.000Z", "ids": ["70b52f40-9984-4c34-89a5-4408f1e28e28"]}' http://localhost:8099/api/notifications
+    
+    st replay rP1rXO
+
+___________________________ PUT /notifications/{id} ____________________________
+1. Test Case ID: ooitzN
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X PUT -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"readAt": "2024-01-01T00:00:00.000Z"}' http://localhost:8099/api/notifications/038f9509-c832-49ea-9620-7ddb118f4b26
+    
+    st replay ooitzN
+
+=================================== WARNINGS ===================================
+
+Authentication failed: 1 operation returned authentication errors
+
+401 Unauthorized (1 operation):
+  - POST /auth/login
+
+💡 Ensure valid authentication credentials are set via --auth or -H
+
+=================================== SUMMARY ====================================
+
+API Operations:
+  Selected: 254/254
+  Tested: 30
+  Skipped: 224
+    - No examples in schema
+
+Test Phases:
+  ❌ Examples
+  ⏭  Coverage (disabled)
+  ⏭  Fuzzing (disabled)
+  ⏭  Stateful (disabled)
+
+Failures:
+  ❌ Response violates schema: 7
+  ❌ Undocumented HTTP status code: 25
+
+Warnings:
+  ⚠️ Missing authentication: 1 operation returned only 401/403 responses
+
+Test cases:
+  30 generated, 29 found 32 unique failures
+
+Reports:
+  - JUNIT: /tmp/ig-test/report/junit-20260815T143521Z.xml
+
+Seed: 102363100183558505436741339065736379957
+
+======================= 32 failures, 1 warning in 1.85s ========================

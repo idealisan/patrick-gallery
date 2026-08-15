@@ -1,0 +1,1084 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites errors="0" failures="25" skipped="224" tests="254" time="0.637446">
+  <testsuite name="schemathesis" hostname="e0c2cefafd77" errors="0" failures="25" skipped="224" tests="254" time="0.637446">
+    <testcase name="POST /admin/auth/unlink-all" time="0.000494">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /admin/database-backups/start-restore" time="0.000065">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /admin/database-backups/upload" time="0.000249">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /admin/maintenance" time="0.000322">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /admin/maintenance/login" time="0.000094">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /admin/notifications" time="0.062560">
+      <failure type="failure">1. Test Case ID: 12abpf
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 201
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"readAt": "2024-01-01T00:00:00.000Z", "data": {}, "description": null, "level": "info", "title": "", "type": "Custom", "userId": "038f9509-c832-49ea-9620-7ddb118f4b26"}' http://localhost:8099/api/admin/notifications</failure>
+    </testcase>
+    <testcase name="POST /admin/notifications/templates/{name}" time="0.000408">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /admin/notifications/test-email" time="0.000422">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /admin/users" time="0.020682">
+      <failure type="failure">1. Test Case ID: hQGzH7
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 201
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"pinCode": "123456", "avatarColor": null, "email": "0@a.com", "isAdmin": false, "name": "", "notify": false, "password": "", "quotaSizeInBytes": null, "shouldChangePassword": false, "storageLabel": null}' http://localhost:8099/api/admin/users</failure>
+    </testcase>
+    <testcase name="POST /api-keys" time="0.000495">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /assets" time="0.018504">
+      <failure type="failure">1. Test Case ID: 0Z1Pqf
+
+- Undocumented HTTP status code
+
+    Received: 400
+    Documented: 200, 201
+
+[400] Bad Request:
+
+    `{"error":"missing assetData","statusCode":400}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Cookie: [Filtered]' -H 'Content-Type: multipart/form-data; boundary=7db9b8ccc5d53a4e221cfb55d3dd5bc5' -d $'--47685136d01eff74aab44839228b80bf\r\nContent-Disposition: form-data; name="fileCreatedAt"\r\n\r\n2024-01-01T00:00:00.000Z\r\n--47685136d01eff74aab44839228b80bf\r\nContent-Disposition: form-data; name="fileModifiedAt"\r\n\r\n2024-01-01T00:00:00.000Z\r\n--47685136d01eff74aab44839228b80bf\r\nContent-Disposition: form-data; name="assetData"\r\n\r\n\r\n--47685136d01eff74aab44839228b80bf\r\nContent-Disposition: form-data; name="duration"\r\n\r\n0\r\n--47685136d01eff74aab44839228b80bf\r\nContent-Disposition: form-data; name="filename"\r\n\r\n\r\n--47685136d01eff74aab44839228b80bf\r\nContent-Disposition: form-data; name="isFavorite"\r\n\r\nFalse\r\n--47685136d01eff74aab44839228b80bf\r\nContent-Disposition: form-data; name="livePhotoVideoId"\r\n\r\n038f9509-c832-49ea-9620-7ddb118f4b26\r\n--47685136d01eff74aab44839228b80bf\r\nContent-Disposition: form-data; name="sidecarData"\r\n\r\n\r\n--47685136d01eff74aab44839228b80bf\r\nContent-Disposition: form-data; name="visibility"\r\n\r\nhidden\r\n--47685136d01eff74aab44839228b80bf--\r\n' http://localhost:8099/api/assets
+    
+    ⚠️  Request body contains non-printable characters. Actual value: b'--47685136d01eff74aab44839228b80bf\r\nContent-Disposition: form-data; name="fileCreatedAt"\r\n\r\n2024-01-01T00:00:00.000Z\r\n--47685136d01eff74aab44839228b80bf\r\nContent-Disposition: form-data; name="fileModifiedAt"\r\n\r\n2024-01-01T00:00:00.000Z\r\n--47685136d01eff74aab44839228b80bf\r\nContent-Disposition: form-data; name="assetData"\r\n\r\n\r\n--47685136d01eff74aab44839228b80bf\r\nContent-Disposition: form-data; name="duration"\r\n\r\n0\r\n--47685136d01eff74aab44839228b80bf\r\nContent-Disposition: form-data; name="filename"\r\n\r\n\r\n--47685136d01eff74aab44839228b80bf\r\nContent-Disposition: form-data; name="isFavorite"\r\n\r\nFalse\r\n--47685136d01eff74aab44839228b80bf\r\nContent-Disposition: form-data; name="livePhotoVideoId"\r\n\r\n038f9509-c832-49ea-9620-7ddb118f4b26\r\n--47685136d01eff74aab44839228b80bf\r\nContent-Disposition: form-data; name="sidecarData"\r\n\r\n\r\n--47685136d01eff74aab44839228b80bf\r\nContent-Disposition: form-data; name="visibility"\r\n\r\nhidden\r\n--47685136d01eff74aab44839228b80bf--\r\n'</failure>
+    </testcase>
+    <testcase name="POST /assets/bulk-upload-check" time="0.000347">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /auth/admin-sign-up" time="0.003028">
+      <failure type="failure">1. Test Case ID: Hn0POE
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 201
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'Content-Type: application/json' -d '{"email": "testuser@email.com", "name": "Admin", "password": "password"}' http://localhost:8099/api/auth/admin-sign-up</failure>
+    </testcase>
+    <testcase name="POST /auth/change-password" time="0.114379">
+      <failure type="failure">1. Test Case ID: KINdjZ
+
+- Undocumented HTTP status code
+
+    Received: 204
+    Documented: 200
+
+[204] No Content:
+
+    &lt;EMPTY&gt;
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"newPassword": "password", "password": "password", "invalidateSessions": false}' http://localhost:8099/api/auth/change-password</failure>
+    </testcase>
+    <testcase name="POST /auth/login" time="0.003606">
+      <failure type="failure">1. Test Case ID: wEcfuO
+
+- Undocumented HTTP status code
+
+    Received: 401
+    Documented: 201
+
+[401] Unauthorized:
+
+    `{"error":"invalid credentials","statusCode":401}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'Content-Type: application/json' -d '{"email": "testuser@email.com", "password": "password"}' http://localhost:8099/api/auth/login</failure>
+    </testcase>
+    <testcase name="POST /auth/logout" time="0.000205">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /auth/pin-code" time="0.004940">
+      <failure type="failure">1. Test Case ID: eMeGZe
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 204
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"pinCode": "123456"}' http://localhost:8099/api/auth/pin-code</failure>
+    </testcase>
+    <testcase name="POST /auth/session/lock" time="0.000233">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /auth/session/unlock" time="0.004184">
+      <failure type="failure">1. Test Case ID: D014SK
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 204
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"password": "password", "pinCode": "123456"}' http://localhost:8099/api/auth/session/unlock</failure>
+    </testcase>
+    <testcase name="POST /auth/validateToken" time="0.000207">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /duplicates/resolve" time="0.000486">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /jobs" time="0.000276">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /libraries" time="0.000452">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /oauth/authorize" time="0.000134">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /oauth/backchannel-logout" time="0.000110">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /oauth/callback" time="0.000129">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /oauth/link" time="0.000205">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /oauth/unlink" time="0.000126">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /partners" time="0.000334">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /people" time="0.000367">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /sessions" time="0.000220">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /shared-links/login" time="0.005077">
+      <failure type="failure">1. Test Case ID: CAdXJN
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 201
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"password": "password"}' http://localhost:8099/api/shared-links/login</failure>
+    </testcase>
+    <testcase name="POST /sync/ack" time="0.000277">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /sync/stream" time="0.000301">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /system-metadata/admin-onboarding" time="0.000212">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /tags" time="0.000522">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /trash/empty" time="0.000213">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /trash/restore" time="0.000172">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /trash/restore/assets" time="0.000406">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /users/profile-image" time="0.000196">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /workflows" time="0.000413">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="PUT /assets/copy" time="0.000440">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="PUT /assets/metadata" time="0.000338">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="PUT /auth/pin-code" time="0.005689">
+      <failure type="failure">1. Test Case ID: BnyDe7
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 204
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X PUT -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"password": "password", "pinCode": "123456", "newPinCode": "000000"}' http://localhost:8099/api/auth/pin-code</failure>
+    </testcase>
+    <testcase name="PUT /faces/{id}" time="0.000661">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="PUT /jobs/{name}" time="0.000403">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="PUT /people" time="0.000495">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="PUT /server/license" time="0.000365">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="PUT /system-config" time="0.002749">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="PUT /tags" time="0.000215">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="PUT /users/me" time="0.000455">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="PUT /users/me/license" time="0.000201">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="PUT /users/me/onboarding" time="0.000179">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="PUT /users/me/preferences" time="0.000604">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /admin/database-backups" time="0.000262">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /admin/database-backups/{filename}" time="0.000216">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /admin/integrity/report" time="0.000262">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /admin/integrity/report/{id}/file" time="0.000322">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /admin/integrity/report/{type}/csv" time="0.000185">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /admin/integrity/summary" time="0.000144">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /admin/maintenance/detect-install" time="0.000120">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /admin/maintenance/status" time="0.000039">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /albums/statistics" time="0.000119">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /api-keys" time="0.000114">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /api-keys/me" time="0.000150">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /assets/statistics" time="0.000182">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /auth/status" time="0.000118">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /duplicates" time="0.000144">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /faces" time="0.000296">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /jobs" time="0.000138">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /libraries" time="0.000139">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /map/markers" time="0.006311" />
+    <testcase name="GET /map/reverse-geocode" time="0.000237">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /memories" time="0.006377">
+      <failure type="failure">1. Test Case ID: p1PDmQ
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X GET -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Cookie: [Filtered]' 'http://localhost:8099/api/memories?for=2024-01-01'</failure>
+    </testcase>
+    <testcase name="GET /memories/statistics" time="0.004296">
+      <failure type="failure">1. Test Case ID: WFbsYz
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X GET -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Cookie: [Filtered]' 'http://localhost:8099/api/memories/statistics?for=2024-01-01'</failure>
+    </testcase>
+    <testcase name="GET /oauth/mobile-redirect" time="0.000066">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /partners" time="0.000543">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /people" time="0.000335">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /plugins/methods" time="0.000394">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /plugins/templates" time="0.000132">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /queues" time="0.000123">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /search/cities" time="0.000120">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /search/explore" time="0.000143">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /search/person" time="0.000185">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /search/places" time="0.000160">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /search/suggestions" time="0.000285">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /server/about" time="0.000138">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /server/apk-links" time="0.000118">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /server/config" time="0.000040">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /server/features" time="0.000036">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /server/license" time="0.000148">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /server/media-types" time="0.000047">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /server/ping" time="0.000041">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /server/statistics" time="0.000141">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /server/storage" time="0.000126">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /server/version" time="0.000041">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /server/version-check" time="0.000129">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /server/version-history" time="0.000044">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /sessions" time="0.000137">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /shared-links/me" time="0.000178">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /stacks" time="0.000172">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /sync/ack" time="0.000136">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /system-config" time="0.000133">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /system-config/defaults" time="0.000221">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /system-config/storage-template-options" time="0.000133">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /system-metadata/admin-onboarding" time="0.000136">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /system-metadata/reverse-geocoding-state" time="0.000134">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /system-metadata/version-check-state" time="0.000115">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /tags" time="0.000132">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /users" time="0.000146">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /users/me" time="0.000131">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /users/me/calendar-heatmap" time="0.005421">
+      <failure type="failure">1. Test Case ID: ENzwki
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X GET -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Cookie: [Filtered]' 'http://localhost:8099/api/users/me/calendar-heatmap?from=2024-01-01&amp;to=2024-01-01'</failure>
+    </testcase>
+    <testcase name="GET /users/me/license" time="0.000210">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /users/me/onboarding" time="0.000154">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /users/me/preferences" time="0.000135">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /view/folder" time="0.000146">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /view/folder/unique-paths" time="0.000124">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /workflows/triggers" time="0.000118">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="DELETE /admin/database-backups" time="0.000220">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="DELETE /admin/integrity/report/{id}" time="0.000400">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="DELETE /assets/metadata" time="0.000399">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="DELETE /auth/pin-code" time="0.004158">
+      <failure type="failure">1. Test Case ID: 3xGsWM
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 204
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X DELETE -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"password": "password", "pinCode": "123456"}' http://localhost:8099/api/auth/pin-code</failure>
+    </testcase>
+    <testcase name="DELETE /duplicates" time="0.000266">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="DELETE /duplicates/{id}" time="0.000203">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="DELETE /faces/{id}" time="0.000515">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="DELETE /people" time="0.000188">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="DELETE /server/license" time="0.000129">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="DELETE /sessions" time="0.000120">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="DELETE /stacks" time="0.000164">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="DELETE /sync/ack" time="0.000269">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="DELETE /users/me/license" time="0.000148">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="DELETE /users/me/onboarding" time="0.000134">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="DELETE /users/profile-image" time="0.000114">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /albums" time="0.000424">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /assets/jobs" time="0.000362">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /download/archive" time="0.000453">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /faces" time="0.000516">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /memories" time="0.011385">
+      <failure type="failure">1. Test Case ID: 771PCa
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 201
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"hideAt": "2024-01-01T00:00:00.000Z", "memoryAt": "2024-01-01T00:00:00.000Z", "seenAt": "2024-01-01T00:00:00.000Z", "showAt": "2024-01-01T00:00:00.000Z", "assetIds": [], "data": {"year": 1000}, "isSaved": false, "type": "on_this_day"}' http://localhost:8099/api/memories</failure>
+    </testcase>
+    <testcase name="POST /stacks" time="0.000494">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="PUT /assets" time="0.000557">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="PUT /assets/{id}" time="0.000498">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="PUT /assets/{id}/edits" time="0.000556">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="PUT /assets/{id}/metadata" time="0.000313">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="PUT /sessions/{id}" time="0.000268">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="PUT /tags/assets" time="0.000404">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /assets/{id}" time="0.000219">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /assets/{id}/edits" time="0.000210">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /assets/{id}/metadata" time="0.000181">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /assets/{id}/metadata/{key}" time="0.000221">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /assets/{id}/ocr" time="0.000166">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /assets/{id}/original" time="0.000230">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /assets/{id}/thumbnail" time="0.000281">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /assets/{id}/video/playback" time="0.000241">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /assets/{id}/video/stream/main.m3u8" time="0.000193">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="DELETE /assets" time="0.000308">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="DELETE /assets/{id}/edits" time="0.000288">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="DELETE /assets/{id}/metadata/{key}" time="0.000178">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="DELETE /sessions/{id}" time="0.000181">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /activities" time="0.000380">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /download/info" time="0.000653">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /search/metadata" time="0.044926" />
+    <testcase name="POST /search/random" time="0.029138">
+      <failure type="failure">1. Test Case ID: 3cDMK4
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"createdAfter": "2024-01-01T00:00:00.000Z", "createdBefore": "2024-01-01T00:00:00.000Z", "takenAfter": "2024-01-01T00:00:00.000Z", "takenBefore": "2024-01-01T00:00:00.000Z", "trashedAfter": "2024-01-01T00:00:00.000Z", "trashedBefore": "2024-01-01T00:00:00.000Z", "updatedAfter": "2024-01-01T00:00:00.000Z", "updatedBefore": "2024-01-01T00:00:00.000Z", "albumIds": [], "city": null, "country": null, "isEncoded": false, "isFavorite": false, "isMotion": false, "isNotInAlbum": false, "isOffline": false, "lensModel": null, "libraryId": null, "make": null, "model": null, "ocr": "", "personIds": [], "rating": null, "size": 1, "state": null, "tagIds": null, "type": "AUDIO", "visibility": "hidden", "withDeleted": false, "withExif": false, "withPeople": false, "withStacked": false}' http://localhost:8099/api/search/random</failure>
+    </testcase>
+    <testcase name="POST /search/smart" time="0.032000">
+      <failure type="failure">1. Test Case ID: 2QcHuH
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"createdAfter": "2024-01-01T00:00:00.000Z", "createdBefore": "2024-01-01T00:00:00.000Z", "takenAfter": "2024-01-01T00:00:00.000Z", "takenBefore": "2024-01-01T00:00:00.000Z", "trashedAfter": "2024-01-01T00:00:00.000Z", "trashedBefore": "2024-01-01T00:00:00.000Z", "updatedAfter": "2024-01-01T00:00:00.000Z", "updatedBefore": "2024-01-01T00:00:00.000Z", "albumIds": [], "city": null, "country": null, "isEncoded": false, "isFavorite": false, "isMotion": false, "isNotInAlbum": false, "isOffline": false, "language": "", "lensModel": null, "libraryId": null, "make": null, "model": null, "ocr": "", "page": 1, "personIds": [], "query": "", "queryAssetId": "038f9509-c832-49ea-9620-7ddb118f4b26", "rating": null, "size": 1, "state": null, "tagIds": null, "type": "AUDIO", "visibility": "hidden", "withDeleted": false, "withExif": false}' http://localhost:8099/api/search/smart</failure>
+    </testcase>
+    <testcase name="POST /search/statistics" time="0.026815">
+      <failure type="failure">1. Test Case ID: tozNr3
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"createdAfter": "2024-01-01T00:00:00.000Z", "createdBefore": "2024-01-01T00:00:00.000Z", "takenAfter": "2024-01-01T00:00:00.000Z", "takenBefore": "2024-01-01T00:00:00.000Z", "trashedAfter": "2024-01-01T00:00:00.000Z", "trashedBefore": "2024-01-01T00:00:00.000Z", "updatedAfter": "2024-01-01T00:00:00.000Z", "updatedBefore": "2024-01-01T00:00:00.000Z", "albumIds": [], "city": null, "country": null, "description": "", "isEncoded": false, "isFavorite": false, "isMotion": false, "isNotInAlbum": false, "isOffline": false, "lensModel": null, "libraryId": null, "make": null, "model": null, "ocr": "", "personIds": [], "rating": null, "state": null, "tagIds": null, "type": "AUDIO", "visibility": "hidden"}' http://localhost:8099/api/search/statistics</failure>
+    </testcase>
+    <testcase name="POST /shared-links" time="0.016166" />
+    <testcase name="PUT /albums/assets" time="0.000518">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /activities/statistics" time="0.000266">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /admin/users/{id}/restore" time="0.000260">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /libraries/{id}/scan" time="0.000458">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /libraries/{id}/validate" time="0.000316">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /partners/{id}" time="0.000220">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /people/{id}/merge" time="0.000391">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="POST /search/large-assets" time="0.009413">
+      <failure type="failure">1. Test Case ID: mwz4nK
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Cookie: [Filtered]' 'http://localhost:8099/api/search/large-assets?createdAfter=2024-01-01T00%3A00%3A00.000Z&amp;createdBefore=2024-01-01T00%3A00%3A00.000Z&amp;takenAfter=2024-01-01T00%3A00%3A00.000Z&amp;takenBefore=2024-01-01T00%3A00%3A00.000Z&amp;trashedAfter=2024-01-01T00%3A00%3A00.000Z&amp;trashedBefore=2024-01-01T00%3A00%3A00.000Z&amp;updatedAfter=2024-01-01T00%3A00%3A00.000Z&amp;updatedBefore=2024-01-01T00%3A00%3A00.000Z&amp;libraryId=92b9ab7b-e791-45a6-9040-2931eba97094'</failure>
+    </testcase>
+    <testcase name="POST /sessions/{id}/lock" time="0.000285">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="PUT /admin/users/{id}" time="0.016269">
+      <failure type="failure">1. Test Case ID: FPSYvI
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X PUT -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"pinCode": "123456", "avatarColor": null, "email": "0@a.com", "isAdmin": false, "name": "", "password": "", "quotaSizeInBytes": null, "shouldChangePassword": false, "storageLabel": null}' http://localhost:8099/api/admin/users/92b9ab7b-e791-45a6-9040-2931eba97094</failure>
+    </testcase>
+    <testcase name="PUT /admin/users/{id}/preferences" time="0.001111">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="PUT /albums/{id}/assets" time="0.000276">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="PUT /albums/{id}/user/{userId}" time="0.000373">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="PUT /albums/{id}/users" time="0.000414">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="PUT /api-keys/{id}" time="0.000452">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="PUT /libraries/{id}" time="0.000259">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="PUT /memories/{id}" time="0.014304">
+      <failure type="failure">1. Test Case ID: u4NVNl
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X PUT -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"memoryAt": "2024-01-01T00:00:00.000Z", "seenAt": "2024-01-01T00:00:00.000Z", "isSaved": false}' http://localhost:8099/api/memories/92b9ab7b-e791-45a6-9040-2931eba97094</failure>
+    </testcase>
+    <testcase name="PUT /memories/{id}/assets" time="0.000395">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="PUT /notifications" time="0.046523">
+      <failure type="failure">1. Test Case ID: A6AIiY
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 204
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X PUT -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"readAt": "2024-01-01T00:00:00.000Z", "ids": ["70b52f40-9984-4c34-89a5-4408f1e28e28"]}' http://localhost:8099/api/notifications</failure>
+    </testcase>
+    <testcase name="PUT /notifications/{id}" time="0.010287">
+      <failure type="failure">1. Test Case ID: QKFMe9
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X PUT -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"readAt": "2024-01-01T00:00:00.000Z"}' http://localhost:8099/api/notifications/92b9ab7b-e791-45a6-9040-2931eba97094</failure>
+    </testcase>
+    <testcase name="PUT /partners/{id}" time="0.000332">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="PUT /people/{id}" time="0.000609">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="PUT /people/{id}/reassign" time="0.000803">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="PUT /queues/{name}" time="0.000278">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="PUT /shared-links/{id}/assets" time="0.000363">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="PUT /stacks/{id}" time="0.000353">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="PUT /tags/{id}" time="0.000307">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="PUT /tags/{id}/assets" time="0.000244">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="PUT /workflows/{id}" time="0.000425">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /activities" time="0.000308">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /admin/users" time="0.000204">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /admin/users/{id}" time="0.000215">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /admin/users/{id}/calendar-heatmap" time="0.009567">
+      <failure type="failure">1. Test Case ID: RxLWpz
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X GET -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Cookie: [Filtered]' 'http://localhost:8099/api/admin/users/92b9ab7b-e791-45a6-9040-2931eba97094/calendar-heatmap?from=2024-01-01&amp;to=2024-01-01'</failure>
+    </testcase>
+    <testcase name="GET /admin/users/{id}/preferences" time="0.000259">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /admin/users/{id}/sessions" time="0.000449">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /admin/users/{id}/statistics" time="0.000264">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /albums" time="0.000286">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /albums/{id}" time="0.000267">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /albums/{id}/map-markers" time="0.000235">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /api-keys/{id}" time="0.000165">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /assets/{id}/video/stream/{sessionId}/{variantIndex}/playlist.m3u8" time="0.000366">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /assets/{id}/video/stream/{sessionId}/{variantIndex}/{filename}" time="0.000437">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /libraries/{id}" time="0.000201">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /libraries/{id}/statistics" time="0.000177">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /memories/{id}" time="0.000166">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /notifications" time="0.000231">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /notifications/{id}" time="0.000193">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /people/{id}" time="0.000291">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /people/{id}/statistics" time="0.000162">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /people/{id}/thumbnail" time="0.000158">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /plugins" time="0.000240">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /plugins/{id}" time="0.000160">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /queues/{name}" time="0.000157">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /queues/{name}/jobs" time="0.000290">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /shared-links" time="0.000201">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /shared-links/{id}" time="0.000170">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /stacks/{id}" time="0.000186">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /tags/{id}" time="0.000177">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /timeline/bucket" time="0.009972" />
+    <testcase name="GET /timeline/buckets" time="0.010750" />
+    <testcase name="GET /users/{id}" time="0.000280">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /users/{id}/profile-image" time="0.000224">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /workflows" time="0.000256">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /workflows/{id}" time="0.000170">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /workflows/{id}/share" time="0.000166">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="PATCH /albums/{id}" time="0.000461">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="PATCH /shared-links/{id}" time="0.020453">
+      <failure type="failure">1. Test Case ID: QmtHhj
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found"}`
+
+Reproduce with:
+
+    curl -X PATCH -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"expiresAt": "2024-01-01T00:00:00.000Z", "allowDownload": false, "allowUpload": false, "description": null, "password": null, "showMetadata": false, "slug": null}' http://localhost:8099/api/shared-links/92b9ab7b-e791-45a6-9040-2931eba97094</failure>
+    </testcase>
+    <testcase name="DELETE /activities/{id}" time="0.000280">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="DELETE /admin/users/{id}" time="0.000287">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="DELETE /albums/{id}" time="0.000186">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="DELETE /albums/{id}/assets" time="0.000242">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="DELETE /albums/{id}/user/{userId}" time="0.000220">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="DELETE /api-keys/{id}" time="0.000170">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="DELETE /assets/{id}/video/stream/{sessionId}" time="0.000234">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="DELETE /libraries/{id}" time="0.000175">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="DELETE /memories/{id}" time="0.000186">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="DELETE /memories/{id}/assets" time="0.000232">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="DELETE /notifications" time="0.000381">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="DELETE /notifications/{id}" time="0.000185">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="DELETE /partners/{id}" time="0.000162">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="DELETE /people/{id}" time="0.000160">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="DELETE /queues/{name}/jobs" time="0.000220">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="DELETE /shared-links/{id}" time="0.000173">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="DELETE /shared-links/{id}/assets" time="0.000223">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="DELETE /stacks/{id}" time="0.000172">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="DELETE /stacks/{id}/assets/{assetId}" time="0.000195">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="DELETE /tags/{id}" time="0.000158">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="DELETE /tags/{id}/assets" time="0.000224">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="DELETE /workflows/{id}" time="0.000168">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+  </testsuite>
+</testsuites>

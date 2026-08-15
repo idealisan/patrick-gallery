@@ -19,6 +19,37 @@ type searchRequest struct {
 	Model      string `json:"model"`
 }
 
+// searchResponse / searchAssetResult / searchAlbumResult mirror Immich's
+// SearchResponseDto / SearchAssetResponseDto / SearchAlbumResponseDto exactly
+// so the official clients (which expect {albums, assets:{items,count,facets,
+// total}}) parse search results without error.
+type searchResponse struct {
+	Albums searchAlbumResult `json:"albums"`
+	Assets searchAssetResult `json:"assets"`
+}
+
+type searchAssetResult struct {
+	Items    []AssetResponse `json:"items"`
+	Count    int             `json:"count"`
+	Facets   []interface{}   `json:"facets"`
+	NextPage *string         `json:"nextPage"`
+	Total    int             `json:"total"`
+}
+
+type searchAlbumResult struct {
+	Items  []interface{} `json:"items"`
+	Count  int           `json:"count"`
+	Facets []interface{} `json:"facets"`
+	Total  int           `json:"total"`
+}
+
+func emptySearchResponse(assets []AssetResponse) searchResponse {
+	return searchResponse{
+		Albums: searchAlbumResult{Items: []interface{}{}, Count: 0, Facets: []interface{}{}, Total: 0},
+		Assets: searchAssetResult{Items: assets, Count: len(assets), Facets: []interface{}{}, NextPage: nil, Total: len(assets)},
+	}
+}
+
 func (a *App) handleSearch(c *gin.Context) {
 	uid := currentUserID(c)
 	var req searchRequest
@@ -64,7 +95,7 @@ func (a *App) handleSearch(c *gin.Context) {
 	for _, as := range assets {
 		out = append(out, a.toResponse(as))
 	}
-	c.JSON(http.StatusOK, gin.H{"assets": out, "count": len(out), "total": len(out)})
+	c.JSON(http.StatusOK, emptySearchResponse(out))
 }
 
 func (a *App) handleSearchMetadata(c *gin.Context) {
@@ -98,7 +129,7 @@ func (a *App) handleSearchMetadata(c *gin.Context) {
 	for _, as := range assets {
 		out = append(out, a.toResponse(as))
 	}
-	c.JSON(http.StatusOK, gin.H{"assets": out, "count": len(out), "total": len(out)})
+	c.JSON(http.StatusOK, emptySearchResponse(out))
 }
 
 func (a *App) handleSearchPerson(c *gin.Context) {
@@ -119,5 +150,5 @@ func (a *App) handleSearchExplore(c *gin.Context) {
 	for _, as := range assets {
 		out = append(out, a.toResponse(as))
 	}
-	c.JSON(http.StatusOK, gin.H{"assets": out, "count": len(out), "total": len(out)})
+	c.JSON(http.StatusOK, emptySearchResponse(out))
 }

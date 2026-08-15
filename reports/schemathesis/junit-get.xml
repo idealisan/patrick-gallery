@@ -1,0 +1,474 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites errors="0" failures="6" skipped="103" tests="110" time="0.109069">
+  <testsuite name="schemathesis" hostname="e0c2cefafd77" errors="0" failures="6" skipped="103" tests="110" time="0.109069">
+    <testcase name="GET /activities/statistics" time="0.000757">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /admin/database-backups" time="0.000196">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /admin/database-backups/{filename}" time="0.000281">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /admin/integrity/report" time="0.000260">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /admin/integrity/report/{id}/file" time="0.000490">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /admin/integrity/report/{type}/csv" time="0.000201">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /admin/integrity/summary" time="0.000185">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /admin/maintenance/detect-install" time="0.000145">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /admin/maintenance/status" time="0.000042">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /albums/statistics" time="0.000118">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /api-keys" time="0.000117">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /api-keys/me" time="0.000126">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /assets/statistics" time="0.000236">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /auth/status" time="0.000137">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /duplicates" time="0.000116">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /faces" time="0.000163">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /jobs" time="0.000120">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /libraries" time="0.000132">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /map/markers" time="0.045640">
+      <failure type="failure">1. Test Case ID: jyMeJ2
+
+- Response violates schema
+
+    {"markers":[]} is not of type "array"
+
+    Validated against the response schema for status code 200.
+
+    Schema:
+
+        {
+            "type": "array",
+            "items": {
+                "$ref": "#/components/schemas/MapMarkerResponseDto"
+            },
+            "components": {
+                "schemas": {
+                    "MapMarkerResponseDto": {
+                        "properties": {
+                            "city": {
+                                "anyOf": [
+                                    {
+                                        "description": "City name",
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "null"
+                                    }
+                                ]
+            // Output truncated...
+        }
+
+    Value:
+
+        {
+            "markers": []
+        }
+
+[200] OK:
+
+    `{"markers":[]}`
+
+Reproduce with:
+
+    curl -X GET -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Cookie: [Filtered]' 'http://localhost:8099/api/map/markers?fileCreatedAfter=2024-01-01T00%3A00%3A00.000Z&amp;fileCreatedBefore=2024-01-01T00%3A00%3A00.000Z'</failure>
+    </testcase>
+    <testcase name="GET /map/reverse-geocode" time="0.000362">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /memories" time="0.007222">
+      <failure type="failure">1. Test Case ID: QAvvP3
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X GET -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Cookie: [Filtered]' 'http://localhost:8099/api/memories?for=2024-01-01'</failure>
+    </testcase>
+    <testcase name="GET /memories/statistics" time="0.004611">
+      <failure type="failure">1. Test Case ID: FtHRoS
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X GET -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Cookie: [Filtered]' 'http://localhost:8099/api/memories/statistics?for=2024-01-01'</failure>
+    </testcase>
+    <testcase name="GET /oauth/mobile-redirect" time="0.000075">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /partners" time="0.000222">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /people" time="0.000320">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /plugins/methods" time="0.000375">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /plugins/templates" time="0.000140">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /queues" time="0.000141">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /search/cities" time="0.000143">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /search/explore" time="0.000118">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /search/person" time="0.000155">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /search/places" time="0.000134">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /search/suggestions" time="0.000311">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /server/about" time="0.000123">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /server/apk-links" time="0.000136">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /server/config" time="0.000046">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /server/features" time="0.000049">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /server/license" time="0.000144">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /server/media-types" time="0.000041">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /server/ping" time="0.000036">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /server/statistics" time="0.000122">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /server/storage" time="0.000133">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /server/version" time="0.000047">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /server/version-check" time="0.000141">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /server/version-history" time="0.000040">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /sessions" time="0.000126">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /shared-links/me" time="0.000183">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /stacks" time="0.000180">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /sync/ack" time="0.000118">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /system-config" time="0.000179">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /system-config/defaults" time="0.000118">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /system-config/storage-template-options" time="0.000127">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /system-metadata/admin-onboarding" time="0.000146">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /system-metadata/reverse-geocoding-state" time="0.000139">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /system-metadata/version-check-state" time="0.000117">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /tags" time="0.000120">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /users" time="0.000134">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /users/me" time="0.000147">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /users/me/calendar-heatmap" time="0.005213">
+      <failure type="failure">1. Test Case ID: FchO3u
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X GET -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Cookie: [Filtered]' 'http://localhost:8099/api/users/me/calendar-heatmap?from=2024-01-01&amp;to=2024-01-01'</failure>
+    </testcase>
+    <testcase name="GET /users/me/license" time="0.000225">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /users/me/onboarding" time="0.000147">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /users/me/preferences" time="0.000139">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /view/folder" time="0.000166">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /view/folder/unique-paths" time="0.000140">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /workflows/triggers" time="0.000138">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /api-keys/{id}" time="0.000307">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /libraries/{id}" time="0.000217">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /memories/{id}" time="0.000192">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /queues/{name}" time="0.000194">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /stacks/{id}" time="0.000189">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /libraries/{id}/statistics" time="0.000174">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /queues/{name}/jobs" time="0.000269">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /activities" time="0.000344">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /admin/users" time="0.000185">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /admin/users/{id}" time="0.000201">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /admin/users/{id}/calendar-heatmap" time="0.013164">
+      <failure type="failure">1. Test Case ID: t6DfcH
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X GET -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Cookie: [Filtered]' 'http://localhost:8099/api/admin/users/038f9509-c832-49ea-9620-7ddb118f4b26/calendar-heatmap?from=2024-01-01&amp;to=2024-01-01&amp;type=Taken'</failure>
+    </testcase>
+    <testcase name="GET /admin/users/{id}/preferences" time="0.000264">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /admin/users/{id}/sessions" time="0.000229">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /admin/users/{id}/statistics" time="0.000237">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /albums" time="0.000291">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /albums/{id}" time="0.000261">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /albums/{id}/map-markers" time="0.000208">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /assets/{id}" time="0.000233">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /assets/{id}/edits" time="0.000164">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /assets/{id}/metadata" time="0.000158">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /assets/{id}/metadata/{key}" time="0.000186">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /assets/{id}/ocr" time="0.000216">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /assets/{id}/original" time="0.000264">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /assets/{id}/thumbnail" time="0.000250">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /assets/{id}/video/playback" time="0.000233">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /assets/{id}/video/stream/main.m3u8" time="0.000225">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /assets/{id}/video/stream/{sessionId}/{variantIndex}/playlist.m3u8" time="0.000287">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /assets/{id}/video/stream/{sessionId}/{variantIndex}/{filename}" time="0.000487">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /notifications" time="0.000261">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /notifications/{id}" time="0.000205">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /people/{id}" time="0.000185">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /people/{id}/statistics" time="0.000185">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /people/{id}/thumbnail" time="0.000159">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /plugins" time="0.000278">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /plugins/{id}" time="0.000188">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /shared-links" time="0.000229">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /shared-links/{id}" time="0.000191">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /tags/{id}" time="0.000159">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /timeline/bucket" time="0.007907">
+      <failure type="failure">1. Test Case ID: fSleMt
+
+- Response violates schema
+
+    "createdAt" is a required property
+
+    Validated against the response schema for status code 200.
+
+    Schema at /components/schemas/TimeBucketAssetResponseDto:
+
+        {
+            "required": [
+                "createdAt",
+                "duration",
+                "fileCreatedAt",
+                "id",
+                "isFavorite",
+                "isImage",
+                "isTrashed",
+                "livePhotoVideoId",
+                "localOffsetHours",
+                "ownerId",
+                "projectionType",
+                "ratio",
+                "thumbhash",
+                "visibility"
+            ],
+            "properties": {
+                "city": {
+            // Output truncated...
+        }
+
+    Value:
+
+        {
+            "assets": [],
+            "count": 0
+        }
+
+[200] OK:
+
+    `{"assets":[],"count":0}`
+
+Reproduce with:
+
+    curl -X GET -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Cookie: [Filtered]' 'http://localhost:8099/api/timeline/bucket?bbox=11.075683%2C49.416711%2C11.117589%2C49.454875&amp;timeBucket=2024-01-01'</failure>
+    </testcase>
+    <testcase name="GET /timeline/buckets" time="0.005371" />
+    <testcase name="GET /users/{id}" time="0.000241">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /users/{id}/profile-image" time="0.000184">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /workflows" time="0.000287">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /workflows/{id}" time="0.000184">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+    <testcase name="GET /workflows/{id}/share" time="0.000375">
+      <skipped type="skipped">No examples in schema</skipped>
+    </testcase>
+  </testsuite>
+</testsuites>

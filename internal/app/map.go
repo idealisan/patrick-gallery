@@ -8,15 +8,16 @@ import (
 )
 
 // MapMarker is a single clustered geo point for the map view. It mirrors
-// Immich's /api/map/markers shape closely enough for our SPA: an id, lat/lon,
-// optional reverse-geocoded city/country, a count of assets at that location,
-// and a representative assetId used to open the lightbox.
+// Immich's MapMarkerResponseDto (id, lat, lon, city, country, state) so the
+// official web client parses it without error. Count/AssetID are extra
+// (additionalProperties are allowed) and used by our SPA to open the lightbox.
 type MapMarker struct {
 	ID       string  `json:"id"`
 	Lat      float64 `json:"lat"`
 	Lon      float64 `json:"lon"`
 	City     string  `json:"city"`
 	Country  string  `json:"country"`
+	State    string  `json:"state"`
 	Count    int     `json:"count"`
 	AssetID  string  `json:"assetId"`
 }
@@ -49,14 +50,15 @@ func (a *App) handleMapMarkers(c *gin.Context) {
 		key := fmt.Sprintf("%.2f,%.2f", r.Lat, r.Lon)
 		g, ok := groups[key]
 		if !ok {
-			g = &MapMarker{
-				ID:      newUUID(),
-				Lat:     r.Lat,
-				Lon:     r.Lon,
-				City:    r.City,
-				Country: r.Country,
-				AssetID: r.AssetID,
-			}
+		g = &MapMarker{
+			ID:      newUUID(),
+			Lat:     r.Lat,
+			Lon:     r.Lon,
+			City:    r.City,
+			Country: r.Country,
+			State:   "",
+			AssetID: r.AssetID,
+		}
 			groups[key] = g
 		}
 		g.Count++
@@ -70,7 +72,8 @@ func (a *App) handleMapMarkers(c *gin.Context) {
 	for _, g := range groups {
 		out = append(out, *g)
 	}
-	c.JSON(http.StatusOK, gin.H{"markers": out})
+	// Immich's /api/map/markers returns a bare array of MapMarkerResponseDto.
+	c.JSON(http.StatusOK, out)
 }
 
 // handleMapReverseGeocode mirrors Immich's POST /api/map/reverse-geocode.

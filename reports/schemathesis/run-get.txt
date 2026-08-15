@@ -1,0 +1,219 @@
+Schemathesis v4.24.3
+━━━━━━━━━━━━━━━━━━━━
+
+
+ ✅  Loaded specification from /tmp/spec.json (in 0.11s)                        
+
+     Base URL:         http://localhost:8099/api                                
+     Specification:    Open API 3.0.0                                           
+     Operations:       110 selected / 254 total                                 
+
+
+ ✅  API capabilities:                                                          
+
+     Supports NULL byte in headers:                            ✘                
+     Accepts backslash and control characters in URL paths:    ✓                
+
+ ❌  Examples (in 0.23s)                                                        
+                                                                                
+     ✅   1 passed  ❌   6 failed  ⏭  103 skipped                               
+
+=================================== FAILURES ===================================
+____________________ GET /admin/users/{id}/calendar-heatmap ____________________
+1. Test Case ID: t6DfcH
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X GET -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Cookie: [Filtered]' 'http://localhost:8099/api/admin/users/038f9509-c832-49ea-9620-7ddb118f4b26/calendar-heatmap?from=2024-01-01&to=2024-01-01&type=Taken'
+    
+    st replay t6DfcH
+
+_______________________________ GET /map/markers _______________________________
+1. Test Case ID: jyMeJ2
+
+- Response violates schema
+
+    {"markers":[]} is not of type "array"
+
+    Validated against the response schema for status code 200.
+
+    Schema:
+
+        {
+            "type": "array",
+            "items": {
+                "$ref": "#/components/schemas/MapMarkerResponseDto"
+            },
+            "components": {
+                "schemas": {
+                    "MapMarkerResponseDto": {
+                        "properties": {
+                            "city": {
+                                "anyOf": [
+                                    {
+                                        "description": "City name",
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "null"
+                                    }
+                                ]
+            // Output truncated...
+        }
+
+    Value:
+
+        {
+            "markers": []
+        }
+
+[200] OK:
+
+    `{"markers":[]}`
+
+Reproduce with:
+
+    curl -X GET -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Cookie: [Filtered]' 'http://localhost:8099/api/map/markers?fileCreatedAfter=2024-01-01T00%3A00%3A00.000Z&fileCreatedBefore=2024-01-01T00%3A00%3A00.000Z'
+    
+    st replay jyMeJ2
+
+________________________________ GET /memories _________________________________
+1. Test Case ID: QAvvP3
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X GET -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Cookie: [Filtered]' 'http://localhost:8099/api/memories?for=2024-01-01'
+    
+    st replay QAvvP3
+
+___________________________ GET /memories/statistics ___________________________
+1. Test Case ID: FtHRoS
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X GET -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Cookie: [Filtered]' 'http://localhost:8099/api/memories/statistics?for=2024-01-01'
+    
+    st replay FtHRoS
+
+_____________________________ GET /timeline/bucket _____________________________
+1. Test Case ID: fSleMt
+
+- Response violates schema
+
+    "createdAt" is a required property
+
+    Validated against the response schema for status code 200.
+
+    Schema at /components/schemas/TimeBucketAssetResponseDto:
+
+        {
+            "required": [
+                "createdAt",
+                "duration",
+                "fileCreatedAt",
+                "id",
+                "isFavorite",
+                "isImage",
+                "isTrashed",
+                "livePhotoVideoId",
+                "localOffsetHours",
+                "ownerId",
+                "projectionType",
+                "ratio",
+                "thumbhash",
+                "visibility"
+            ],
+            "properties": {
+                "city": {
+            // Output truncated...
+        }
+
+    Value:
+
+        {
+            "assets": [],
+            "count": 0
+        }
+
+[200] OK:
+
+    `{"assets":[],"count":0}`
+
+Reproduce with:
+
+    curl -X GET -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Cookie: [Filtered]' 'http://localhost:8099/api/timeline/bucket?bbox=11.075683%2C49.416711%2C11.117589%2C49.454875&timeBucket=2024-01-01'
+    
+    st replay fSleMt
+
+________________________ GET /users/me/calendar-heatmap ________________________
+1. Test Case ID: FchO3u
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X GET -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Cookie: [Filtered]' 'http://localhost:8099/api/users/me/calendar-heatmap?from=2024-01-01&to=2024-01-01'
+    
+    st replay FchO3u
+
+=================================== SUMMARY ====================================
+
+API Operations:
+  Selected: 110/254
+  Tested: 7
+  Skipped: 103
+    - No examples in schema
+
+Test Phases:
+  ❌ Examples
+  ⏭  Coverage (disabled)
+  ⏭  Fuzzing (disabled)
+  ⏭  Stateful (disabled)
+
+Failures:
+  ❌ Response violates schema: 2
+  ❌ Undocumented HTTP status code: 4
+
+Test cases:
+  7 generated, 6 found 6 unique failures
+
+Reports:
+  - JUNIT: /tmp/ig-test/report-get/junit-20260815T143657Z.xml
+
+Seed: 77192996326602706691369653925817140145
+
+============================= 6 failures in 0.27s ==============================

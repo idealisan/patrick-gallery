@@ -168,10 +168,75 @@ func (a *App) handleSharedLinkList(c *gin.Context) {
 }
 
 type sharedLinkBody struct {
-	Type    string     `json:"type"`
-	AssetID string     `json:"assetId"`
-	AlbumID string     `json:"albumId"`
-	ExpiresAt *time.Time `json:"expiresAt,omitempty"`
+	Type          string     `json:"type"`
+	AssetID       string     `json:"assetId"`
+	AlbumID       string     `json:"albumId"`
+	ExpiresAt     *time.Time `json:"expiresAt,omitempty"`
+	AllowDownload bool       `json:"allowDownload"`
+	AllowUpload   bool       `json:"allowUpload"`
+	Description   *string    `json:"description"`
+	Password      *string    `json:"password"`
+	ShowMetadata  bool       `json:"showMetadata"`
+	Slug          *string    `json:"slug"`
+}
+
+// SharedLinkResponse mirrors Immich's SharedLinkResponseDto (id/userId are
+// dashed v4 UUIDs; allowDownload/allowUpload/assets/description/password/
+// showMetadata/slug are all required and emitted even when null).
+type SharedLinkResponse struct {
+	ID            string          `json:"id"`
+	Key           string          `json:"key"`
+	Type          string          `json:"type"`
+	Album         interface{}     `json:"album,omitempty"`
+	AllowDownload bool            `json:"allowDownload"`
+	AllowUpload   bool            `json:"allowUpload"`
+	Assets        []AssetResponse `json:"assets"`
+	CreatedAt     time.Time       `json:"createdAt"`
+	Description   *string         `json:"description"`
+	ExpiresAt     *time.Time      `json:"expiresAt"`
+	Password      *string         `json:"password"`
+	ShowMetadata  bool            `json:"showMetadata"`
+	Slug          *string         `json:"slug"`
+	UserID        string          `json:"userId"`
+}
+
+func (a *App) toSharedLinkResponse(link *SharedLink, b *sharedLinkBody) SharedLinkResponse {
+	assets := make([]AssetResponse, 0)
+	if link.AssetID != "" {
+		var as Asset
+		if a.store.DB.First(&as, "id = ? AND owner_id = ?", link.AssetID, link.UserID).Error == nil {
+			assets = append(assets, a.toResponse(as))
+		}
+	} else if link.AlbumID != "" {
+		var aa []AlbumAsset
+		a.store.DB.Where("album_id = ?", link.AlbumID).Order("\"order\" ASC").Find(&aa)
+		ids := make([]string, 0, len(aa))
+		for _, x := range aa {
+			ids = append(ids, x.AssetID)
+		}
+		if len(ids) > 0 {
+			var as []Asset
+			a.store.DB.Where("id IN ? AND owner_id = ? AND is_trash = ?", ids, link.UserID, false).Find(&as)
+			for _, x := range as {
+				assets = append(assets, a.toResponse(x))
+			}
+		}
+	}
+	return SharedLinkResponse{
+		ID:            link.ID,
+		Key:           link.Key,
+		Type:          link.Type,
+		AllowDownload: b.AllowDownload,
+		AllowUpload:   b.AllowUpload,
+		Assets:        assets,
+		CreatedAt:     link.CreatedAt,
+		Description:   b.Description,
+		ExpiresAt:     link.ExpiresAt,
+		Password:      b.Password,
+		ShowMetadata:  b.ShowMetadata,
+		Slug:          b.Slug,
+		UserID:        link.UserID,
+	}
 }
 
 func (a *App) handleSharedLinkCreate(c *gin.Context) {
@@ -189,7 +254,7 @@ func (a *App) handleSharedLinkCreate(c *gin.Context) {
 		CreatedAt: time.Now().UTC(),
 	}
 	a.store.DB.Create(&link)
-	c.JSON(http.StatusCreated, link)
+	c.JSON(http.StatusCreated, a.toSharedLinkResponse(&link, &b))
 }
 
 func (a *App) handleSharedLinkUpdate(c *gin.Context) {
@@ -205,8 +270,11 @@ func (a *App) handleSharedLinkUpdate(c *gin.Context) {
 	if b.ExpiresAt != nil {
 		link.ExpiresAt = b.ExpiresAt
 	}
+	if b.Type != "" {
+		link.Type = b.Type
+	}
 	a.store.DB.Save(&link)
-	c.JSON(http.StatusOK, link)
+	c.JSON(http.StatusOK, a.toSharedLinkResponse(&link, &b))
 }
 
 func (a *App) handleSharedLinkDelete(c *gin.Context) {

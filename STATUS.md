@@ -254,3 +254,24 @@
 - Windows/arm64 视频开箱即用需 BtbN 提供 `win-arm64-gpl-shared`（上游缺失）；可改从其他渠道取 arm64 共享库。
 - Docker 镜像多架构（arm64）+ CNB 流水线自动发版（`.cnb.yml` stages）待接入。
 
+### K. Schemathesis 真实契约一致性测试（v3.1.0, 2026-08-15）
+用行业标准 property-based API 测试 CLI **`schemathesis` 4.24.3** 对 immich-go 做真实 OpenAPI 一致性核验（替代 §J 的手写 stdlib 检查器，后者漏报了若干 DTO 形状错误）。
+
+- 基准契约：`open-api/immich-openapi-specs.json`（immich-app/immich tag v3.1.0，OpenAPI 3.0.0，254 operations，`servers:[/api]`）。
+- 命令（可复现，详见 `reports/schemathesis-v3.1.0.md`）：
+  `schemathesis run open-api/immich-openapi-specs.json --url http://localhost:8099/api -H "Authorization: Bearer $TOKEN" --max-examples 1 --workers 1 --phases examples -c not_a_server_error -c status_code_conformance -c response_schema_conformance -c content_type_conformance`
+- 覆盖说明：Schemathesis `examples` 阶段只对“能生成请求样例”的 operation 测试，本规范 30/254 被测、224 跳过（无参数/无 requestBody 的 GET + 部分 path-param GET）；read-only 广覆盖仍由 `scripts/api_consistency.py` 补充。
+
+**结果（修复前 → 修复后）**：Tested 30；Passed **1 → 5**；Failed **29 → 25**；**响应违反 schema 7 → 0**。修复后剩余 25 个失败全部是“未声明状态码”（未实现端点返回 404 + 3 个良性边界：POST /assets 400 负向、POST /auth/change-password 204、POST /auth/login 401 工具鉴权伪影），无 DTO 形状错误。
+
+**据 Schemathesis 发现并修复的 5 处（A 类真实 bug）**：
+1. `internal/app/util.go` `newUUID()`：原无短横 32 位十六进制串违反 v4 UUID `pattern` → 改为标准带短横小写 v4 UUID（系统性：所有生成 id 合规）。
+2. `GET /map/markers`：去掉 `{"markers":[...]}` 包裹，返回裸 `array[MapMarkerResponseDto]`，补必填 `state`。
+3. `GET /timeline/bucket`：返回 `TimeBucketAssetResponseDto` 平行数组对象（新增 `buildTimeBucketAssets`），非 `{"assets":[],"count":0}`。
+4. `POST /search/metadata`（及 `/search`、`/search/explore`）：返回 `SearchResponseDto` `{albums, assets:{items,count,facets,total}}`。
+5. `POST /shared-links`（及 PUT）：返回完整 `SharedLinkResponseDto`（补 allowDownload/allowUpload/assets/description/password/showMetadata/slug 等必填；id/userId 因 #1 合规）。
+   - 已知限制：SharedLink 模型未持久化上述布尔/文本字段（无对应列），创建响应从请求体回显，重读时缺失——后续 DB schema 补全项。
+
+完整报告：`reports/schemathesis-v3.1.0.md`；复现产物：`reports/schemathesis/*.txt`、`*.xml`。`go build`/`go vet ./...` 全绿（vet 的 `unsafe.Pointer` 提示来自 `internal/video` 的 purego FFI，非本次改动）。
+
+

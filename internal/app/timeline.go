@@ -70,11 +70,120 @@ func (a *App) handleTimelineBucketAssets(c *gin.Context) {
 
 	var assets []Asset
 	a.store.DB.Where("owner_id = ? AND is_trash = ?", uid, false).Order("local_date_time DESC").Find(&assets)
-	out := make([]AssetResponse, 0)
+	matched := make([]Asset, 0, len(assets))
 	for _, as := range assets {
 		if as.LocalDateTime.Format("2006-01") == ym {
-			out = append(out, a.toResponse(as))
+			matched = append(matched, as)
 		}
 	}
-	c.JSON(http.StatusOK, gin.H{"assets": out, "count": len(out)})
+
+	// Immich's /timeline/bucket returns a single TimeBucketAssetResponseDto:
+	// parallel arrays (one slot per asset, index-aligned). /timeline/assets
+	// returns a bare array of assets, so branch on the requested path.
+	// (Match on the actual request path; gin's c.FullPath() includes the
+	// "/api" group prefix, so a literal compare would miss it.)
+	if strings.HasSuffix(c.Request.URL.Path, "/timeline/bucket") {
+		c.JSON(http.StatusOK, a.buildTimeBucketAssets(matched))
+		return
+	}
+	out := make([]AssetResponse, 0, len(matched))
+	for _, as := range matched {
+		out = append(out, a.toResponse(as))
+	}
+	c.JSON(http.StatusOK, out)
+}
+
+// timeBucketAssetsResponse mirrors Immich's TimeBucketAssetResponseDto: every
+// field is a parallel array holding that property for each asset in the bucket
+// (all index-aligned). Fields are always emitted (no omitempty) so an empty
+// bucket still satisfies the schema's required-array contract.
+type timeBucketAssetsResponse struct {
+	City             []string    `json:"city"`
+	Country          []string    `json:"country"`
+	CreatedAt        []string    `json:"createdAt"`
+	Duration         []int       `json:"duration"`
+	FileCreatedAt    []string    `json:"fileCreatedAt"`
+	ID               []string    `json:"id"`
+	IsFavorite       []bool      `json:"isFavorite"`
+	IsImage          []bool      `json:"isImage"`
+	IsTrashed        []bool      `json:"isTrashed"`
+	Latitude         []float64   `json:"latitude"`
+	LivePhotoVideoID []string    `json:"livePhotoVideoId"`
+	LocalOffsetHours []float64   `json:"localOffsetHours"`
+	Longitude        []float64   `json:"longitude"`
+	OwnerID          []string    `json:"ownerId"`
+	ProjectionType   []string    `json:"projectionType"`
+	Ratio            []float64   `json:"ratio"`
+	Stack            [][]string  `json:"stack"`
+	Thumbhash        []string    `json:"thumbhash"`
+	Visibility       []string    `json:"visibility"`
+}
+
+func (a *App) buildTimeBucketAssets(assets []Asset) timeBucketAssetsResponse {
+	n := len(assets)
+	r := timeBucketAssetsResponse{
+		City:             make([]string, n),
+		Country:          make([]string, n),
+		CreatedAt:        make([]string, n),
+		Duration:         make([]int, n),
+		FileCreatedAt:    make([]string, n),
+		ID:               make([]string, n),
+		IsFavorite:       make([]bool, n),
+		IsImage:          make([]bool, n),
+		IsTrashed:        make([]bool, n),
+		Latitude:         make([]float64, n),
+		LivePhotoVideoID: make([]string, n),
+		LocalOffsetHours: make([]float64, n),
+		Longitude:        make([]float64, n),
+		OwnerID:          make([]string, n),
+		ProjectionType:   make([]string, n),
+		Ratio:            make([]float64, n),
+		Stack:            make([][]string, n),
+		Thumbhash:        make([]string, n),
+		Visibility:       make([]string, n),
+	}
+	if n == 0 {
+		return r
+	}
+	exifIDs := make([]string, 0, n)
+	for _, as := range assets {
+		if as.ExifID != "" {
+			exifIDs = append(exifIDs, as.ExifID)
+		}
+	}
+	exifByID := make(map[string]Exif, len(exifIDs))
+	if len(exifIDs) > 0 {
+		var exifs []Exif
+		a.store.DB.Where("id IN ?", exifIDs).Find(&exifs)
+		for _, e := range exifs {
+			exifByID[e.ID] = e
+		}
+	}
+	for i, as := range assets {
+		r.ID[i] = as.ID
+		r.OwnerID[i] = as.OwnerID
+		r.CreatedAt[i] = as.CreatedAt.UTC().Format(time.RFC3339Nano)
+		r.FileCreatedAt[i] = as.FileCreatedAt.UTC().Format(time.RFC3339Nano)
+		r.Duration[i] = parseDurationInt(as.Duration)
+		r.IsFavorite[i] = as.IsFavorite
+		r.IsImage[i] = as.Type == "IMAGE"
+		r.IsTrashed[i] = as.IsTrash
+		r.LivePhotoVideoID[i] = as.LivePhotoVideoID
+		r.ProjectionType[i] = "" // no 360°/equirectangular support yet
+		r.Thumbhash[i] = as.Thumbhash
+		r.Visibility[i] = visibilityOf(as.IsArchived)
+		if as.Width > 0 && as.Height > 0 {
+			r.Ratio[i] = float64(as.Width) / float64(as.Height)
+		}
+		// local offset (hours) between the photo's local time and its UTC stamp
+		r.LocalOffsetHours[i] = as.LocalDateTime.Sub(as.FileCreatedAt).Hours()
+		r.Stack[i] = []string{} // stacking unsupported
+		if e, ok := exifByID[as.ExifID]; ok {
+			r.City[i] = e.City
+			r.Country[i] = e.Country
+			r.Latitude[i] = e.Latitude
+			r.Longitude[i] = e.Longitude
+		}
+	}
+	return r
 }

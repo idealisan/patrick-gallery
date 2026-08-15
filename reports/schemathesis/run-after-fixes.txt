@@ -1,0 +1,511 @@
+Schemathesis v4.24.3
+━━━━━━━━━━━━━━━━━━━━
+
+
+ ✅  Loaded specification from /tmp/spec.json (in 0.12s)                        
+
+     Base URL:         http://localhost:8099/api                                
+     Specification:    Open API 3.0.0                                           
+     Operations:       254 selected / 254 total                                 
+
+
+ ✅  API capabilities:                                                          
+
+     Supports NULL byte in headers:                            ✘                
+     Accepts backslash and control characters in URL paths:    ✓                
+
+ ❌  Examples (in 0.80s)                                                        
+                                                                                
+     ✅   5 passed  ❌  25 failed  ⏭  224 skipped                               
+
+=================================== FAILURES ===================================
+____________________________ DELETE /auth/pin-code _____________________________
+1. Test Case ID: 3xGsWM
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 204
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X DELETE -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"password": "password", "pinCode": "123456"}' http://localhost:8099/api/auth/pin-code
+    
+    st replay 3xGsWM
+
+____________________ GET /admin/users/{id}/calendar-heatmap ____________________
+1. Test Case ID: RxLWpz
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X GET -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Cookie: [Filtered]' 'http://localhost:8099/api/admin/users/92b9ab7b-e791-45a6-9040-2931eba97094/calendar-heatmap?from=2024-01-01&to=2024-01-01'
+    
+    st replay RxLWpz
+
+________________________________ GET /memories _________________________________
+1. Test Case ID: p1PDmQ
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X GET -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Cookie: [Filtered]' 'http://localhost:8099/api/memories?for=2024-01-01'
+    
+    st replay p1PDmQ
+
+___________________________ GET /memories/statistics ___________________________
+1. Test Case ID: WFbsYz
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X GET -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Cookie: [Filtered]' 'http://localhost:8099/api/memories/statistics?for=2024-01-01'
+    
+    st replay WFbsYz
+
+________________________ GET /users/me/calendar-heatmap ________________________
+1. Test Case ID: ENzwki
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X GET -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Cookie: [Filtered]' 'http://localhost:8099/api/users/me/calendar-heatmap?from=2024-01-01&to=2024-01-01'
+    
+    st replay ENzwki
+
+___________________________ PATCH /shared-links/{id} ___________________________
+1. Test Case ID: QmtHhj
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found"}`
+
+Reproduce with:
+
+    curl -X PATCH -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"expiresAt": "2024-01-01T00:00:00.000Z", "allowDownload": false, "allowUpload": false, "description": null, "password": null, "showMetadata": false, "slug": null}' http://localhost:8099/api/shared-links/92b9ab7b-e791-45a6-9040-2931eba97094
+    
+    st replay QmtHhj
+
+__________________________ POST /admin/notifications ___________________________
+1. Test Case ID: 12abpf
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 201
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"readAt": "2024-01-01T00:00:00.000Z", "data": {}, "description": null, "level": "info", "title": "", "type": "Custom", "userId": "038f9509-c832-49ea-9620-7ddb118f4b26"}' http://localhost:8099/api/admin/notifications
+    
+    st replay 12abpf
+
+______________________________ POST /admin/users _______________________________
+1. Test Case ID: hQGzH7
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 201
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"pinCode": "123456", "avatarColor": null, "email": "0@a.com", "isAdmin": false, "name": "", "notify": false, "password": "", "quotaSizeInBytes": null, "shouldChangePassword": false, "storageLabel": null}' http://localhost:8099/api/admin/users
+    
+    st replay hQGzH7
+
+_________________________________ POST /assets _________________________________
+1. Test Case ID: 0Z1Pqf
+
+- Undocumented HTTP status code
+
+    Received: 400
+    Documented: 200, 201
+
+[400] Bad Request:
+
+    `{"error":"missing assetData","statusCode":400}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Cookie: [Filtered]' -H 'Content-Type: multipart/form-data; boundary=7db9b8ccc5d53a4e221cfb55d3dd5bc5' -d $'--47685136d01eff74aab44839228b80bf\r\nContent-Disposition: form-data; name="fileCreatedAt"\r\n\r\n2024-01-01T00:00:00.000Z\r\n--47685136d01eff74aab44839228b80bf\r\nContent-Disposition: form-data; name="fileModifiedAt"\r\n\r\n2024-01-01T00:00:00.000Z\r\n--47685136d01eff74aab44839228b80bf\r\nContent-Disposition: form-data; name="assetData"\r\n\r\n\r\n--47685136d01eff74aab44839228b80bf\r\nContent-Disposition: form-data; name="duration"\r\n\r\n0\r\n--47685136d01eff74aab44839228b80bf\r\nContent-Disposition: form-data; name="filename"\r\n\r\n\r\n--47685136d01eff74aab44839228b80bf\r\nContent-Disposition: form-data; name="isFavorite"\r\n\r\nFalse\r\n--47685136d01eff74aab44839228b80bf\r\nContent-Disposition: form-data; name="livePhotoVideoId"\r\n\r\n038f9509-c832-49ea-9620-7ddb118f4b26\r\n--47685136d01eff74aab44839228b80bf\r\nContent-Disposition: form-data; name="sidecarData"\r\n\r\n\r\n--47685136d01eff74aab44839228b80bf\r\nContent-Disposition: form-data; name="visibility"\r\n\r\nhidden\r\n--47685136d01eff74aab44839228b80bf--\r\n' http://localhost:8099/api/assets
+    
+    ⚠️  Request body contains non-printable characters. Actual value: b'--47685136d01eff74aab44839228b80bf\r\nContent-Disposition: form-data; name="fileCreatedAt"\r\n\r\n2024-01-01T00:00:00.000Z\r\n--47685136d01eff74aab44839228b80bf\r\nContent-Disposition: form-data; name="fileModifiedAt"\r\n\r\n2024-01-01T00:00:00.000Z\r\n--47685136d01eff74aab44839228b80bf\r\nContent-Disposition: form-data; name="assetData"\r\n\r\n\r\n--47685136d01eff74aab44839228b80bf\r\nContent-Disposition: form-data; name="duration"\r\n\r\n0\r\n--47685136d01eff74aab44839228b80bf\r\nContent-Disposition: form-data; name="filename"\r\n\r\n\r\n--47685136d01eff74aab44839228b80bf\r\nContent-Disposition: form-data; name="isFavorite"\r\n\r\nFalse\r\n--47685136d01eff74aab44839228b80bf\r\nContent-Disposition: form-data; name="livePhotoVideoId"\r\n\r\n038f9509-c832-49ea-9620-7ddb118f4b26\r\n--47685136d01eff74aab44839228b80bf\r\nContent-Disposition: form-data; name="sidecarData"\r\n\r\n\r\n--47685136d01eff74aab44839228b80bf\r\nContent-Disposition: form-data; name="visibility"\r\n\r\nhidden\r\n--47685136d01eff74aab44839228b80bf--\r\n'
+    
+    st replay 0Z1Pqf
+
+___________________________ POST /auth/admin-sign-up ___________________________
+1. Test Case ID: Hn0POE
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 201
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'Content-Type: application/json' -d '{"email": "testuser@email.com", "name": "Admin", "password": "password"}' http://localhost:8099/api/auth/admin-sign-up
+    
+    st replay Hn0POE
+
+__________________________ POST /auth/change-password __________________________
+1. Test Case ID: KINdjZ
+
+- Undocumented HTTP status code
+
+    Received: 204
+    Documented: 200
+
+[204] No Content:
+
+    <EMPTY>
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"newPassword": "password", "password": "password", "invalidateSessions": false}' http://localhost:8099/api/auth/change-password
+    
+    st replay KINdjZ
+
+_______________________________ POST /auth/login _______________________________
+1. Test Case ID: wEcfuO
+
+- Undocumented HTTP status code
+
+    Received: 401
+    Documented: 201
+
+[401] Unauthorized:
+
+    `{"error":"invalid credentials","statusCode":401}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'Content-Type: application/json' -d '{"email": "testuser@email.com", "password": "password"}' http://localhost:8099/api/auth/login
+    
+    st replay wEcfuO
+
+_____________________________ POST /auth/pin-code ______________________________
+1. Test Case ID: eMeGZe
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 204
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"pinCode": "123456"}' http://localhost:8099/api/auth/pin-code
+    
+    st replay eMeGZe
+
+__________________________ POST /auth/session/unlock ___________________________
+1. Test Case ID: D014SK
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 204
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"password": "password", "pinCode": "123456"}' http://localhost:8099/api/auth/session/unlock
+    
+    st replay D014SK
+
+________________________________ POST /memories ________________________________
+1. Test Case ID: 771PCa
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 201
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"hideAt": "2024-01-01T00:00:00.000Z", "memoryAt": "2024-01-01T00:00:00.000Z", "seenAt": "2024-01-01T00:00:00.000Z", "showAt": "2024-01-01T00:00:00.000Z", "assetIds": [], "data": {"year": 1000}, "isSaved": false, "type": "on_this_day"}' http://localhost:8099/api/memories
+    
+    st replay 771PCa
+
+__________________________ POST /search/large-assets ___________________________
+1. Test Case ID: mwz4nK
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Cookie: [Filtered]' 'http://localhost:8099/api/search/large-assets?createdAfter=2024-01-01T00%3A00%3A00.000Z&createdBefore=2024-01-01T00%3A00%3A00.000Z&takenAfter=2024-01-01T00%3A00%3A00.000Z&takenBefore=2024-01-01T00%3A00%3A00.000Z&trashedAfter=2024-01-01T00%3A00%3A00.000Z&trashedBefore=2024-01-01T00%3A00%3A00.000Z&updatedAfter=2024-01-01T00%3A00%3A00.000Z&updatedBefore=2024-01-01T00%3A00%3A00.000Z&libraryId=92b9ab7b-e791-45a6-9040-2931eba97094'
+    
+    st replay mwz4nK
+
+_____________________________ POST /search/random ______________________________
+1. Test Case ID: 3cDMK4
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"createdAfter": "2024-01-01T00:00:00.000Z", "createdBefore": "2024-01-01T00:00:00.000Z", "takenAfter": "2024-01-01T00:00:00.000Z", "takenBefore": "2024-01-01T00:00:00.000Z", "trashedAfter": "2024-01-01T00:00:00.000Z", "trashedBefore": "2024-01-01T00:00:00.000Z", "updatedAfter": "2024-01-01T00:00:00.000Z", "updatedBefore": "2024-01-01T00:00:00.000Z", "albumIds": [], "city": null, "country": null, "isEncoded": false, "isFavorite": false, "isMotion": false, "isNotInAlbum": false, "isOffline": false, "lensModel": null, "libraryId": null, "make": null, "model": null, "ocr": "", "personIds": [], "rating": null, "size": 1, "state": null, "tagIds": null, "type": "AUDIO", "visibility": "hidden", "withDeleted": false, "withExif": false, "withPeople": false, "withStacked": false}' http://localhost:8099/api/search/random
+    
+    st replay 3cDMK4
+
+______________________________ POST /search/smart ______________________________
+1. Test Case ID: 2QcHuH
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"createdAfter": "2024-01-01T00:00:00.000Z", "createdBefore": "2024-01-01T00:00:00.000Z", "takenAfter": "2024-01-01T00:00:00.000Z", "takenBefore": "2024-01-01T00:00:00.000Z", "trashedAfter": "2024-01-01T00:00:00.000Z", "trashedBefore": "2024-01-01T00:00:00.000Z", "updatedAfter": "2024-01-01T00:00:00.000Z", "updatedBefore": "2024-01-01T00:00:00.000Z", "albumIds": [], "city": null, "country": null, "isEncoded": false, "isFavorite": false, "isMotion": false, "isNotInAlbum": false, "isOffline": false, "language": "", "lensModel": null, "libraryId": null, "make": null, "model": null, "ocr": "", "page": 1, "personIds": [], "query": "", "queryAssetId": "038f9509-c832-49ea-9620-7ddb118f4b26", "rating": null, "size": 1, "state": null, "tagIds": null, "type": "AUDIO", "visibility": "hidden", "withDeleted": false, "withExif": false}' http://localhost:8099/api/search/smart
+    
+    st replay 2QcHuH
+
+___________________________ POST /search/statistics ____________________________
+1. Test Case ID: tozNr3
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"createdAfter": "2024-01-01T00:00:00.000Z", "createdBefore": "2024-01-01T00:00:00.000Z", "takenAfter": "2024-01-01T00:00:00.000Z", "takenBefore": "2024-01-01T00:00:00.000Z", "trashedAfter": "2024-01-01T00:00:00.000Z", "trashedBefore": "2024-01-01T00:00:00.000Z", "updatedAfter": "2024-01-01T00:00:00.000Z", "updatedBefore": "2024-01-01T00:00:00.000Z", "albumIds": [], "city": null, "country": null, "description": "", "isEncoded": false, "isFavorite": false, "isMotion": false, "isNotInAlbum": false, "isOffline": false, "lensModel": null, "libraryId": null, "make": null, "model": null, "ocr": "", "personIds": [], "rating": null, "state": null, "tagIds": null, "type": "AUDIO", "visibility": "hidden"}' http://localhost:8099/api/search/statistics
+    
+    st replay tozNr3
+
+___________________________ POST /shared-links/login ___________________________
+1. Test Case ID: CAdXJN
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 201
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X POST -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"password": "password"}' http://localhost:8099/api/shared-links/login
+    
+    st replay CAdXJN
+
+____________________________ PUT /admin/users/{id} _____________________________
+1. Test Case ID: FPSYvI
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X PUT -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"pinCode": "123456", "avatarColor": null, "email": "0@a.com", "isAdmin": false, "name": "", "password": "", "quotaSizeInBytes": null, "shouldChangePassword": false, "storageLabel": null}' http://localhost:8099/api/admin/users/92b9ab7b-e791-45a6-9040-2931eba97094
+    
+    st replay FPSYvI
+
+______________________________ PUT /auth/pin-code ______________________________
+1. Test Case ID: BnyDe7
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 204
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X PUT -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"password": "password", "pinCode": "123456", "newPinCode": "000000"}' http://localhost:8099/api/auth/pin-code
+    
+    st replay BnyDe7
+
+______________________________ PUT /memories/{id} ______________________________
+1. Test Case ID: u4NVNl
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X PUT -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"memoryAt": "2024-01-01T00:00:00.000Z", "seenAt": "2024-01-01T00:00:00.000Z", "isSaved": false}' http://localhost:8099/api/memories/92b9ab7b-e791-45a6-9040-2931eba97094
+    
+    st replay u4NVNl
+
+______________________________ PUT /notifications ______________________________
+1. Test Case ID: A6AIiY
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 204
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X PUT -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"readAt": "2024-01-01T00:00:00.000Z", "ids": ["70b52f40-9984-4c34-89a5-4408f1e28e28"]}' http://localhost:8099/api/notifications
+    
+    st replay A6AIiY
+
+___________________________ PUT /notifications/{id} ____________________________
+1. Test Case ID: QKFMe9
+
+- Undocumented HTTP status code
+
+    Received: 404
+    Documented: 200
+
+[404] Not Found:
+
+    `{"error":"not found","statusCode":404}`
+
+Reproduce with:
+
+    curl -X PUT -H 'Authorization: [Filtered]' -H 'x-api-key: [Filtered]' -H 'Content-Type: application/json' -H 'Cookie: [Filtered]' -d '{"readAt": "2024-01-01T00:00:00.000Z"}' http://localhost:8099/api/notifications/92b9ab7b-e791-45a6-9040-2931eba97094
+    
+    st replay QKFMe9
+
+=================================== WARNINGS ===================================
+
+Authentication failed: 1 operation returned authentication errors
+
+401 Unauthorized (1 operation):
+  - POST /auth/login
+
+💡 Ensure valid authentication credentials are set via --auth or -H
+
+=================================== SUMMARY ====================================
+
+API Operations:
+  Selected: 254/254
+  Tested: 30
+  Skipped: 224
+    - No examples in schema
+
+Test Phases:
+  ❌ Examples
+  ⏭  Coverage (disabled)
+  ⏭  Fuzzing (disabled)
+  ⏭  Stateful (disabled)
+
+Failures:
+  ❌ Undocumented HTTP status code: 25
+
+Warnings:
+  ⚠️ Missing authentication: 1 operation returned only 401/403 responses
+
+Test cases:
+  33 generated, 25 found 25 unique failures
+
+Reports:
+  - JUNIT: /tmp/ig-test3/report/junit-20260815T145747Z.xml
+
+Seed: 4042422604607311277763656269724402215
+
+======================= 25 failures, 1 warning in 0.84s ========================
