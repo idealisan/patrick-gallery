@@ -61,8 +61,8 @@ func TestReverseGeocodingIngested(t *testing.T) {
 	// Directly create an Exif row with GPS and an asset, then run the shared
 	// ingest media path; the offline geocoder should attach city/country.
 	exif := &Exif{
-		ID:       newUUID(),
-		AssetID: newUUID(),
+		ID:        newUUID(),
+		AssetID:   newUUID(),
 		Latitude:  48.8566,
 		Longitude: 2.3522,
 	}

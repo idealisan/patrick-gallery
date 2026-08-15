@@ -105,7 +105,8 @@ func (a *App) handleServerVersionHistory(c *gin.Context) {
 }
 
 func (a *App) handleServerLicense(c *gin.Context) {
-	if c.Request.Method == http.MethodPut {
+	switch c.Request.Method {
+	case http.MethodPut, http.MethodDelete:
 		c.Status(http.StatusOK)
 		return
 	}

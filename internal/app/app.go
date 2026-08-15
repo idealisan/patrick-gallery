@@ -77,6 +77,8 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.POST("/auth/logout", a.handleLogout)
 		api.GET("/api-keys", a.handleApiKeys)
 		api.POST("/api-keys", a.handleApiKeys)
+		api.GET("/api-keys/:id", a.handleApiKeys)
+		api.PUT("/api-keys/:id", a.handleApiKeys)
 		api.DELETE("/api-keys/:id", a.handleApiKeys)
 
 		// users
@@ -111,6 +113,7 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.GET("/assets/:id/original", a.handleAssetOriginal)
 		api.GET("/assets/:id/original/download", a.handleAssetOriginalDownload)
 		api.GET("/assets/:id/metadata", a.handleAssetMetadata)
+		api.PUT("/assets/:id/metadata", a.handleAssetMetadataUpdate)
 		api.GET("/assets/:id/thumbnail", a.handleAssetThumbnail)
 		api.GET("/assets/:id/thumbnail/:ts", a.handleAssetThumbnail)
 		api.GET("/assets/:id/preview", a.handleAssetPreview)
@@ -165,10 +168,13 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		// tags
 		api.GET("/tags", a.handleTagList)
 		api.POST("/tags", a.handleTagCreate)
+		api.PUT("/tags", a.handleTagBulkUpdate)
 		api.GET("/tags/:id", a.handleTagGet)
 		api.PUT("/tags/:id", a.handleTagUpdate)
 		api.DELETE("/tags/:id", a.handleTagDelete)
 		api.POST("/tags/:id/assets", a.handleTagAddAssets)
+		api.PUT("/tags/:id/assets", a.handleTagAddAssets)
+		api.DELETE("/tags/:id/assets", a.handleTagRemoveAssets)
 		api.DELETE("/tags/:id/assets/:assetId", a.handleTagRemoveAsset)
 
 		// partners
@@ -192,6 +198,7 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		// shared links
 		api.GET("/shared-links", a.handleSharedLinkList)
 		api.POST("/shared-links", a.handleSharedLinkCreate)
+		api.GET("/shared-links/:id", a.handleSharedLinkGet)
 		api.PUT("/shared-links/:id", a.handleSharedLinkUpdate)
 		api.DELETE("/shared-links/:id", a.handleSharedLinkDelete)
 
@@ -210,6 +217,7 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.PUT("/system-config", a.handleSystemConfigUpdate)
 		api.GET("/server/statistics", a.handleServerStatistics)
 		api.GET("/jobs", a.handleJobsList)
+		api.POST("/jobs", a.handleJobsList)
 		api.POST("/jobs/:id", a.handleJobCommand)
 		api.GET("/jobs/:id", a.handleJobStatus)
 
@@ -236,6 +244,7 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.GET("/server/version-history", a.handleServerVersionHistory)
 		api.GET("/server/license", a.handleServerLicense)
 		api.PUT("/server/license", a.handleServerLicense)
+		api.DELETE("/server/license", a.handleServerLicense)
 		api.GET("/sync/ack", a.handleSyncAck)
 		api.POST("/sync/ack", a.handleSyncAck)
 		api.DELETE("/sync/ack", a.handleSyncAck)
@@ -261,6 +270,7 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 
 		// download (basic)
 		api.GET("/download/archive", a.handleDownloadArchive)
+		api.POST("/download/archive", a.handleDownloadArchive)
 	}
 }
 

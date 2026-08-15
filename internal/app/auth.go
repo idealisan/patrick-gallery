@@ -132,12 +132,12 @@ func (a *App) handleLogin(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{
-		"accessToken":         token,
-		"userToken":           token,
-		"userId":              u.ID,
-		"userEmail":           u.Email,
-		"name":                u.Name,
-		"isAdmin":             u.IsAdmin,
+		"accessToken":          token,
+		"userToken":            token,
+		"userId":               u.ID,
+		"userEmail":            u.Email,
+		"name":                 u.Name,
+		"isAdmin":              u.IsAdmin,
 		"shouldChangePassword": u.ShouldChangePassword,
 	})
 }
@@ -166,15 +166,15 @@ func (a *App) handleSignup(c *gin.Context) {
 		return
 	}
 	u := User{
-		ID:        newUUID(),
-		Email:     req.Email,
-		Name:      req.Name,
-		Password:  string(hash),
-		Salt:      newUUID(),
-		IsAdmin:   true,
+		ID:          newUUID(),
+		Email:       req.Email,
+		Name:        req.Name,
+		Password:    string(hash),
+		Salt:        newUUID(),
+		IsAdmin:     true,
 		AvatarColor: "primary",
-		CreatedAt: time.Now().UTC(),
-		UpdatedAt: time.Now().UTC(),
+		CreatedAt:   time.Now().UTC(),
+		UpdatedAt:   time.Now().UTC(),
 	}
 	if err := a.store.DB.Create(&u).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -192,18 +192,18 @@ func (a *App) handleValidate(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
-		"accessToken":  "",
-		"userId":       u.ID,
-		"userEmail":    u.Email,
-		"name":         u.Name,
-		"isAdmin":      u.IsAdmin,
+		"accessToken":          "",
+		"userId":               u.ID,
+		"userEmail":            u.Email,
+		"name":                 u.Name,
+		"isAdmin":              u.IsAdmin,
 		"shouldChangePassword": u.ShouldChangePassword,
 	})
 }
 
 type changePassRequest struct {
-	Password     string `json:"password"`
-	NewPassword  string `json:"newPassword"`
+	Password    string `json:"password"`
+	NewPassword string `json:"newPassword"`
 }
 
 func (a *App) handleChangePassword(c *gin.Context) {
@@ -238,6 +238,15 @@ func (a *App) handleApiKeys(c *gin.Context) {
 	uid := currentUserID(c)
 	switch c.Request.Method {
 	case http.MethodGet:
+		if id := c.Param("id"); id != "" {
+			var ak ApiKey
+			if err := a.store.DB.First(&ak, "id = ? AND user_id = ?", id, uid).Error; err != nil {
+				c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+				return
+			}
+			c.JSON(http.StatusOK, ak)
+			return
+		}
 		var keys []ApiKey
 		a.store.DB.Where("user_id = ?", uid).Find(&keys)
 		c.JSON(http.StatusOK, keys)
@@ -256,6 +265,22 @@ func (a *App) handleApiKeys(c *gin.Context) {
 		}
 		a.store.DB.Create(&ak)
 		c.JSON(http.StatusCreated, gin.H{"id": ak.ID, "name": ak.Name, "key": raw, "createdAt": ak.CreatedAt})
+	case http.MethodPut:
+		id := c.Param("id")
+		var ak ApiKey
+		if err := a.store.DB.First(&ak, "id = ? AND user_id = ?", id, uid).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+			return
+		}
+		var body struct {
+			Name string `json:"name"`
+		}
+		_ = c.ShouldBindJSON(&body)
+		if body.Name != "" {
+			ak.Name = body.Name
+		}
+		a.store.DB.Save(&ak)
+		c.JSON(http.StatusOK, ak)
 	case http.MethodDelete:
 		id := c.Param("id")
 		a.store.DB.Where("id = ? AND user_id = ?", id, uid).Delete(&ApiKey{})

@@ -147,14 +147,20 @@ type Activity struct {
 }
 
 type SharedLink struct {
-	ID        string     `gorm:"primaryKey;type:text" json:"id"`
-	Key       string     `gorm:"type:text" json:"key"`
-	Type      string     `gorm:"type:text" json:"type"` // ALBUM | INDIVIDUAL
-	AssetID   string     `gorm:"type:text" json:"assetId,omitempty"`
-	AlbumID   string     `gorm:"type:text" json:"albumId,omitempty"`
-	UserID    string     `gorm:"type:text" json:"userId"`
-	ExpiresAt *time.Time `json:"expiresAt,omitempty"`
-	CreatedAt time.Time  `json:"createdAt"`
+	ID            string     `gorm:"primaryKey;type:text" json:"id"`
+	Key           string     `gorm:"type:text" json:"key"`
+	Type          string     `gorm:"type:text" json:"type"` // ALBUM | INDIVIDUAL
+	AssetID       string     `gorm:"type:text" json:"assetId,omitempty"`
+	AlbumID       string     `gorm:"type:text" json:"albumId,omitempty"`
+	UserID        string     `gorm:"type:text" json:"userId"`
+	ExpiresAt     *time.Time `json:"expiresAt,omitempty"`
+	AllowDownload bool       `json:"allowDownload"`
+	AllowUpload   bool       `json:"allowUpload"`
+	Description   string     `gorm:"type:text" json:"description,omitempty"`
+	Password      string     `gorm:"type:text" json:"password,omitempty"` // hashed
+	ShowMetadata  bool       `json:"showMetadata"`
+	Slug          string     `gorm:"type:text" json:"slug,omitempty"`
+	CreatedAt     time.Time  `json:"createdAt"`
 }
 
 type ApiKey struct {
@@ -190,6 +196,7 @@ type SystemConfig struct {
 	IsPublic            bool   `json:"isPublic"`
 	ExternalDomain      string `gorm:"type:text" json:"externalDomain,omitempty"`
 	NewPasswordRequired bool   `json:"newPasswordRequired,omitempty"`
+	TrashDays           int    `json:"trashDays"`
 }
 
 func (User) TableName() string                { return "users" }

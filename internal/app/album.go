@@ -9,7 +9,7 @@ import (
 
 type AlbumResponse struct {
 	Album
-	AssetCount      int    `json:"assetCount"`
+	AssetCount                 int        `json:"assetCount"`
 	LastModifiedAssetTimestamp *time.Time `json:"lastModifiedAssetTimestamp,omitempty"`
 }
 
@@ -45,12 +45,12 @@ func (a *App) handleAlbumCreate(c *gin.Context) {
 	}
 	now := time.Now().UTC()
 	al := Album{
-		ID:        newUUID(),
-		OwnerID:   uid,
-		AlbumName: b.AlbumName,
+		ID:          newUUID(),
+		OwnerID:     uid,
+		AlbumName:   b.AlbumName,
 		Description: b.Description,
-		CreatedAt: now,
-		UpdatedAt: now,
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	}
 	a.store.DB.Create(&al)
 	for i, aid := range b.AssetIDs {

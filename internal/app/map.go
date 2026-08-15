@@ -12,14 +12,14 @@ import (
 // official web client parses it without error. Count/AssetID are extra
 // (additionalProperties are allowed) and used by our SPA to open the lightbox.
 type MapMarker struct {
-	ID       string  `json:"id"`
-	Lat      float64 `json:"lat"`
-	Lon      float64 `json:"lon"`
-	City     string  `json:"city"`
-	Country  string  `json:"country"`
-	State    string  `json:"state"`
-	Count    int     `json:"count"`
-	AssetID  string  `json:"assetId"`
+	ID      string  `json:"id"`
+	Lat     float64 `json:"lat"`
+	Lon     float64 `json:"lon"`
+	City    string  `json:"city"`
+	Country string  `json:"country"`
+	State   string  `json:"state"`
+	Count   int     `json:"count"`
+	AssetID string  `json:"assetId"`
 }
 
 // handleMapMarkers returns aggregated GPS markers for the requesting user's
@@ -50,15 +50,15 @@ func (a *App) handleMapMarkers(c *gin.Context) {
 		key := fmt.Sprintf("%.2f,%.2f", r.Lat, r.Lon)
 		g, ok := groups[key]
 		if !ok {
-		g = &MapMarker{
-			ID:      newUUID(),
-			Lat:     r.Lat,
-			Lon:     r.Lon,
-			City:    r.City,
-			Country: r.Country,
-			State:   "",
-			AssetID: r.AssetID,
-		}
+			g = &MapMarker{
+				ID:      newUUID(),
+				Lat:     r.Lat,
+				Lon:     r.Lon,
+				City:    r.City,
+				Country: r.Country,
+				State:   "",
+				AssetID: r.AssetID,
+			}
 			groups[key] = g
 		}
 		g.Count++

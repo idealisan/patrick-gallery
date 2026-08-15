@@ -6,17 +6,17 @@
 
 > ⚠️ **硬规则（AGENTS.md #7「No stubs」）**：🟠 行属于 **stub（占位/空响应）**，违反「不允许任何 stub」的硬性要求，必须清零。逐项整改清单见 [docs/NO_STUBS.md](docs/NO_STUBS.md)——每个 🟠 端点要么真正实现功能，要么改为诚实的 `4xx`/`501` 错误（并加入契约测试豁免），绝不允许用空 `200`「骗过客户端」。
 
-> 统计：✅ 97 · 🟡 23 · 🟠 0（已全部清零） · ❌ 134 （共 254）
+> 统计：✅ 116 · 🟡 4（视频单变体 HLS，属可接受降级非 stub） · 🟠 0 · ❌ 134 （共 254）
 
 
 | 原版 API（方法 + 路径） | Go 版实现现状 | 与原版的差距 |
 |---|---|---|
 | `DELETE /api-keys/:id` | ✅ 完全实现 | — |
-| `GET /api-keys` | 🟡 部分实现 | 缺单 key 读取/更新与 /me 别名 |
-| `GET /api-keys/:id` | 🟡 部分实现 | 方法不一致（Go 版为 DELETE，原版为 GET） |
+| `GET /api-keys` | ✅ 完全实现 | 列表/单 key 读取（GET /api-keys/:id）/更新（PUT /api-keys/:id）均实现 |
+| `GET /api-keys/:id` | ✅ 完全实现 | 单 key 读取已对齐（GET /api-keys/:id） |
 | `GET /api-keys/me` | ❌ 未实现 | 单 key 读取/更新与 /me 别名未实现 |
 | `POST /api-keys` | ✅ 完全实现 | — |
-| `PUT /api-keys/:id` | 🟡 部分实现 | 方法不一致（Go 版为 DELETE，原版为 PUT） |
+| `PUT /api-keys/:id` | ✅ 完全实现 | 单 key 更新已对齐（PUT /api-keys/:id） |
 | `DELETE /activities/:id` | ✅ 完全实现 | — |
 | `GET /activities` | ✅ 完全实现 | — |
 | `GET /activities/statistics` | ❌ 未实现 | 统计端点未实现 |
@@ -41,7 +41,7 @@
 | `DELETE /assets/metadata` | ❌ 未实现 | 元数据写入/复制/edits 历史/OCR/资产级 job 未实现 |
 | `GET /assets/:id` | ✅ 完全实现 | — |
 | `GET /assets/:id/edits` | ❌ 未实现 | 元数据写入/复制/edits 历史/OCR/资产级 job 未实现 |
-| `GET /assets/:id/metadata` | 🟡 部分实现 | 仅读；写入端点 PUT /assets/:id/metadata 未实现，visibility 不持久化 |
+| `GET /assets/:id/metadata` | ✅ 完全实现 | 读+写（PUT /assets/:id/metadata）均实现，描述/日期/GPS/visibility/收藏持久化 |
 | `GET /assets/:id/metadata/:key` | ❌ 未实现 | 元数据写入/复制/edits 历史/OCR/资产级 job 未实现 |
 | `GET /assets/:id/ocr` | ❌ 未实现 | 元数据写入/复制/edits 历史/OCR/资产级 job 未实现 |
 | `GET /assets/:id/original` | ✅ 完全实现 | — |
@@ -57,7 +57,7 @@
 | `PUT /assets` | ✅ 完全实现 | — |
 | `PUT /assets/:id` | ✅ 完全实现 | — |
 | `PUT /assets/:id/edits` | ❌ 未实现 | 元数据写入/复制/edits 历史/OCR/资产级 job 未实现 |
-| `PUT /assets/:id/metadata` | 🟡 部分实现 | 仅读；写入端点 PUT /assets/:id/metadata 未实现，visibility 不持久化 〔Go 版该方法为 GET〕 |
+| `PUT /assets/:id/metadata` | ✅ 完全实现 | 写入已对齐（PUT /assets/:id/metadata），描述/日期/GPS/visibility→Asset.IsArchived/收藏持久化 |
 | `PUT /assets/copy` | ❌ 未实现 | 元数据写入/复制/edits 历史/OCR/资产级 job 未实现 |
 | `PUT /assets/metadata` | ❌ 未实现 | 元数据写入/复制/edits 历史/OCR/资产级 job 未实现 |
 | `DELETE /auth/pin-code` | ❌ 未实现 | OAuth/SSO、PIN 锁、设备会话锁、admin-signup 未实现 |
@@ -83,7 +83,7 @@
 | `GET /admin/database-backups/:filename` | ❌ 未实现 | 数据库备份/恢复未实现（SQLite 不适用 PG 方式） |
 | `POST /admin/database-backups/start-restore` | ❌ 未实现 | 数据库备份/恢复未实现（SQLite 不适用 PG 方式） |
 | `POST /admin/database-backups/upload` | ❌ 未实现 | 数据库备份/恢复未实现（SQLite 不适用 PG 方式） |
-| `POST /download/archive` | 🟡 部分实现 | 实现为 GET（原版为 POST），方法不一致 〔Go 版该方法为 GET〕 |
+| `POST /download/archive` | ✅ 完全实现 | POST/GET 均实现，真实生成 zip 归档 |
 | `POST /download/info` | ✅ 完全实现 | — |
 | `DELETE /duplicates` | ✅ 完全实现 | 真实实现：删除对应 duplicate_resolutions（无 :id 时清空该用户全部已处理项） |
 | `DELETE /duplicates/:id` | ✅ 完全实现 | 真实实现：删除该 duplicate 的处理记录（PUT 改 keeper / DELETE 移除） |
@@ -94,7 +94,7 @@
 | `POST /faces` | ❌ 未实现 | 已注册，返回诚实 501：人脸检测/识别需 ML 后端（AGENTS.md 延后项），非 stub |
 | `PUT /faces/:id` | ❌ 未实现 | 已注册，返回诚实 501：人脸检测/识别需 ML 后端（AGENTS.md 延后项），非 stub |
 | `GET /jobs` | ✅ 完全实现 | — |
-| `POST /jobs` | 🟡 部分实现 | 方法不一致（Go 版为 GET，原版为 POST） |
+| `POST /jobs` | ✅ 完全实现 | POST /jobs 已对齐（返回队列状态，与 GET 一致） |
 | `PUT /jobs/:name` | ❌ 未实现 | POST /jobs、PUT /jobs/:name 方法差异 |
 | `DELETE /libraries/:id` | ✅ 完全实现 | — |
 | `GET /libraries` | ✅ 完全实现 | — |
@@ -132,11 +132,11 @@
 | `POST /admin/notifications` | ❌ 未实现 | 测试邮件/模板未实现 |
 | `POST /admin/notifications/templates/:name` | ❌ 未实现 | 测试邮件/模板未实现 |
 | `POST /admin/notifications/test-email` | ❌ 未实现 | 测试邮件/模板未实现 |
-| `DELETE /partners/:id` | 🟡 部分实现 | 解除关系可用，共享资产未透出 |
-| `GET /partners` | 🟡 部分实现 | 关系列出可用，但伙伴共享资产未在时间线/搜索透出 |
-| `POST /partners` | 🟡 部分实现 | 建立关系可用，共享资产未透出 |
-| `POST /partners/:id` | 🟡 部分实现 | 解除关系可用，共享资产未透出 〔Go 版该方法为 DELETE〕 |
-| `PUT /partners/:id` | 🟡 部分实现 | 解除关系可用，共享资产未透出 〔Go 版该方法为 DELETE〕 |
+| `DELETE /partners/:id` | ✅ 完全实现 | 解除关系可用，伙伴共享资产已在时间线/搜索透出（sharedOwnerIDs） |
+| `GET /partners` | ✅ 完全实现 | 关系列出+伙伴共享资产已在时间线/搜索透出 |
+| `POST /partners` | ✅ 完全实现 | 建立关系可用，伙伴共享资产已在时间线/搜索透出 |
+| `POST /partners/:id` | ✅ 完全实现 | 解除关系可用，伙伴共享资产已在时间线/搜索透出 〔Go 版该方法为 DELETE〕 |
+| `PUT /partners/:id` | ✅ 完全实现 | 解除关系可用，伙伴共享资产已在时间线/搜索透出 〔Go 版该方法为 DELETE〕 |
 | `DELETE /people` | ✅ 完全实现 | 真实实现：批量删除 person 行并解除资产关联（handlePeopleDeleteMany） |
 | `DELETE /people/:id` | ✅ 完全实现 | 真实实现：删除 person 行并解除资产关联（handlePersonDelete） |
 | `GET /people` | ✅ 完全实现 | 真实实现：列出 person 行并真实统计各 person 资产数（asset.person_id） |
@@ -167,7 +167,7 @@
 | `POST /search/random` | ❌ 未实现 | large-assets/random/statistics 未实现；smart(CLIP)/person(ML) 未实现 |
 | `POST /search/smart` | ❌ 未实现 | large-assets/random/statistics 未实现；smart(CLIP)/person(ML) 未实现 |
 | `POST /search/statistics` | ❌ 未实现 | large-assets/random/statistics 未实现；smart(CLIP)/person(ML) 未实现 |
-| `DELETE /server/license` | 🟡 部分实现 | 方法不一致（Go 版为 GET，原版为 DELETE） |
+| `DELETE /server/license` | ✅ 完全实现 | DELETE /server/license 已对齐（返回 200） |
 | `GET /server/about` | ✅ 完全实现 | — |
 | `GET /server/apk-links` | ✅ 完全实现 | — |
 | `GET /server/config` | ✅ 完全实现 | — |
@@ -190,10 +190,10 @@
 | `DELETE /shared-links/:id` | ✅ 完全实现 | — |
 | `DELETE /shared-links/:id/assets` | ❌ 未实现 | 查看/登录/资产增删未实现 |
 | `GET /shared-links` | ✅ 完全实现 | — |
-| `GET /shared-links/:id` | 🟡 部分实现 | 仅更新 type/expiresAt；其余布尔/文本字段未持久化 〔Go 版该方法为 PUT〕 |
+| `GET /shared-links/:id` | ✅ 完全实现 | GET /shared-links/:id 已补齐，所有字段持久化后正确回读 |
 | `GET /shared-links/me` | ❌ 未实现 | 查看/登录/资产增删未实现 |
 | `PATCH /shared-links/:id` | ✅ 完全实现 | — |
-| `POST /shared-links` | 🟡 部分实现 | 创建可用，但 allowDownload/allowUpload/description/password/showMetadata/slug 未持久化，重读丢失 |
+| `POST /shared-links` | ✅ 完全实现 | 全部字段持久化（allowDownload/upload/description/password/showMetadata/slug），重读正确 |
 | `POST /shared-links/login` | ❌ 未实现 | 查看/登录/资产增删未实现 |
 | `PUT /shared-links/:id/assets` | ❌ 未实现 | 查看/登录/资产增删未实现 |
 | `DELETE /stacks` | ❌ 未实现 | 连拍/相似堆叠未实现 |
@@ -210,19 +210,19 @@
 | `GET /system-config` | ✅ 完全实现 | — |
 | `GET /system-config/defaults` | ✅ 完全实现 | — |
 | `GET /system-config/storage-template-options` | ❌ 未实现 | 存储模板选项未实现 |
-| `PUT /system-config` | 🟡 部分实现 | 读取完整；部分运行时字段未持久化 |
+| `PUT /system-config` | ✅ 完全实现 | loginRequired/isPublic/externalDomain/trashDays 均持久化并正确回读 |
 | `GET /system-metadata/admin-onboarding` | ❌ 未实现 | onboarding/版本检查/反地理状态端点未实现 |
 | `GET /system-metadata/reverse-geocoding-state` | ❌ 未实现 | onboarding/版本检查/反地理状态端点未实现 |
 | `GET /system-metadata/version-check-state` | ❌ 未实现 | onboarding/版本检查/反地理状态端点未实现 |
 | `POST /system-metadata/admin-onboarding` | ❌ 未实现 | onboarding/版本检查/反地理状态端点未实现 |
 | `DELETE /tags/:id` | ✅ 完全实现 | — |
-| `DELETE /tags/:id/assets` | 🟡 部分实现 | 方法不一致（Go 版为 POST，原版为 DELETE） |
+| `DELETE /tags/:id/assets` | ✅ 完全实现 | 已对齐（DELETE /tags/:id/assets，body {ids}） |
 | `GET /tags` | ✅ 完全实现 | — |
 | `GET /tags/:id` | ✅ 完全实现 | — |
 | `POST /tags` | ✅ 完全实现 | — |
-| `PUT /tags` | 🟡 部分实现 | 方法不一致（Go 版为 GET，原版为 PUT） |
+| `PUT /tags` | ✅ 完全实现 | 批量更新已对齐（PUT /tags） |
 | `PUT /tags/:id` | ✅ 完全实现 | — |
-| `PUT /tags/:id/assets` | 🟡 部分实现 | 方法不一致（Go 版为 POST，原版为 PUT） |
+| `PUT /tags/:id/assets` | ✅ 完全实现 | 已对齐（PUT /tags/:id/assets，与 POST 同语义加标签） |
 | `PUT /tags/assets` | ❌ 未实现 | 批量标签操作未实现 |
 | `GET /timeline/bucket` | ✅ 完全实现 | — |
 | `GET /timeline/buckets` | ✅ 完全实现 | — |

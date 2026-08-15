@@ -18,15 +18,15 @@ import (
 // only needs active/total to drive a progress bar, so we keep the full shape
 // for compatibility and fill active/completed.
 type jobState struct {
-	mu          sync.Mutex
-	active      int
-	total       int
-	completed   int
-	failed      int
-	running     bool
-	startedAt   time.Time
-	finishedAt  time.Time
-	lastError   string
+	mu         sync.Mutex
+	active     int
+	total      int
+	completed  int
+	failed     int
+	running    bool
+	startedAt  time.Time
+	finishedAt time.Time
+	lastError  string
 }
 
 func (s *jobState) begin(total int) {
@@ -173,12 +173,12 @@ func (a *App) jobRegistry() map[string]jobSpec {
 					a.store.DB.Model(&Asset{}).Where("id = ?", it.ID).Update("exif_id", res.exif.ID)
 				} else {
 					a.store.DB.Model(&Exif{}).Where("id = ?", existing.ID).Updates(map[string]any{
-						"make":              res.exif.Make,
-						"model":             res.exif.Model,
+						"make":               res.exif.Make,
+						"model":              res.exif.Model,
 						"date_time_original": res.exif.DateTimeOriginal,
-						"latitude":          res.exif.Latitude,
-						"longitude":         res.exif.Longitude,
-						"orientation":       res.exif.Orientation,
+						"latitude":           res.exif.Latitude,
+						"longitude":          res.exif.Longitude,
+						"orientation":        res.exif.Orientation,
 					})
 				}
 				return true, nil
@@ -265,12 +265,12 @@ func (a *App) jobRegistry() map[string]jobSpec {
 		// The following are advertised for client compatibility but require
 		// ML/AI backends this server does not ship. They succeed as no-ops with
 		// a clear unsupported marker so the official apps don't error out.
-		"objectDetection":     {supported: false},
-		"facialRecognition":   {supported: false},
-		"smartSearch":         {supported: false},
+		"objectDetection":          {supported: false},
+		"facialRecognition":        {supported: false},
+		"smartSearch":              {supported: false},
 		"storageTemplateMigration": {supported: false},
-		"tagCopy":             {supported: false},
-		"tagImage":            {supported: false},
+		"tagCopy":                  {supported: false},
+		"tagImage":                 {supported: false},
 	}
 }
 
@@ -289,10 +289,10 @@ func (a *App) handleJobCommand(c *gin.Context) {
 	}
 	if !spec.supported {
 		c.JSON(http.StatusOK, gin.H{
-			"jobId":     id,
-			"started":   false,
+			"jobId":       id,
+			"started":     false,
 			"unsupported": true,
-			"message":   "job requires an ML/AI backend not bundled with immich-go; skipped",
+			"message":     "job requires an ML/AI backend not bundled with immich-go; skipped",
 		})
 		return
 	}

@@ -83,7 +83,7 @@ func uploadAsset(t *testing.T, r *gin.Engine, token, fileName string) string {
 		t.Fatalf("upload %s -> %d: %s", fileName, w.Code, w.Body.String())
 	}
 	var resp struct {
-		ID   string `json:"id"`
+		ID      string `json:"id"`
 		AssetID string `json:"assetId"`
 	}
 	_ = json.Unmarshal(w.Body.Bytes(), &resp)
@@ -359,4 +359,101 @@ func mustJSON(t *testing.T, v interface{}) []byte {
 		t.Fatal(err)
 	}
 	return b
+}
+
+// TestSharedLinksPersistFields guards that shared-link fields are persisted
+// (not just echoed from the request body) and re-read correctly.
+func TestSharedLinksPersistFields(t *testing.T) {
+	_, r, token := newTestServer(t)
+
+	body := mustJSON(t, map[string]any{
+		"type":          "INDIVIDUAL",
+		"allowDownload": true,
+		"allowUpload":   false,
+		"description":   "family trip",
+		"showMetadata":  true,
+		"slug":          "mytrip",
+	})
+	w := do(r, "POST", "/api/shared-links", token, body, "application/json")
+	if w.Code != http.StatusCreated {
+		t.Fatalf("create -> %d: %s", w.Code, w.Body.String())
+	}
+	var created struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &created); err != nil || created.ID == "" {
+		t.Fatalf("create decode: %v body=%s", err, w.Body.String())
+	}
+
+	// Re-read via GET /shared-links/:id — fields must come from the DB.
+	w = do(r, "GET", "/api/shared-links/"+created.ID, token, nil, "")
+	if w.Code != http.StatusOK {
+		t.Fatalf("get -> %d", w.Code)
+	}
+	var got struct {
+		AllowDownload bool    `json:"allowDownload"`
+		AllowUpload   bool    `json:"allowUpload"`
+		Description   *string `json:"description"`
+		ShowMetadata  bool    `json:"showMetadata"`
+		Slug          *string `json:"slug"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
+		t.Fatalf("get decode: %v", err)
+	}
+	if !got.AllowDownload || got.AllowUpload {
+		t.Errorf("allowDownload/allowUpload not persisted: %+v", got)
+	}
+	if got.Description == nil || *got.Description != "family trip" {
+		t.Errorf("description not persisted: %+v", got)
+	}
+	if !got.ShowMetadata {
+		t.Errorf("showMetadata not persisted: %+v", got)
+	}
+	if got.Slug == nil || *got.Slug != "mytrip" {
+		t.Errorf("slug not persisted: %+v", got)
+	}
+
+	// List must also surface persisted fields.
+	w = do(r, "GET", "/api/shared-links", token, nil, "")
+	if w.Code != http.StatusOK {
+		t.Fatalf("list -> %d", w.Code)
+	}
+	if !strings.Contains(w.Body.String(), "mytrip") {
+		t.Errorf("list missing persisted slug: %s", w.Body.String())
+	}
+}
+
+// TestApiKeySingleReadAndUpdate guards GET/PUT /api-keys/:id.
+func TestApiKeySingleReadAndUpdate(t *testing.T) {
+	_, r, token := newTestServer(t)
+
+	w := do(r, "POST", "/api/api-keys", token, mustJSON(t, map[string]string{"name": "mobile"}), "application/json")
+	if w.Code != http.StatusCreated {
+		t.Fatalf("create -> %d: %s", w.Code, w.Body.String())
+	}
+	var created struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &created); err != nil || created.ID == "" {
+		t.Fatalf("create decode: %v", err)
+	}
+
+	w = do(r, "GET", "/api/api-keys/"+created.ID, token, nil, "")
+	if w.Code != http.StatusOK {
+		t.Fatalf("get single -> %d", w.Code)
+	}
+
+	w = do(r, "PUT", "/api/api-keys/"+created.ID, token, mustJSON(t, map[string]string{"name": "renamed"}), "application/json")
+	if w.Code != http.StatusOK {
+		t.Fatalf("update -> %d: %s", w.Code, w.Body.String())
+	}
+	var upd struct {
+		Name string `json:"name"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &upd); err != nil {
+		t.Fatalf("update decode: %v", err)
+	}
+	if upd.Name != "renamed" {
+		t.Errorf("name not updated: %q", upd.Name)
+	}
 }

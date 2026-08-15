@@ -58,7 +58,7 @@ type ingestOptions struct {
 // datetime (EXIF capture time when available).
 type mediaResult struct {
 	thumbBytes []byte // jpeg-encoded thumbnail, empty if none could be made
-	exif       *Exif   // populated for images; nil for videos / failures
+	exif       *Exif  // populated for images; nil for videos / failures
 	localDate  time.Time
 	// gallery-fidelity fields consumed by the asset response
 	width     int    // pixel width (image from EXIF/decode, video from probe)

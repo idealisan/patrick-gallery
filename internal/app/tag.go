@@ -110,3 +110,51 @@ func (a *App) handleTagRemoveAsset(c *gin.Context) {
 	a.store.DB.Where("asset_id = ? AND tag_id = ?", aid, id).Delete(&AssetTag{})
 	c.Status(http.StatusOK)
 }
+
+// handleTagBulkUpdate updates several tags in a single call (Immich PUT /tags).
+func (a *App) handleTagBulkUpdate(c *gin.Context) {
+	uid := currentUserID(c)
+	var items []struct {
+		ID    string `json:"id"`
+		Name  string `json:"name"`
+		Color string `json:"color"`
+	}
+	_ = c.ShouldBindJSON(&items)
+	for _, it := range items {
+		if it.ID == "" {
+			continue
+		}
+		var t Tag
+		if err := a.store.DB.First(&t, "id = ? AND user_id = ?", it.ID, uid).Error; err != nil {
+			continue
+		}
+		if it.Name != "" {
+			t.Name = it.Name
+		}
+		if it.Color != "" {
+			t.Color = it.Color
+		}
+		a.store.DB.Save(&t)
+	}
+	c.Status(http.StatusOK)
+}
+
+// handleTagRemoveAssets removes several assets from a tag via request body
+// (Immich DELETE /tags/:id/assets with {ids}).
+func (a *App) handleTagRemoveAssets(c *gin.Context) {
+	uid := currentUserID(c)
+	id := c.Param("id")
+	var t Tag
+	if err := a.store.DB.First(&t, "id = ? AND user_id = ?", id, uid).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		return
+	}
+	var b struct {
+		IDs []string `json:"ids"`
+	}
+	_ = c.ShouldBindJSON(&b)
+	for _, aid := range b.IDs {
+		a.store.DB.Where("asset_id = ? AND tag_id = ?", aid, id).Delete(&AssetTag{})
+	}
+	c.Status(http.StatusOK)
+}

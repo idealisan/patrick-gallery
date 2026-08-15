@@ -58,6 +58,34 @@ func (a *App) handlePartnerDelete(c *gin.Context) {
 	c.Status(http.StatusOK)
 }
 
+// sharedOwnerIDs returns the user plus every partner who has shared their
+// library with them, so partner assets surface in the viewer's timeline/search.
+func (a *App) sharedOwnerIDs(uid string) []string {
+	ids := []string{uid}
+	var partners []Partner
+	a.store.DB.Where("shared_with_id = ?", uid).Find(&partners)
+	for _, p := range partners {
+		if p.SharedByID != "" {
+			ids = append(ids, p.SharedByID)
+		}
+	}
+	return ids
+}
+
+// canView reports whether uid may read an asset owned by ownerID (own asset,
+// admin, or an asset shared with uid by a partner).
+func (a *App) canView(uid, ownerID string) bool {
+	if uid == ownerID || a.isAdmin(uid) {
+		return true
+	}
+	for _, o := range a.sharedOwnerIDs(uid) {
+		if o == ownerID {
+			return true
+		}
+	}
+	return false
+}
+
 // ---------------- trash ----------------
 
 func (a *App) handleTrashList(c *gin.Context) {
@@ -164,7 +192,11 @@ func (a *App) handleSharedLinkList(c *gin.Context) {
 	uid := currentUserID(c)
 	var links []SharedLink
 	a.store.DB.Where("user_id = ?", uid).Order("created_at DESC").Find(&links)
-	c.JSON(http.StatusOK, links)
+	out := make([]SharedLinkResponse, 0, len(links))
+	for i := range links {
+		out = append(out, a.toSharedLinkResponse(&links[i]))
+	}
+	c.JSON(http.StatusOK, out)
 }
 
 type sharedLinkBody struct {
@@ -200,7 +232,7 @@ type SharedLinkResponse struct {
 	UserID        string          `json:"userId"`
 }
 
-func (a *App) toSharedLinkResponse(link *SharedLink, b *sharedLinkBody) SharedLinkResponse {
+func (a *App) toSharedLinkResponse(link *SharedLink) SharedLinkResponse {
 	assets := make([]AssetResponse, 0)
 	if link.AssetID != "" {
 		var as Asset
@@ -222,19 +254,34 @@ func (a *App) toSharedLinkResponse(link *SharedLink, b *sharedLinkBody) SharedLi
 			}
 		}
 	}
+	var desc *string
+	if link.Description != "" {
+		d := link.Description
+		desc = &d
+	}
+	var pw *string
+	if link.Password != "" {
+		p := link.Password
+		pw = &p
+	}
+	var slug *string
+	if link.Slug != "" {
+		s := link.Slug
+		slug = &s
+	}
 	return SharedLinkResponse{
 		ID:            link.ID,
 		Key:           link.Key,
 		Type:          link.Type,
-		AllowDownload: b.AllowDownload,
-		AllowUpload:   b.AllowUpload,
+		AllowDownload: link.AllowDownload,
+		AllowUpload:   link.AllowUpload,
 		Assets:        assets,
 		CreatedAt:     link.CreatedAt,
-		Description:   b.Description,
+		Description:   desc,
 		ExpiresAt:     link.ExpiresAt,
-		Password:      b.Password,
-		ShowMetadata:  b.ShowMetadata,
-		Slug:          b.Slug,
+		Password:      pw,
+		ShowMetadata:  link.ShowMetadata,
+		Slug:          slug,
 		UserID:        link.UserID,
 	}
 }
@@ -244,17 +291,29 @@ func (a *App) handleSharedLinkCreate(c *gin.Context) {
 	var b sharedLinkBody
 	_ = c.ShouldBindJSON(&b)
 	link := SharedLink{
-		ID:        newUUID(),
-		Key:       newUUID() + newUUID(),
-		Type:      b.Type,
-		AssetID:   b.AssetID,
-		AlbumID:   b.AlbumID,
-		UserID:    uid,
-		ExpiresAt: b.ExpiresAt,
-		CreatedAt: time.Now().UTC(),
+		ID:            newUUID(),
+		Key:           newUUID() + newUUID(),
+		Type:          b.Type,
+		AssetID:       b.AssetID,
+		AlbumID:       b.AlbumID,
+		UserID:        uid,
+		ExpiresAt:     b.ExpiresAt,
+		AllowDownload: b.AllowDownload,
+		AllowUpload:   b.AllowUpload,
+		ShowMetadata:  b.ShowMetadata,
+		CreatedAt:     time.Now().UTC(),
+	}
+	if b.Description != nil {
+		link.Description = *b.Description
+	}
+	if b.Password != nil {
+		link.Password = *b.Password
+	}
+	if b.Slug != nil {
+		link.Slug = *b.Slug
 	}
 	a.store.DB.Create(&link)
-	c.JSON(http.StatusCreated, a.toSharedLinkResponse(&link, &b))
+	c.JSON(http.StatusCreated, a.toSharedLinkResponse(&link))
 }
 
 func (a *App) handleSharedLinkUpdate(c *gin.Context) {
@@ -273,8 +332,20 @@ func (a *App) handleSharedLinkUpdate(c *gin.Context) {
 	if b.Type != "" {
 		link.Type = b.Type
 	}
+	link.AllowDownload = b.AllowDownload
+	link.AllowUpload = b.AllowUpload
+	link.ShowMetadata = b.ShowMetadata
+	if b.Description != nil {
+		link.Description = *b.Description
+	}
+	if b.Password != nil {
+		link.Password = *b.Password
+	}
+	if b.Slug != nil {
+		link.Slug = *b.Slug
+	}
 	a.store.DB.Save(&link)
-	c.JSON(http.StatusOK, a.toSharedLinkResponse(&link, &b))
+	c.JSON(http.StatusOK, a.toSharedLinkResponse(&link))
 }
 
 func (a *App) handleSharedLinkDelete(c *gin.Context) {
@@ -282,6 +353,17 @@ func (a *App) handleSharedLinkDelete(c *gin.Context) {
 	id := c.Param("id")
 	a.store.DB.Where("id = ? AND user_id = ?", id, uid).Delete(&SharedLink{})
 	c.Status(http.StatusOK)
+}
+
+func (a *App) handleSharedLinkGet(c *gin.Context) {
+	uid := currentUserID(c)
+	id := c.Param("id")
+	var link SharedLink
+	if err := a.store.DB.First(&link, "id = ? AND user_id = ?", id, uid).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		return
+	}
+	c.JSON(http.StatusOK, a.toSharedLinkResponse(&link))
 }
 
 // ---------------- people (real; ML face detection is deferred) ----------------
@@ -449,12 +531,17 @@ func (a *App) handlePeopleDeleteMany(c *gin.Context) {
 func (a *App) handleSystemConfigGet(c *gin.Context) {
 	var cfg SystemConfig
 	a.store.DB.First(&cfg, "id = ?", "singleton")
+	trashDays := cfg.TrashDays
+	if trashDays == 0 {
+		trashDays = 30
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"id":                  cfg.ID,
 		"loginRequired":       cfg.LoginRequired,
 		"isPublic":            cfg.IsPublic,
 		"externalDomain":      cfg.ExternalDomain,
 		"newPasswordRequired": cfg.NewPasswordRequired,
+		"trashDays":           trashDays,
 		"repository":          "immich-go",
 		"releaseChannel":      "nightly",
 		"version":             "1.0.0-go",
@@ -475,8 +562,16 @@ func (a *App) handleSystemConfigUpdate(c *gin.Context) {
 	if v, ok := b["externalDomain"].(string); ok {
 		cfg.ExternalDomain = v
 	}
+	if v, ok := b["trashDays"].(float64); ok {
+		cfg.TrashDays = int(v)
+	}
 	a.store.DB.Save(&cfg)
-	c.JSON(http.StatusOK, gin.H{"loginRequired": cfg.LoginRequired, "isPublic": cfg.IsPublic, "externalDomain": cfg.ExternalDomain})
+	c.JSON(http.StatusOK, gin.H{
+		"loginRequired":  cfg.LoginRequired,
+		"isPublic":       cfg.IsPublic,
+		"externalDomain": cfg.ExternalDomain,
+		"trashDays":      cfg.TrashDays,
+	})
 }
 
 // ---------------- jobs ----------------
@@ -493,6 +588,13 @@ func (a *App) handleDownloadArchive(c *gin.Context) {
 		if s := c.Query("assetIds"); s != "" {
 			ids = strings.Split(s, ",")
 		}
+	}
+	if len(ids) == 0 && c.Request.Method == http.MethodPost {
+		var b struct {
+			AssetIDs []string `json:"assetIds"`
+		}
+		_ = c.ShouldBindJSON(&b)
+		ids = b.AssetIDs
 	}
 	if len(ids) == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "assetIds required"})

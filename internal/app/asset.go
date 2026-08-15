@@ -390,7 +390,7 @@ func (a *App) handleAssetGet(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found", "statusCode": 404})
 		return
 	}
-	if asset.OwnerID != uid && !a.isAdmin(uid) {
+	if !a.canView(uid, asset.OwnerID) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
 		return
 	}
@@ -587,7 +587,7 @@ func (a *App) handleAssetOriginal(c *gin.Context) {
 		c.Status(http.StatusNotFound)
 		return
 	}
-	if asset.OwnerID != uid && !a.isAdmin(uid) {
+	if !a.canView(uid, asset.OwnerID) {
 		c.Status(http.StatusForbidden)
 		return
 	}
@@ -606,7 +606,7 @@ func (a *App) handleAssetOriginalDownload(c *gin.Context) {
 		c.Status(http.StatusNotFound)
 		return
 	}
-	if asset.OwnerID != uid && !a.isAdmin(uid) {
+	if !a.canView(uid, asset.OwnerID) {
 		c.Status(http.StatusForbidden)
 		return
 	}
@@ -629,7 +629,7 @@ func (a *App) handleAssetMetadata(c *gin.Context) {
 		c.Status(http.StatusNotFound)
 		return
 	}
-	if asset.OwnerID != uid && !a.isAdmin(uid) {
+	if !a.canView(uid, asset.OwnerID) {
 		c.Status(http.StatusForbidden)
 		return
 	}
@@ -641,7 +641,9 @@ func (a *App) handleAssetMetadata(c *gin.Context) {
 	c.JSON(http.StatusOK, exif)
 }
 
-func (a *App) handleAssetThumbnail(c *gin.Context) {
+// handleAssetMetadataUpdate persists user-editable asset metadata
+// (description / dateTimeOriginal / GPS) plus visibility & favorite state.
+func (a *App) handleAssetMetadataUpdate(c *gin.Context) {
 	uid := currentUserID(c)
 	id := c.Param("id")
 	var asset Asset
@@ -650,6 +652,75 @@ func (a *App) handleAssetThumbnail(c *gin.Context) {
 		return
 	}
 	if asset.OwnerID != uid && !a.isAdmin(uid) {
+		c.Status(http.StatusForbidden)
+		return
+	}
+	var b struct {
+		Description      string   `json:"description"`
+		DateTimeOriginal string   `json:"dateTimeOriginal"`
+		Latitude         *float64 `json:"latitude"`
+		Longitude        *float64 `json:"longitude"`
+		Visibility       string   `json:"visibility"` // timeline | archive | locked
+		Favorite         *bool    `json:"isFavorite"`
+	}
+	_ = c.ShouldBindJSON(&b)
+
+	patch := map[string]any{}
+	if b.Visibility != "" {
+		patch["is_archived"] = b.Visibility == "archive"
+	}
+	if b.Favorite != nil {
+		patch["is_favorite"] = *b.Favorite
+	}
+	if len(patch) > 0 {
+		a.store.DB.Model(&asset).Updates(patch)
+	}
+
+	var exif Exif
+	if err := a.store.DB.First(&exif, "asset_id = ?", id).Error; err == nil {
+		if b.Description != "" {
+			exif.Description = b.Description
+		}
+		if b.DateTimeOriginal != "" {
+			d := b.DateTimeOriginal
+			exif.DateTimeOriginal = &d
+		}
+		if b.Latitude != nil {
+			exif.Latitude = *b.Latitude
+		}
+		if b.Longitude != nil {
+			exif.Longitude = *b.Longitude
+		}
+		a.store.DB.Save(&exif)
+	} else {
+		ex := &Exif{ID: id, AssetID: id}
+		if b.Description != "" {
+			ex.Description = b.Description
+		}
+		if b.DateTimeOriginal != "" {
+			d := b.DateTimeOriginal
+			ex.DateTimeOriginal = &d
+		}
+		if b.Latitude != nil {
+			ex.Latitude = *b.Latitude
+		}
+		if b.Longitude != nil {
+			ex.Longitude = *b.Longitude
+		}
+		a.store.DB.Create(ex)
+	}
+	c.Status(http.StatusOK)
+}
+
+func (a *App) handleAssetThumbnail(c *gin.Context) {
+	uid := currentUserID(c)
+	id := c.Param("id")
+	var asset Asset
+	if err := a.store.DB.First(&asset, "id = ?", id).Error; err != nil {
+		c.Status(http.StatusNotFound)
+		return
+	}
+	if !a.canView(uid, asset.OwnerID) {
 		c.Status(http.StatusForbidden)
 		return
 	}
@@ -672,7 +743,7 @@ func (a *App) handleAssetPreview(c *gin.Context) {
 		c.Status(http.StatusNotFound)
 		return
 	}
-	if asset.OwnerID != uid && !a.isAdmin(uid) {
+	if !a.canView(uid, asset.OwnerID) {
 		c.Status(http.StatusForbidden)
 		return
 	}
@@ -694,7 +765,7 @@ func (a *App) handleAssetEncodedVideo(c *gin.Context) {
 		c.Status(http.StatusNotFound)
 		return
 	}
-	if asset.OwnerID != uid && !a.isAdmin(uid) {
+	if !a.canView(uid, asset.OwnerID) {
 		c.Status(http.StatusForbidden)
 		return
 	}
@@ -730,7 +801,7 @@ func (a *App) handleAssetLivePhoto(c *gin.Context) {
 		c.Status(http.StatusNotFound)
 		return
 	}
-	if asset.OwnerID != uid && !a.isAdmin(uid) {
+	if !a.canView(uid, asset.OwnerID) {
 		c.Status(http.StatusForbidden)
 		return
 	}
@@ -743,7 +814,7 @@ func (a *App) handleAssetLivePhoto(c *gin.Context) {
 		c.Status(http.StatusNotFound)
 		return
 	}
-	if video.OwnerID != uid && !a.isAdmin(uid) {
+	if !a.canView(uid, video.OwnerID) {
 		c.Status(http.StatusForbidden)
 		return
 	}
@@ -795,8 +866,11 @@ func (a *App) handleAssetSearch(c *gin.Context) {
 	uid := currentUserID(c)
 	// Build the WHERE clause as a string + args so we can create two fresh
 	// *gorm.DB queries (reusing one after Count consumes its statement).
-	conds := "owner_id = ? AND is_trash = ?"
-	args := []interface{}{uid, false}
+	// Include the user's own assets plus those shared by partners.
+	owners := a.sharedOwnerIDs(uid)
+	isTrash := false
+	conds := "owner_id IN ? AND is_trash = ?"
+	args := []interface{}{owners, isTrash}
 	if t := c.Query("type"); t != "" {
 		conds += " AND type = ?"
 		args = append(args, normalizeType(t))

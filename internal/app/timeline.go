@@ -98,25 +98,25 @@ func (a *App) handleTimelineBucketAssets(c *gin.Context) {
 // (all index-aligned). Fields are always emitted (no omitempty) so an empty
 // bucket still satisfies the schema's required-array contract.
 type timeBucketAssetsResponse struct {
-	City             []string    `json:"city"`
-	Country          []string    `json:"country"`
-	CreatedAt        []string    `json:"createdAt"`
-	Duration         []int       `json:"duration"`
-	FileCreatedAt    []string    `json:"fileCreatedAt"`
-	ID               []string    `json:"id"`
-	IsFavorite       []bool      `json:"isFavorite"`
-	IsImage          []bool      `json:"isImage"`
-	IsTrashed        []bool      `json:"isTrashed"`
-	Latitude         []float64   `json:"latitude"`
-	LivePhotoVideoID []string    `json:"livePhotoVideoId"`
-	LocalOffsetHours []float64   `json:"localOffsetHours"`
-	Longitude        []float64   `json:"longitude"`
-	OwnerID          []string    `json:"ownerId"`
-	ProjectionType   []string    `json:"projectionType"`
-	Ratio            []float64   `json:"ratio"`
-	Stack            [][]string  `json:"stack"`
-	Thumbhash        []string    `json:"thumbhash"`
-	Visibility       []string    `json:"visibility"`
+	City             []string   `json:"city"`
+	Country          []string   `json:"country"`
+	CreatedAt        []string   `json:"createdAt"`
+	Duration         []int      `json:"duration"`
+	FileCreatedAt    []string   `json:"fileCreatedAt"`
+	ID               []string   `json:"id"`
+	IsFavorite       []bool     `json:"isFavorite"`
+	IsImage          []bool     `json:"isImage"`
+	IsTrashed        []bool     `json:"isTrashed"`
+	Latitude         []float64  `json:"latitude"`
+	LivePhotoVideoID []string   `json:"livePhotoVideoId"`
+	LocalOffsetHours []float64  `json:"localOffsetHours"`
+	Longitude        []float64  `json:"longitude"`
+	OwnerID          []string   `json:"ownerId"`
+	ProjectionType   []string   `json:"projectionType"`
+	Ratio            []float64  `json:"ratio"`
+	Stack            [][]string `json:"stack"`
+	Thumbhash        []string   `json:"thumbhash"`
+	Visibility       []string   `json:"visibility"`
 }
 
 func (a *App) buildTimeBucketAssets(assets []Asset) timeBucketAssetsResponse {

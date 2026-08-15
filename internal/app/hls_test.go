@@ -39,12 +39,12 @@ func TestHLSVideoStreaming(t *testing.T) {
 	}
 	aid := newUUID()
 	if err := app.store.DB.Create(&Asset{
-		ID:              aid,
-		OwnerID:         me.ID,
-		Type:            "VIDEO",
-		OriginalPath:    tmp,
+		ID:               aid,
+		OwnerID:          me.ID,
+		Type:             "VIDEO",
+		OriginalPath:     tmp,
 		OriginalFileName: "clip.mp4",
-		Duration:        "12.5",
+		Duration:         "12.5",
 	}).Error; err != nil {
 		t.Fatal(err)
 	}
