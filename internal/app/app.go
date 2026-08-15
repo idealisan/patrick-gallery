@@ -195,10 +195,15 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.PUT("/shared-links/:id", a.handleSharedLinkUpdate)
 		api.DELETE("/shared-links/:id", a.handleSharedLinkDelete)
 
-		// people (stub)
+		// people (real; ML face detection is deferred)
 		api.GET("/people", a.handlePeopleList)
 		api.GET("/people/:id", a.handlePersonGet)
 		api.GET("/people/:id/assets", a.handlePersonAssets)
+		api.POST("/people", a.handlePersonCreate)
+		api.PUT("/people", a.handlePeopleUpdateMany)
+		api.PUT("/people/:id", a.handlePersonUpdate)
+		api.DELETE("/people/:id", a.handlePersonDelete)
+		api.DELETE("/people", a.handlePeopleDeleteMany)
 
 		// system config / jobs
 		api.GET("/system-config", a.handleSystemConfigGet)
@@ -236,8 +241,12 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.DELETE("/sync/ack", a.handleSyncAck)
 		api.GET("/sync/stream", a.handleSyncStream)
 		api.GET("/people/:id/statistics", a.handlePersonStatistics)
+		// faces: detection/recognition need an ML backend (deferred) -> 501.
 		api.GET("/faces", a.handleFacesList)
 		api.GET("/faces/:id", a.handleFaceGet)
+		api.POST("/faces", a.faceNotImplemented)
+		api.PUT("/faces/:id", a.faceNotImplemented)
+		api.DELETE("/faces/:id", a.faceNotImplemented)
 		api.POST("/people/:id/merge", a.handlePersonMerge)
 		api.PUT("/people/:id/reassign", a.handlePersonReassign)
 		api.GET("/search/cities", a.handleSearchCities)

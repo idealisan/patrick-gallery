@@ -284,7 +284,7 @@ func (a *App) handleSharedLinkDelete(c *gin.Context) {
 	c.Status(http.StatusOK)
 }
 
-// ---------------- people (stub) ----------------
+// ---------------- people (real; ML face detection is deferred) ----------------
 
 func (a *App) handlePeopleList(c *gin.Context) {
 	uid := currentUserID(c)
@@ -295,14 +295,30 @@ func (a *App) handlePeopleList(c *gin.Context) {
 		q = q.Where("is_hidden = ?", false)
 	}
 	q.Find(&people)
-	// Immich returns {people, total, count, hidden}. We don't auto-create
-	// people (facial recognition is an unsupported ML job), so this reflects
-	// whatever person rows exist (e.g. imported/seeded).
+	// People are real rows (created manually or imported); facial recognition
+	// (auto-clustering) is a deferred ML job, so this reflects whatever person
+	// rows exist. Asset counts are computed truthfully from asset.person_id.
+	out := make([]gin.H, 0, len(people))
+	var hidden int
+	for _, p := range people {
+		var total int64
+		a.store.DB.Model(&Asset{}).Where("person_id = ? AND is_trash = ?", p.ID, false).Count(&total)
+		if p.IsHidden {
+			hidden++
+		}
+		out = append(out, gin.H{
+			"id":            p.ID,
+			"name":          p.Name,
+			"thumbnailPath": p.ThumbnailPath,
+			"isHidden":      p.IsHidden,
+			"assets":        gin.H{"total": total},
+		})
+	}
 	c.JSON(http.StatusOK, gin.H{
-		"people": people,
-		"total":  len(people),
-		"count":  len(people),
-		"hidden": 0,
+		"people": out,
+		"total":  len(out),
+		"count":  len(out),
+		"hidden": hidden,
 	})
 }
 
@@ -313,8 +329,61 @@ func (a *App) handlePersonGet(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
 	}
-	// Immich augments the person with asset counts. Assets carry no person_id
-	// column in this scaffold (facial recognition unsupported), so counts are 0.
+	var total int64
+	a.store.DB.Model(&Asset{}).Where("person_id = ? AND is_trash = ?", p.ID, false).Count(&total)
+	c.JSON(http.StatusOK, gin.H{
+		"id":            p.ID,
+		"name":          p.Name,
+		"thumbnailPath": p.ThumbnailPath,
+		"isHidden":      p.IsHidden,
+		"assets":        gin.H{"total": total},
+	})
+}
+
+// handlePersonCreate creates a person manually (Immich allows creating people
+// without waiting for the ML clustering job).
+func (a *App) handlePersonCreate(c *gin.Context) {
+	uid := currentUserID(c)
+	var b struct {
+		Name      string `json:"name"`
+		BirthDate string `json:"birthDate"`
+	}
+	_ = c.ShouldBindJSON(&b)
+	if b.Name == "" {
+		b.Name = "Unnamed"
+	}
+	p := Person{ID: newUUID(), Name: b.Name, IsHidden: false}
+	a.store.DB.Create(&p)
+	_ = uid
+	c.JSON(http.StatusCreated, gin.H{
+		"id":            p.ID,
+		"name":          p.Name,
+		"thumbnailPath": p.ThumbnailPath,
+		"isHidden":      p.IsHidden,
+		"assets":        gin.H{"total": 0},
+	})
+}
+
+// handlePersonUpdate updates a single person (name / hidden flag).
+func (a *App) handlePersonUpdate(c *gin.Context) {
+	id := c.Param("id")
+	var p Person
+	if err := a.store.DB.First(&p, "id = ?", id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		return
+	}
+	var b struct {
+		Name     string `json:"name"`
+		IsHidden *bool  `json:"isHidden"`
+	}
+	_ = c.ShouldBindJSON(&b)
+	if b.Name != "" {
+		p.Name = b.Name
+	}
+	if b.IsHidden != nil {
+		p.IsHidden = *b.IsHidden
+	}
+	a.store.DB.Save(&p)
 	c.JSON(http.StatusOK, gin.H{
 		"id":            p.ID,
 		"name":          p.Name,
@@ -324,20 +393,71 @@ func (a *App) handlePersonGet(c *gin.Context) {
 	})
 }
 
+// handlePeopleUpdateMany updates several people in one call (Immich PUT /people).
+func (a *App) handlePeopleUpdateMany(c *gin.Context) {
+	var people []struct {
+		ID       string `json:"id"`
+		Name     string `json:"name"`
+		IsHidden *bool  `json:"isHidden"`
+	}
+	_ = c.ShouldBindJSON(&people)
+	for _, p := range people {
+		if p.ID == "" {
+			continue
+		}
+		var row Person
+		if err := a.store.DB.First(&row, "id = ?", p.ID).Error; err != nil {
+			continue
+		}
+		if p.Name != "" {
+			row.Name = p.Name
+		}
+		if p.IsHidden != nil {
+			row.IsHidden = *p.IsHidden
+		}
+		a.store.DB.Save(&row)
+	}
+	c.Status(http.StatusOK)
+}
+
+// handlePersonDelete removes a person and detaches its assets.
+func (a *App) handlePersonDelete(c *gin.Context) {
+	id := c.Param("id")
+	a.store.DB.Model(&Asset{}).Where("person_id = ?", id).Update("person_id", "")
+	a.store.DB.Where("id = ?", id).Delete(&Person{})
+	c.Status(http.StatusOK)
+}
+
+// handlePeopleDeleteMany removes several people (Immich DELETE /people).
+func (a *App) handlePeopleDeleteMany(c *gin.Context) {
+	var b struct {
+		Ids []string `json:"ids"`
+	}
+	_ = c.ShouldBindJSON(&b)
+	for _, id := range b.Ids {
+		if id == "" {
+			continue
+		}
+		a.store.DB.Model(&Asset{}).Where("person_id = ?", id).Update("person_id", "")
+		a.store.DB.Where("id = ?", id).Delete(&Person{})
+	}
+	c.Status(http.StatusOK)
+}
+
 // ---------------- system config ----------------
 
 func (a *App) handleSystemConfigGet(c *gin.Context) {
 	var cfg SystemConfig
 	a.store.DB.First(&cfg, "id = ?", "singleton")
 	c.JSON(http.StatusOK, gin.H{
-		"id":                 cfg.ID,
-		"loginRequired":      cfg.LoginRequired,
-		"isPublic":           cfg.IsPublic,
-		"externalDomain":     cfg.ExternalDomain,
+		"id":                  cfg.ID,
+		"loginRequired":       cfg.LoginRequired,
+		"isPublic":            cfg.IsPublic,
+		"externalDomain":      cfg.ExternalDomain,
 		"newPasswordRequired": cfg.NewPasswordRequired,
-		"repository":         "immich-go",
-		"releaseChannel":     "nightly",
-		"version":            "1.0.0-go",
+		"repository":          "immich-go",
+		"releaseChannel":      "nightly",
+		"version":             "1.0.0-go",
 	})
 }
 

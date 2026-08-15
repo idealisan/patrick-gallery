@@ -164,25 +164,67 @@ func (a *App) handleSyncStream(c *gin.Context) {
 	c.JSON(http.StatusOK, deltas)
 }
 
-// ---- people / faces (no ML backend) ----
+// ---- people / faces ----
 
+// handlePersonStatistics returns the truthful count of assets linked to the
+// person (asset.person_id), not a constant 0.
 func (a *App) handlePersonStatistics(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"assets": 0})
+	id := c.Param("id")
+	var total int64
+	a.store.DB.Model(&Asset{}).Where("person_id = ? AND is_trash = ?", id, false).Count(&total)
+	c.JSON(http.StatusOK, gin.H{"assets": total})
 }
 
-func (a *App) handleFacesList(c *gin.Context) {
-	c.JSON(http.StatusOK, []any{})
+// faceNotImplemented is the honest answer for every face-detection endpoint:
+// face detection/recognition requires an ML backend, which is a deferred
+// capability (AGENTS.md). Per hard rule #7 we return an explicit 501 rather
+// than a fake-empty 200.
+func (a *App) faceNotImplemented(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, gin.H{
+		"message":    "face detection requires an ML backend (deferred in immich-go)",
+		"statusCode": 501,
+	})
 }
 
-func (a *App) handleFaceGet(c *gin.Context) {
-	c.JSON(http.StatusNotFound, gin.H{"message": "no ML backend", "statusCode": 404})
-}
+func (a *App) handleFacesList(c *gin.Context) { a.faceNotImplemented(c) }
+func (a *App) handleFaceGet(c *gin.Context)   { a.faceNotImplemented(c) }
 
+// handlePersonMerge merges the supplied people into the canonical person `id`
+// (reassigns their assets and deletes the merged rows). Real DB work.
 func (a *App) handlePersonMerge(c *gin.Context) {
-	c.Status(http.StatusOK)
+	id := c.Param("id")
+	var body struct {
+		Ids []string `json:"ids"`
+	}
+	_ = c.ShouldBindJSON(&body)
+	canonical := id
+	for _, other := range body.Ids {
+		if other == "" || other == canonical {
+			continue
+		}
+		a.store.DB.Model(&Asset{}).Where("person_id = ?", other).Update("person_id", canonical)
+		a.store.DB.Where("id = ?", other).Delete(&Person{})
+	}
+	c.JSON(http.StatusOK, gin.H{"id": canonical, "merged": body.Ids})
 }
 
+// handlePersonReassign moves an asset (`id`) to another person (`personId`).
 func (a *App) handlePersonReassign(c *gin.Context) {
+	uid := currentUserID(c)
+	id := c.Param("id")
+	var body struct {
+		PersonID string `json:"personId"`
+	}
+	_ = c.ShouldBindJSON(&body)
+	if body.PersonID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "personId required"})
+		return
+	}
+	res := a.store.DB.Model(&Asset{}).Where("id = ? AND owner_id = ?", id, uid).Update("person_id", body.PersonID)
+	if res.RowsAffected == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"message": "asset not found"})
+		return
+	}
 	c.Status(http.StatusOK)
 }
 

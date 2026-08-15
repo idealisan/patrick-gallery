@@ -6,7 +6,7 @@
 
 > ⚠️ **硬规则（AGENTS.md #7「No stubs」）**：🟠 行属于 **stub（占位/空响应）**，违反「不允许任何 stub」的硬性要求，必须清零。逐项整改清单见 [docs/NO_STUBS.md](docs/NO_STUBS.md)——每个 🟠 端点要么真正实现功能，要么改为诚实的 `4xx`/`501` 错误（并加入契约测试豁免），绝不允许用空 `200`「骗过客户端」。
 
-> 统计：✅ 86 · 🟡 23 · 🟠 15（待清零，均为 ML/人脸类，按用户决定暂缓） · ❌ 130 （共 254）
+> 统计：✅ 97 · 🟡 23 · 🟠 0（已全部清零） · ❌ 134 （共 254）
 
 
 | 原版 API（方法 + 路径） | Go 版实现现状 | 与原版的差距 |
@@ -89,10 +89,10 @@
 | `DELETE /duplicates/:id` | ✅ 完全实现 | 真实实现：删除该 duplicate 的处理记录（PUT 改 keeper / DELETE 移除） |
 | `GET /duplicates` | ✅ 完全实现 | — |
 | `POST /duplicates/resolve` | ✅ 完全实现 | 真实实现：记录 keeper/hidden 关系（duplicate_resolutions），GET /assets/duplicates 不再重复展示已处理对 |
-| `DELETE /faces/:id` | 🟠 API占位/逻辑存疑 | API 存在但仅返回正确空/最小形状，无真实 ML/同步逻辑（原版依赖 ML 聚类或完整增量同步） 〔Go 版该方法为 GET〕 |
-| `GET /faces` | 🟠 API占位/逻辑存疑 | API 存在但仅返回正确空/最小形状，无真实 ML/同步逻辑（原版依赖 ML 聚类或完整增量同步） |
-| `POST /faces` | 🟠 API占位/逻辑存疑 | API 存在但仅返回正确空/最小形状，无真实 ML/同步逻辑（原版依赖 ML 聚类或完整增量同步） 〔Go 版该方法为 GET〕 |
-| `PUT /faces/:id` | 🟠 API占位/逻辑存疑 | API 存在但仅返回正确空/最小形状，无真实 ML/同步逻辑（原版依赖 ML 聚类或完整增量同步） 〔Go 版该方法为 GET〕 |
+| `DELETE /faces/:id` | ❌ 未实现 | 已注册，返回诚实 501：人脸检测/识别需 ML 后端（AGENTS.md 延后项），非 stub |
+| `GET /faces` | ❌ 未实现 | 已注册，返回诚实 501：人脸检测/识别需 ML 后端（AGENTS.md 延后项），非 stub |
+| `POST /faces` | ❌ 未实现 | 已注册，返回诚实 501：人脸检测/识别需 ML 后端（AGENTS.md 延后项），非 stub |
+| `PUT /faces/:id` | ❌ 未实现 | 已注册，返回诚实 501：人脸检测/识别需 ML 后端（AGENTS.md 延后项），非 stub |
 | `GET /jobs` | ✅ 完全实现 | — |
 | `POST /jobs` | 🟡 部分实现 | 方法不一致（Go 版为 GET，原版为 POST） |
 | `PUT /jobs/:name` | ❌ 未实现 | POST /jobs、PUT /jobs/:name 方法差异 |
@@ -137,17 +137,17 @@
 | `POST /partners` | 🟡 部分实现 | 建立关系可用，共享资产未透出 |
 | `POST /partners/:id` | 🟡 部分实现 | 解除关系可用，共享资产未透出 〔Go 版该方法为 DELETE〕 |
 | `PUT /partners/:id` | 🟡 部分实现 | 解除关系可用，共享资产未透出 〔Go 版该方法为 DELETE〕 |
-| `DELETE /people` | 🟠 API占位/逻辑存疑 | API 存在但仅返回正确空/最小形状，无真实 ML/同步逻辑（原版依赖 ML 聚类或完整增量同步） 〔Go 版该方法为 GET〕 |
-| `DELETE /people/:id` | 🟠 API占位/逻辑存疑 | API 存在但仅返回正确空/最小形状，无真实 ML/同步逻辑（原版依赖 ML 聚类或完整增量同步） 〔Go 版该方法为 GET〕 |
-| `GET /people` | 🟠 API占位/逻辑存疑 | API 存在但仅返回正确空/最小形状，无真实 ML/同步逻辑（原版依赖 ML 聚类或完整增量同步） |
-| `GET /people/:id` | 🟠 API占位/逻辑存疑 | API 存在但仅返回正确空/最小形状，无真实 ML/同步逻辑（原版依赖 ML 聚类或完整增量同步） |
-| `GET /people/:id/statistics` | 🟠 API占位/逻辑存疑 | API 存在但仅返回正确空/最小形状，无真实 ML/同步逻辑（原版依赖 ML 聚类或完整增量同步） |
-| `GET /people/:id/thumbnail` | ❌ 未实现 | 人物写入/聚类（ML）未实现 |
-| `POST /people` | 🟠 API占位/逻辑存疑 | API 存在但仅返回正确空/最小形状，无真实 ML/同步逻辑（原版依赖 ML 聚类或完整增量同步） 〔Go 版该方法为 GET〕 |
-| `POST /people/:id/merge` | 🟠 API占位/逻辑存疑 | API 存在但仅返回正确空/最小形状，无真实 ML/同步逻辑（原版依赖 ML 聚类或完整增量同步） |
-| `PUT /people` | 🟠 API占位/逻辑存疑 | API 存在但仅返回正确空/最小形状，无真实 ML/同步逻辑（原版依赖 ML 聚类或完整增量同步） 〔Go 版该方法为 GET〕 |
-| `PUT /people/:id` | 🟠 API占位/逻辑存疑 | API 存在但仅返回正确空/最小形状，无真实 ML/同步逻辑（原版依赖 ML 聚类或完整增量同步） 〔Go 版该方法为 GET〕 |
-| `PUT /people/:id/reassign` | 🟠 API占位/逻辑存疑 | API 存在但仅返回正确空/最小形状，无真实 ML/同步逻辑（原版依赖 ML 聚类或完整增量同步） |
+| `DELETE /people` | ✅ 完全实现 | 真实实现：批量删除 person 行并解除资产关联（handlePeopleDeleteMany） |
+| `DELETE /people/:id` | ✅ 完全实现 | 真实实现：删除 person 行并解除资产关联（handlePersonDelete） |
+| `GET /people` | ✅ 完全实现 | 真实实现：列出 person 行并真实统计各 person 资产数（asset.person_id） |
+| `GET /people/:id` | ✅ 完全实现 | 真实实现：返回 person 及其真实资产数 |
+| `GET /people/:id/statistics` | ✅ 完全实现 | 真实实现：统计 asset.person_id = id 的资产数（不再恒返 0） |
+| `GET /people/:id/thumbnail` | ❌ 未实现 | 人物缩略图写入/聚类（ML）未实现 |
+| `POST /people` | ✅ 完全实现 | 真实实现：手动创建 person（handlePersonCreate） |
+| `POST /people/:id/merge` | ✅ 完全实现 | 真实实现：将合并对象的资产改挂到规范 person 并删除被合并行 |
+| `PUT /people` | ✅ 完全实现 | 真实实现：批量更新 person（handlePeopleUpdateMany） |
+| `PUT /people/:id` | ✅ 完全实现 | 真实实现：更新 person 名称/隐藏标志 |
+| `PUT /people/:id/reassign` | ✅ 完全实现 | 真实实现：将资产改挂到指定 person（asset.person_id） |
 | `GET /plugins` | ❌ 未实现 | 插件系统未实现 |
 | `GET /plugins/:id` | ❌ 未实现 | 插件系统未实现 |
 | `GET /plugins/methods` | ❌ 未实现 | 插件系统未实现 |
@@ -159,7 +159,7 @@
 | `PUT /queues/:name` | ❌ 未实现 | 任务队列可视化未实现 |
 | `GET /search/cities` | ✅ 完全实现 | 真实实现：基于内嵌 GeoNames 城市库按名称检索，返回 CityResponseDto 数组 |
 | `GET /search/explore` | ✅ 完全实现 | — |
-| `GET /search/person` | 🟠 API占位/逻辑存疑 | API 存在但仅返回正确空/最小形状，无真实 ML/同步逻辑（原版依赖 ML 聚类或完整增量同步） 〔Go 版该方法为 POST〕 |
+| `GET /search/person` | ✅ 完全实现 | 真实实现：按 personId 或 person 名称检索其资产（asset.person_id）；原版方法 POST，Go 版为 GET |
 | `GET /search/places` | ✅ 完全实现 | 真实实现：基于内嵌 GeoNames 库返回 places/allPlaces（recentPlaces 暂空，无历史记录） |
 | `GET /search/suggestions` | ✅ 完全实现 | — |
 | `POST /search/large-assets` | ❌ 未实现 | large-assets/random/statistics 未实现；smart(CLIP)/person(ML) 未实现 |

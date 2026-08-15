@@ -8,15 +8,15 @@ import (
 )
 
 type searchRequest struct {
-	Query      string `json:"query"`
-	Type       string `json:"type"`
-	Recent     bool   `json:"recent"`
-	WithExif   bool   `json:"withExif"`
-	Take       int    `json:"take"`
-	City       string `json:"city"`
-	Country    string `json:"country"`
-	Make       string `json:"make"`
-	Model      string `json:"model"`
+	Query    string `json:"query"`
+	Type     string `json:"type"`
+	Recent   bool   `json:"recent"`
+	WithExif bool   `json:"withExif"`
+	Take     int    `json:"take"`
+	City     string `json:"city"`
+	Country  string `json:"country"`
+	Make     string `json:"make"`
+	Model    string `json:"model"`
 }
 
 // searchResponse / searchAssetResult / searchAlbumResult mirror Immich's
@@ -133,13 +133,32 @@ func (a *App) handleSearchMetadata(c *gin.Context) {
 }
 
 func (a *App) handleSearchPerson(c *gin.Context) {
-	// Person/face clustering requires ML; not implemented in the Go port.
+	uid := currentUserID(c)
 	var req struct {
 		Query    string `json:"query"`
 		PersonID string `json:"personId"`
 	}
 	_ = c.ShouldBindJSON(&req)
-	c.JSON(http.StatusOK, gin.H{"total": 0, "assets": []interface{}{}, "nextPage": false})
+	var assets []Asset
+	if req.PersonID != "" {
+		a.store.DB.Where("person_id = ? AND owner_id = ? AND is_trash = ?", req.PersonID, uid, false).Find(&assets)
+	} else if req.Query != "" {
+		// Resolve person name(s) to ids, then return their assets.
+		var people []Person
+		a.store.DB.Where("name LIKE ?", "%"+req.Query+"%").Find(&people)
+		ids := make([]string, 0, len(people))
+		for _, p := range people {
+			ids = append(ids, p.ID)
+		}
+		if len(ids) > 0 {
+			a.store.DB.Where("person_id IN ? AND owner_id = ? AND is_trash = ?", ids, uid, false).Find(&assets)
+		}
+	}
+	out := make([]AssetResponse, 0, len(assets))
+	for _, as := range assets {
+		out = append(out, a.toResponse(as))
+	}
+	c.JSON(http.StatusOK, gin.H{"total": len(out), "assets": out, "nextPage": false})
 }
 
 func (a *App) handleSearchExplore(c *gin.Context) {

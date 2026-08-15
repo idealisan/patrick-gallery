@@ -162,3 +162,111 @@ func TestDuplicatesResolveHidesPair(t *testing.T) {
 		}
 	}
 }
+
+// TestPeopleCRUDAndFaces501 guards that people endpoints do real work and the
+// ML-dependent face endpoints return an honest 501 (no fake-empty stub).
+func TestPeopleCRUDAndFaces501(t *testing.T) {
+	_, r, token := newTestServer(t)
+
+	w := do(r, "POST", "/api/people", token, mustJSON(t, map[string]string{"name": "Alice"}), "application/json")
+	if w.Code != http.StatusCreated {
+		t.Fatalf("people create -> %d: %s", w.Code, w.Body.String())
+	}
+	var created struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &created); err != nil || created.ID == "" {
+		t.Fatalf("create decode: %v body=%s", err, w.Body.String())
+	}
+
+	w = do(r, "GET", "/api/people", token, nil, "")
+	if w.Code != http.StatusOK {
+		t.Fatalf("people list -> %d", w.Code)
+	}
+	var list struct {
+		People []struct {
+			ID     string `json:"id"`
+			Assets struct {
+				Total int64 `json:"total"`
+			} `json:"assets"`
+		} `json:"people"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &list); err != nil {
+		t.Fatalf("list decode: %v", err)
+	}
+	found := false
+	for _, p := range list.People {
+		if p.ID == created.ID {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("created person missing from list")
+	}
+
+	w = do(r, "GET", "/api/people/"+created.ID+"/statistics", token, nil, "")
+	var stat struct {
+		Assets int64 `json:"assets"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &stat); err != nil {
+		t.Fatalf("stat decode: %v", err)
+	}
+	if stat.Assets != 0 {
+		t.Errorf("expected 0 linked assets initially, got %d", stat.Assets)
+	}
+
+	assetID := uploadAsset(t, r, token, "person-reassign.jpg")
+	if assetID == "" {
+		t.Fatal("upload failed")
+	}
+	rb, _ := json.Marshal(map[string]string{"personId": created.ID})
+	w = do(r, "PUT", "/api/people/"+assetID+"/reassign", token, rb, "application/json")
+	if w.Code != http.StatusOK {
+		t.Fatalf("reassign -> %d: %s", w.Code, w.Body.String())
+	}
+	w = do(r, "GET", "/api/people/"+created.ID+"/statistics", token, nil, "")
+	if err := json.Unmarshal(w.Body.Bytes(), &stat); err != nil {
+		t.Fatalf("stat decode: %v", err)
+	}
+	if stat.Assets != 1 {
+		t.Errorf("expected 1 linked asset after reassign, got %d", stat.Assets)
+	}
+
+	w = do(r, "POST", "/api/people", token, mustJSON(t, map[string]string{"name": "Bob"}), "application/json")
+	var bob struct {
+		ID string `json:"id"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &bob)
+	mb, _ := json.Marshal(map[string]any{"ids": []string{created.ID}})
+	w = do(r, "POST", "/api/people/"+bob.ID+"/merge", token, mb, "application/json")
+	if w.Code != http.StatusOK {
+		t.Fatalf("merge -> %d: %s", w.Code, w.Body.String())
+	}
+	w = do(r, "GET", "/api/people/"+created.ID, token, nil, "")
+	if w.Code != http.StatusNotFound {
+		t.Errorf("merged person should be 404, got %d", w.Code)
+	}
+	w = do(r, "GET", "/api/people/"+bob.ID+"/statistics", token, nil, "")
+	if err := json.Unmarshal(w.Body.Bytes(), &stat); err != nil {
+		t.Fatalf("stat decode: %v", err)
+	}
+	if stat.Assets != 1 {
+		t.Errorf("expected Bob to inherit 1 asset, got %d", stat.Assets)
+	}
+
+	if w := do(r, "DELETE", "/api/people/"+bob.ID, token, nil, ""); w.Code != http.StatusOK {
+		t.Errorf("delete -> %d", w.Code)
+	}
+
+	for _, m := range []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete} {
+		path := "/api/faces"
+		if m != http.MethodGet && m != http.MethodPost {
+			path = "/api/faces/some-id"
+		}
+		w := do(r, m, path, token, nil, "")
+		if w.Code != http.StatusNotImplemented {
+			t.Errorf("%s /faces -> %d, want 501", m, w.Code)
+		}
+	}
+}

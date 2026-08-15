@@ -29,3 +29,9 @@ PUT /auth/pin-code
 PUT /memories/{id}
 PUT /notifications
 PUT /notifications/{id}
+# Face detection/recognition requires an ML backend (deferred) -> honest 501.
+GET /faces
+GET /faces/{id}
+POST /faces
+PUT /faces/{id}
+DELETE /faces/{id}

@@ -49,6 +49,7 @@ type Asset struct {
 	IsExternal       bool           `json:"isExternal"`
 	LibraryId        string         `gorm:"type:text" json:"libraryId"`
 	LivePhotoVideoID string         `gorm:"type:text" json:"-"`
+	PersonID         string         `gorm:"type:text;index" json:"personId,omitempty"`
 	Width            int            `gorm:"type:int" json:"-"`
 	Height           int            `gorm:"type:int" json:"-"`
 	Thumbhash        string         `gorm:"type:text" json:"-"`

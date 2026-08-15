@@ -47,32 +47,32 @@ func (a *App) handleServerConfig(c *gin.Context) {
 	a.store.DB.Model(&User{}).Count(&n)
 	c.JSON(http.StatusOK, gin.H{
 		// required by ServerConfigDto
-		"externalDomain":     a.cfg.ExternalDomain,
-		"isInitialized":      n > 0,
-		"isOnboarded":        true,
-		"loginPageMessage":   "",
-		"maintenanceMode":    false,
-		"mapDarkStyleUrl":    "",
-		"mapLightStyleUrl":   "",
-		"minFaces":           1,
-		"oauthButtonText":    "",
-		"publicUsers":        true,
-		"trashDays":          a.cfg.TrashDays,
-		"userDeleteDelay":    0,
+		"externalDomain":   a.cfg.ExternalDomain,
+		"isInitialized":    n > 0,
+		"isOnboarded":      true,
+		"loginPageMessage": "",
+		"maintenanceMode":  false,
+		"mapDarkStyleUrl":  "",
+		"mapLightStyleUrl": "",
+		"minFaces":         1,
+		"oauthButtonText":  "",
+		"publicUsers":      true,
+		"trashDays":        a.cfg.TrashDays,
+		"userDeleteDelay":  0,
 		// extra keys official clients also read
-		"isConnected":                 true,
-		"isReadOnly":                  false,
-		"isPasswordLoginEnabled":      true,
-		"isOauthEnabled":              false,
-		"isOauthAutoLaunch":           false,
-		"isFirstUser":                 n == 0,
-		"isInMemory":                  false,
-		"isCoreDown":                  false,
-		"isLogInWithPasskeyEnabled":   false,
-		"isSharedLinkLoginEnabled":    true,
-		"isSidebarSharedLinkEnabled":  true,
-		"isLibraryWipeEnabled":        false,
-		"isDownloadAvailable":         true,
+		"isConnected":                true,
+		"isReadOnly":                 false,
+		"isPasswordLoginEnabled":     true,
+		"isOauthEnabled":             false,
+		"isOauthAutoLaunch":          false,
+		"isFirstUser":                n == 0,
+		"isInMemory":                 false,
+		"isCoreDown":                 false,
+		"isLogInWithPasskeyEnabled":  false,
+		"isSharedLinkLoginEnabled":   true,
+		"isSidebarSharedLinkEnabled": true,
+		"isLibraryWipeEnabled":       false,
+		"isDownloadAvailable":        true,
 	})
 }
 
@@ -80,11 +80,11 @@ func (a *App) handleServerConfig(c *gin.Context) {
 // Required keys per ServerVersionResponseDto: major, minor, patch, prerelease.
 func (a *App) handleServerVersion(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
-		"major":       a.cfg.CompatMajor,
-		"minor":       a.cfg.CompatMinor,
-		"patch":       a.cfg.CompatPatch,
-		"prerelease":  0,
-		"version":     a.cfg.CompatVersion,
+		"major":      a.cfg.CompatMajor,
+		"minor":      a.cfg.CompatMinor,
+		"patch":      a.cfg.CompatPatch,
+		"prerelease": 0,
+		"version":    a.cfg.CompatVersion,
 	})
 }
 
@@ -139,11 +139,18 @@ func (a *App) handleServerStatistics(c *gin.Context) {
 	})
 }
 
-// handlePersonAssets mirrors GET /api/people/:id/assets. immich-go does not
-// cluster faces (no ML backend), so a person has no associated assets yet; we
-// return the correct, empty shape so the official clients don't error.
+// handlePersonAssets mirrors GET /api/people/:id/assets; returns the assets
+// actually linked to the person (asset.person_id).
 func (a *App) handlePersonAssets(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"assets": []any{}, "count": 0, "total": 0})
+	id := c.Param("id")
+	uid := currentUserID(c)
+	var assets []Asset
+	a.store.DB.Where("person_id = ? AND owner_id = ? AND is_trash = ?", id, uid, false).Find(&assets)
+	out := make([]AssetResponse, 0, len(assets))
+	for _, as := range assets {
+		out = append(out, a.toResponse(as))
+	}
+	c.JSON(http.StatusOK, gin.H{"assets": out, "count": len(out), "total": len(out)})
 }
 
 // handleAlbumStatistics mirrors GET /api/albums/statistics.
@@ -167,11 +174,11 @@ func (a *App) handleSearchSuggestions(c *gin.Context) {
 	var albums []Album
 	a.store.DB.Where("owner_id = ? AND album_name LIKE ?", uid, like).Limit(10).Find(&albums)
 	out := gin.H{
-		"albums":      albums,
-		"people":      []any{},
+		"albums":       albums,
+		"people":       []any{},
 		"recentAssets": []any{},
-		"locations":   []any{},
-		"tags":        []any{},
+		"locations":    []any{},
+		"tags":         []any{},
 	}
 	c.JSON(http.StatusOK, out)
 }
@@ -179,15 +186,15 @@ func (a *App) handleSearchSuggestions(c *gin.Context) {
 // handleSystemConfigDefaults mirrors GET /api/system-config/defaults.
 func (a *App) handleSystemConfigDefaults(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
-		"loginPageMessage":         "",
-		"trashDays":                a.cfg.TrashDays,
-		"isSavedPhotosHidden":      false,
-		"isEmailEnabled":           false,
-		"isOauthAutoLaunch":        false,
-		"storageTemplate":          "{{y}}/{{yyyy}}/{{MM}}-{{dd}}/{{filename}}",
-		"theme":                    "system",
-		"isPublicUsersEnabled":     false,
-		"isSingleUserMode":         false,
-		"isSingleUserModeAllowed":  false,
+		"loginPageMessage":        "",
+		"trashDays":               a.cfg.TrashDays,
+		"isSavedPhotosHidden":     false,
+		"isEmailEnabled":          false,
+		"isOauthAutoLaunch":       false,
+		"storageTemplate":         "{{y}}/{{yyyy}}/{{MM}}-{{dd}}/{{filename}}",
+		"theme":                   "system",
+		"isPublicUsersEnabled":    false,
+		"isSingleUserMode":        false,
+		"isSingleUserModeAllowed": false,
 	})
 }
