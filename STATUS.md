@@ -228,6 +228,14 @@
 
 **实测**：`IMMICH_COMPAT_VERSION=3.1.0` 起服，登录及上述新增端点均正常返回（album PATCH、GET 反向地理编码返回 Paris/France、sync/faces/people 存根返回空）；`go build` / `go vet` / `go test ./...` 全绿。
 
+### I. 视频 HLS 兼容（2026-08-15）
+官方 v3.1.0 客户端视频走 **HLS**（`/assets/:id/video/stream/main.m3u8` → 变体 `playlist.m3u8` → 分段），之前 immich-go 仅提供 `/assets/:id/encoded-video` 的 MP4，App 内视频无法播放。本次补齐 HLS：
+
+- 新增 `internal/app/hls.go`：以**单次转码 MP4 包装成单变体 HLS**（master → variant playlist → 单分段指向转码 MP4），以 asset id 作为 HLS session id 使播放列表 URL 自洽，客户端直接跟随即可；`DELETE /video/stream/:sessionId` 为无状态 204。
+- 端点：`GET /assets/:id/video/playback`（直出视频字节）、`/video/stream/main.m3u8`、`/video/stream/:sessionId/:variantIndex/playlist.m3u8`、`/video/stream/:sessionId/:variantIndex/:filename`、`DELETE /video/stream/:sessionId`。
+- 复用进程内视频转码（purego FFmpeg，CGO-free）；无后端时回退原文件。`parseDurationInt(asset.Duration)` 写入 `#EXTINF`。
+- 测试：`internal/app/hls_test.go`（master/variant/segment/playback/delete 全链路，content-type 与报文形状校验）；`go build`/`go vet`/`go test ./...` 全绿。
+
 ### 仍待补全（发布相关）
 - Windows/arm64 视频开箱即用需 BtbN 提供 `win-arm64-gpl-shared`（上游缺失）；可改从其他渠道取 arm64 共享库。
 - Docker 镜像多架构（arm64）+ CNB 流水线自动发版（`.cnb.yml` stages）待接入。

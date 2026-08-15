@@ -117,6 +117,13 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.GET("/assets/:id/encoded-video/:ts", a.handleAssetEncodedVideo)
 		api.GET("/assets/:id/live-photo", a.handleAssetLivePhoto)
 
+		// HLS video streaming (v3.1.0 client compatibility)
+		api.GET("/assets/:id/video/playback", a.handleVideoPlayback)
+		api.GET("/assets/:id/video/stream/main.m3u8", a.handleVideoStreamMaster)
+		api.GET("/assets/:id/video/stream/:sessionId/:variantIndex/playlist.m3u8", a.handleVideoStreamPlaylist)
+		api.GET("/assets/:id/video/stream/:sessionId/:variantIndex/:filename", a.handleVideoStreamSegment)
+		api.DELETE("/assets/:id/video/stream/:sessionId", a.handleVideoStreamDelete)
+
 		// albums
 		api.GET("/albums", a.handleAlbumList)
 		api.GET("/albums/statistics", a.handleAlbumStatistics)
