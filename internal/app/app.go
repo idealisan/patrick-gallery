@@ -77,6 +77,7 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.POST("/auth/logout", a.handleLogout)
 		api.GET("/api-keys", a.handleApiKeys)
 		api.POST("/api-keys", a.handleApiKeys)
+		api.GET("/api-keys/me", a.handleApiKeys)
 		api.GET("/api-keys/:id", a.handleApiKeys)
 		api.PUT("/api-keys/:id", a.handleApiKeys)
 		api.DELETE("/api-keys/:id", a.handleApiKeys)
@@ -139,6 +140,11 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.DELETE("/albums/:id/assets", a.handleAlbumRemoveAssets)
 		api.PATCH("/albums/:id/assets", a.handleAlbumUpdateAssets)
 		api.PUT("/albums/:id/cover", a.handleAlbumSetCover)
+		api.GET("/albums/:id/map-markers", a.handleAlbumMapMarkers)
+		api.PUT("/albums/:id/users", a.handleAlbumSetUsers)
+		api.PUT("/albums/:id/user/:userId", a.handleAlbumAddUser)
+		api.DELETE("/albums/:id/user/:userId", a.handleAlbumRemoveUser)
+		api.PUT("/albums/assets", a.handleAlbumBulkAddAssets)
 
 		// libraries
 		api.GET("/libraries", a.handleLibraryList)
@@ -164,6 +170,10 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.POST("/search/metadata", a.handleSearchMetadata)
 		api.POST("/search/suggestions", a.handleSearchSuggestions)
 		api.GET("/search/explore", a.handleSearchExplore)
+		api.POST("/search/random", a.handleSearchRandom)
+		api.POST("/search/large-assets", a.handleSearchLargeAssets)
+		api.POST("/search/statistics", a.handleSearchStatistics)
+		api.POST("/search/smart", a.handleSearchSmart)
 
 		// tags
 		api.GET("/tags", a.handleTagList)
@@ -215,6 +225,11 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		// system config / jobs
 		api.GET("/system-config", a.handleSystemConfigGet)
 		api.PUT("/system-config", a.handleSystemConfigUpdate)
+		api.GET("/system-config/storage-template-options", a.handleStorageTemplateOptions)
+		api.GET("/system-metadata/reverse-geocoding-state", a.handleReverseGeocodingState)
+		api.GET("/system-metadata/version-check-state", a.handleVersionCheckState)
+		api.GET("/system-metadata/admin-onboarding", a.handleAdminOnboardingGet)
+		api.POST("/system-metadata/admin-onboarding", a.handleAdminOnboardingPost)
 		api.GET("/server/statistics", a.handleServerStatistics)
 		api.GET("/jobs", a.handleJobsList)
 		api.POST("/jobs", a.handleJobsList)

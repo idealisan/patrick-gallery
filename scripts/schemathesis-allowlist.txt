@@ -35,3 +35,5 @@ GET /faces/{id}
 POST /faces
 PUT /faces/{id}
 DELETE /faces/{id}
+# CLIP semantic search requires an ML backend (deferred) -> honest 501.
+POST /search/smart

@@ -171,3 +171,98 @@ func (a *App) handleSearchExplore(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, emptySearchResponse(out))
 }
+
+// handleSearchRandom returns a random sample of the user's assets.
+func (a *App) handleSearchRandom(c *gin.Context) {
+	uid := currentUserID(c)
+	var req struct {
+		Take int    `json:"take"`
+		Type string `json:"type"`
+	}
+	_ = c.ShouldBindJSON(&req)
+	if req.Take <= 0 {
+		req.Take = 100
+	}
+	q := a.store.DB.Where("owner_id = ? AND is_trash = ?", uid, false)
+	if req.Type != "" {
+		q = q.Where("type = ?", normalizeType(req.Type))
+	}
+	var assets []Asset
+	q.Order("RANDOM()").Limit(req.Take).Find(&assets)
+	out := make([]AssetResponse, 0, len(assets))
+	for _, as := range assets {
+		out = append(out, a.toResponse(as))
+	}
+	c.JSON(http.StatusOK, emptySearchResponse(out))
+}
+
+// handleSearchLargeAssets returns assets larger than a byte threshold (default
+// 100 MiB), useful for storage cleanup. Real size from asset.size.
+func (a *App) handleSearchLargeAssets(c *gin.Context) {
+	uid := currentUserID(c)
+	var req struct {
+		Size int64 `json:"size"`
+		Take int   `json:"take"`
+	}
+	_ = c.ShouldBindJSON(&req)
+	if req.Take <= 0 {
+		req.Take = 100
+	}
+	q := a.store.DB.Where("owner_id = ? AND is_trash = ?", uid, false)
+	if req.Size > 0 {
+		q = q.Where("size >= ?", req.Size)
+	}
+	var assets []Asset
+	q.Order("size DESC").Limit(req.Take).Find(&assets)
+	out := make([]AssetResponse, 0, len(assets))
+	for _, as := range assets {
+		out = append(out, a.toResponse(as))
+	}
+	c.JSON(http.StatusOK, emptySearchResponse(out))
+}
+
+// handleSearchStatistics returns aggregate counts/usage for the user's library.
+func (a *App) handleSearchStatistics(c *gin.Context) {
+	uid := currentUserID(c)
+	var req struct {
+		IsTrash    *bool  `json:"isTrash"`
+		IsFavorite *bool  `json:"isFavorite"`
+		IsArchived *bool  `json:"isArchived"`
+		Type       string `json:"type"`
+	}
+	_ = c.ShouldBindJSON(&req)
+	trash := false
+	if req.IsTrash != nil {
+		trash = *req.IsTrash
+	}
+	q := a.store.DB.Model(&Asset{}).Where("owner_id = ? AND is_trash = ?", uid, trash)
+	if req.Type != "" {
+		q = q.Where("type = ?", normalizeType(req.Type))
+	}
+	if req.IsFavorite != nil {
+		q = q.Where("is_favorite = ?", *req.IsFavorite)
+	}
+	if req.IsArchived != nil {
+		q = q.Where("is_archived = ?", *req.IsArchived)
+	}
+	var total, photos, videos, usage int64
+	q.Count(&total)
+	q.Where("type = ?", "IMAGE").Count(&photos)
+	q.Where("type = ?", "VIDEO").Count(&videos)
+	q.Select("COALESCE(SUM(size),0)").Scan(&usage)
+	c.JSON(http.StatusOK, gin.H{
+		"total":  total,
+		"photos": photos,
+		"videos": videos,
+		"usage":  usage,
+	})
+}
+
+// handleSearchSmart is CLIP semantic search, which requires an ML embedding
+// backend (deferred per AGENTS.md). Honest 501 — not a fake-empty stub.
+func (a *App) handleSearchSmart(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, gin.H{
+		"message":    "semantic (CLIP) search requires an ML backend (deferred in immich-go)",
+		"statusCode": 501,
+	})
+}

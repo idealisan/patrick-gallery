@@ -54,6 +54,7 @@ type Asset struct {
 	Height           int            `gorm:"type:int" json:"-"`
 	Thumbhash        string         `gorm:"type:text" json:"-"`
 	HasThumbnail     bool           `json:"hasThumbnail"`
+	Size             int64          `json:"-"`
 	ExifID           string         `gorm:"type:text" json:"exifId"`
 	CreatedAt        time.Time      `json:"createdAt"`
 	UpdatedAt        time.Time      `json:"updatedAt"`
@@ -96,6 +97,13 @@ type AlbumAsset struct {
 	AssetID   string    `gorm:"primaryKey;type:text" json:"assetId"`
 	CreatedAt time.Time `json:"createdAt"`
 	Order     int       `json:"order,omitempty"`
+}
+
+// AlbumUser grants a user access to an album (in-album sharing).
+type AlbumUser struct {
+	AlbumID string `gorm:"primaryKey;type:text" json:"albumId"`
+	UserID  string `gorm:"primaryKey;type:text" json:"userId"`
+	Role    string `gorm:"type:text" json:"role"` // editor | viewer
 }
 
 type Library struct {
@@ -197,6 +205,7 @@ type SystemConfig struct {
 	ExternalDomain      string `gorm:"type:text" json:"externalDomain,omitempty"`
 	NewPasswordRequired bool   `json:"newPasswordRequired,omitempty"`
 	TrashDays           int    `json:"trashDays"`
+	Onboarded           bool   `json:"onboarded"`
 }
 
 func (User) TableName() string                { return "users" }
@@ -204,6 +213,7 @@ func (Asset) TableName() string               { return "assets" }
 func (Exif) TableName() string                { return "exif" }
 func (Album) TableName() string               { return "albums" }
 func (AlbumAsset) TableName() string          { return "albums_assets_assets" }
+func (AlbumUser) TableName() string           { return "albums_users_album" }
 func (Library) TableName() string             { return "libraries" }
 func (Partner) TableName() string             { return "partners" }
 func (Tag) TableName() string                 { return "tags" }

@@ -6,7 +6,7 @@
 
 > ⚠️ **硬规则（AGENTS.md #7「No stubs」）**：🟠 行属于 **stub（占位/空响应）**，违反「不允许任何 stub」的硬性要求，必须清零。逐项整改清单见 [docs/NO_STUBS.md](docs/NO_STUBS.md)——每个 🟠 端点要么真正实现功能，要么改为诚实的 `4xx`/`501` 错误（并加入契约测试豁免），绝不允许用空 `200`「骗过客户端」。
 
-> 统计：✅ 116 · 🟡 4（视频单变体 HLS，属可接受降级非 stub） · 🟠 0 · ❌ 134 （共 254）
+> 统计：✅ 129 · 🟡 4（视频单变体 HLS，属可接受降级非 stub） · 🟠 0 · ❌ 121 （共 254）
 
 
 | 原版 API（方法 + 路径） | Go 版实现现状 | 与原版的差距 |
@@ -14,7 +14,7 @@
 | `DELETE /api-keys/:id` | ✅ 完全实现 | — |
 | `GET /api-keys` | ✅ 完全实现 | 列表/单 key 读取（GET /api-keys/:id）/更新（PUT /api-keys/:id）均实现 |
 | `GET /api-keys/:id` | ✅ 完全实现 | 单 key 读取已对齐（GET /api-keys/:id） |
-| `GET /api-keys/me` | ❌ 未实现 | 单 key 读取/更新与 /me 别名未实现 |
+| `GET /api-keys/me` | ✅ 完全实现 | 别名 GET /api-keys（用户作用域列表） |
 | `POST /api-keys` | ✅ 完全实现 | — |
 | `PUT /api-keys/:id` | ✅ 完全实现 | 单 key 更新已对齐（PUT /api-keys/:id） |
 | `DELETE /activities/:id` | ✅ 完全实现 | — |
@@ -23,17 +23,17 @@
 | `POST /activities` | ✅ 完全实现 | — |
 | `DELETE /albums/:id` | ✅ 完全实现 | — |
 | `DELETE /albums/:id/assets` | ✅ 完全实现 | — |
-| `DELETE /albums/:id/user/:userId` | ❌ 未实现 | 相册内用户共享/批量/地图标记未实现 |
+| `DELETE /albums/:id/user/:userId` | ✅ 完全实现 | 相册内用户取消共享（AlbumUser） |
 | `GET /albums` | ✅ 完全实现 | — |
 | `GET /albums/:id` | ✅ 完全实现 | — |
-| `GET /albums/:id/map-markers` | ❌ 未实现 | 相册内用户共享/批量/地图标记未实现 |
+| `GET /albums/:id/map-markers` | ✅ 完全实现 | 返回相册内带 GPS 的资产标记（真实） |
 | `GET /albums/statistics` | ✅ 完全实现 | — |
 | `PATCH /albums/:id` | ✅ 完全实现 | — |
 | `POST /albums` | ✅ 完全实现 | — |
 | `PUT /albums/:id/assets` | ✅ 完全实现 | — |
-| `PUT /albums/:id/user/:userId` | ❌ 未实现 | 相册内用户共享/批量/地图标记未实现 |
-| `PUT /albums/:id/users` | ❌ 未实现 | 相册内用户共享/批量/地图标记未实现 |
-| `PUT /albums/assets` | ❌ 未实现 | 相册内用户共享/批量/地图标记未实现 |
+| `PUT /albums/:id/user/:userId` | ✅ 完全实现 | 相册内单用户共享（AlbumUser，role 默认 viewer） |
+| `PUT /albums/:id/users` | ✅ 完全实现 | 相册内批量共享（替换 AlbumUser） |
+| `PUT /albums/assets` | ✅ 完全实现 | 批量将资产加到多个相册（真实） |
 | `DELETE /assets` | ✅ 完全实现 | — |
 | `DELETE /assets/:id/edits` | ❌ 未实现 | 元数据写入/复制/edits 历史/OCR/资产级 job 未实现 |
 | `DELETE /assets/:id/metadata/:key` | ❌ 未实现 | 元数据写入/复制/edits 历史/OCR/资产级 job 未实现 |
@@ -162,11 +162,11 @@
 | `GET /search/person` | ✅ 完全实现 | 真实实现：按 personId 或 person 名称检索其资产（asset.person_id）；原版方法 POST，Go 版为 GET |
 | `GET /search/places` | ✅ 完全实现 | 真实实现：基于内嵌 GeoNames 库返回 places/allPlaces（recentPlaces 暂空，无历史记录） |
 | `GET /search/suggestions` | ✅ 完全实现 | — |
-| `POST /search/large-assets` | ❌ 未实现 | large-assets/random/statistics 未实现；smart(CLIP)/person(ML) 未实现 |
+| `POST /search/large-assets` | ✅ 完全实现 | 按 asset.size 阈值返回大文件（真实） |
 | `POST /search/metadata` | ✅ 完全实现 | — |
-| `POST /search/random` | ❌ 未实现 | large-assets/random/statistics 未实现；smart(CLIP)/person(ML) 未实现 |
-| `POST /search/smart` | ❌ 未实现 | large-assets/random/statistics 未实现；smart(CLIP)/person(ML) 未实现 |
-| `POST /search/statistics` | ❌ 未实现 | large-assets/random/statistics 未实现；smart(CLIP)/person(ML) 未实现 |
+| `POST /search/random` | ✅ 完全实现 | 随机采样用户资产（ORDER BY RANDOM()） |
+| `POST /search/smart` | ❌ 未实现 | 已注册，返回诚实 501：CLIP 语义搜索需 ML 后端（AGENTS.md 延后项） |
+| `POST /search/statistics` | ✅ 完全实现 | 统计 total/photos/videos/usage（真实聚合） |
 | `DELETE /server/license` | ✅ 完全实现 | DELETE /server/license 已对齐（返回 200） |
 | `GET /server/about` | ✅ 完全实现 | — |
 | `GET /server/apk-links` | ✅ 完全实现 | — |
@@ -209,12 +209,12 @@
 | `POST /sync/stream` | ✅ 完全实现 | 真实实现：返回用户全部资源/相册的真实同步增量（AssetV1/AlbumV1）；原为空 []（Go 版方法为 GET） |
 | `GET /system-config` | ✅ 完全实现 | — |
 | `GET /system-config/defaults` | ✅ 完全实现 | — |
-| `GET /system-config/storage-template-options` | ❌ 未实现 | 存储模板选项未实现 |
+| `GET /system-config/storage-template-options` | ✅ 完全实现 | 返回存储模板 token 词表（真实静态选项） |
 | `PUT /system-config` | ✅ 完全实现 | loginRequired/isPublic/externalDomain/trashDays 均持久化并正确回读 |
-| `GET /system-metadata/admin-onboarding` | ❌ 未实现 | onboarding/版本检查/反地理状态端点未实现 |
-| `GET /system-metadata/reverse-geocoding-state` | ❌ 未实现 | onboarding/版本检查/反地理状态端点未实现 |
-| `GET /system-metadata/version-check-state` | ❌ 未实现 | onboarding/版本检查/反地理状态端点未实现 |
-| `POST /system-metadata/admin-onboarding` | ❌ 未实现 | onboarding/版本检查/反地理状态端点未实现 |
+| `GET /system-metadata/admin-onboarding` | ✅ 完全实现 | 返回 onboarding 完成状态（SystemConfig.onboarded） |
+| `GET /system-metadata/reverse-geocoding-state` | ✅ 完全实现 | 返回反地理编码数据可用状态 |
+| `GET /system-metadata/version-check-state` | ✅ 完全实现 | 返回版本检查可用状态 |
+| `POST /system-metadata/admin-onboarding` | ✅ 完全实现 | 标记 onboarding 完成（持久化） |
 | `DELETE /tags/:id` | ✅ 完全实现 | — |
 | `DELETE /tags/:id/assets` | ✅ 完全实现 | 已对齐（DELETE /tags/:id/assets，body {ids}） |
 | `GET /tags` | ✅ 完全实现 | — |

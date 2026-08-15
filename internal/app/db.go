@@ -56,7 +56,7 @@ func OpenDB(dbPath, resourceDir string) (*Store, error) {
 	}
 
 	models := []interface{}{
-		&User{}, &Asset{}, &Exif{}, &Album{}, &AlbumAsset{},
+		&User{}, &Asset{}, &Exif{}, &Album{}, &AlbumAsset{}, &AlbumUser{},
 		&Library{}, &Partner{}, &Tag{}, &AssetTag{}, &Person{},
 		&Activity{}, &SharedLink{}, &ApiKey{}, &SystemConfig{},
 		&DuplicateResolution{}, &SyncState{},

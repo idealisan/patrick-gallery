@@ -565,6 +565,9 @@ func (a *App) handleSystemConfigUpdate(c *gin.Context) {
 	if v, ok := b["trashDays"].(float64); ok {
 		cfg.TrashDays = int(v)
 	}
+	if v, ok := b["onboarded"].(bool); ok {
+		cfg.Onboarded = v
+	}
 	a.store.DB.Save(&cfg)
 	c.JSON(http.StatusOK, gin.H{
 		"loginRequired":  cfg.LoginRequired,
@@ -572,6 +575,49 @@ func (a *App) handleSystemConfigUpdate(c *gin.Context) {
 		"externalDomain": cfg.ExternalDomain,
 		"trashDays":      cfg.TrashDays,
 	})
+}
+
+// handleStorageTemplateOptions mirrors Immich's storage-template-options
+// endpoint (the token vocabulary used to build storage templates).
+func (a *App) handleStorageTemplateOptions(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"dayOptions":       []string{"d", "dd"},
+		"hourOptions":      []string{"h", "hh", "H", "HH"},
+		"minuteOptions":    []string{"m", "mm"},
+		"monthOptions":     []string{"M", "MM", "MMM", "MMMM"},
+		"secondOptions":    []string{"s", "ss"},
+		"weekOptions":      []string{"W", "WW"},
+		"yearOptions":      []string{"y", "yy", "yyyy"},
+		"presetOptions":    []string{"{{y}}/{{y}}-{{MM}}-{{dd}}/{{filename}}", "{{y}}/{{MM}}/{{dd}}/{{filename}}"},
+		"separatorOptions": []string{"/", "-", "_", "."},
+		"variableOptions":  []string{"__", "yyyymmddHHmmss", "ext", "filename", "filebase", "userid", "username"},
+	})
+}
+
+// handleReverseGeocodingState reports whether reverse-geocoding data is loaded.
+func (a *App) handleReverseGeocodingState(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"status": "available", "isAvailable": true})
+}
+
+// handleVersionCheckState reports whether an upstream version check is available.
+func (a *App) handleVersionCheckState(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"status": "available", "isAvailable": false})
+}
+
+// handleAdminOnboardingGet reports whether admin onboarding is complete.
+func (a *App) handleAdminOnboardingGet(c *gin.Context) {
+	var cfg SystemConfig
+	a.store.DB.First(&cfg, "id = ?", "singleton")
+	c.JSON(http.StatusOK, gin.H{"isOnboarded": cfg.Onboarded})
+}
+
+// handleAdminOnboardingPost marks admin onboarding complete.
+func (a *App) handleAdminOnboardingPost(c *gin.Context) {
+	var cfg SystemConfig
+	a.store.DB.First(&cfg, "id = ?", "singleton")
+	cfg.Onboarded = true
+	a.store.DB.Save(&cfg)
+	c.JSON(http.StatusOK, gin.H{"isOnboarded": true})
 }
 
 // ---------------- jobs ----------------

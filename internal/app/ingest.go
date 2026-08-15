@@ -199,6 +199,7 @@ func (a *App) ingestStoredFile(opts ingestOptions) (*Asset, error) {
 		IsExternal:       opts.IsExternal,
 		LibraryId:        opts.LibraryID,
 		HasThumbnail:     thumbPath != "",
+		Size:             int64(len(raw)),
 		Width:            res.width,
 		Height:           res.height,
 		Thumbhash:        res.thumbhash,

@@ -9,20 +9,36 @@ import (
 
 type AlbumResponse struct {
 	Album
-	AssetCount                 int        `json:"assetCount"`
-	LastModifiedAssetTimestamp *time.Time `json:"lastModifiedAssetTimestamp,omitempty"`
+	AssetCount                 int         `json:"assetCount"`
+	LastModifiedAssetTimestamp *time.Time  `json:"lastModifiedAssetTimestamp,omitempty"`
+	Shared                     bool        `json:"shared,omitempty"`
+	AlbumUsers                 []AlbumUser `json:"albumUsers,omitempty"`
 }
 
 func (a *App) albumToResponse(al Album) AlbumResponse {
 	var cnt int64
 	a.store.DB.Model(&AlbumAsset{}).Where("album_id = ?", al.ID).Count(&cnt)
-	return AlbumResponse{Album: al, AssetCount: int(cnt)}
+	var users []AlbumUser
+	a.store.DB.Where("album_id = ?", al.ID).Find(&users)
+	return AlbumResponse{Album: al, AssetCount: int(cnt), AlbumUsers: users, Shared: len(users) > 0}
 }
 
 func (a *App) handleAlbumList(c *gin.Context) {
 	uid := currentUserID(c)
 	var albums []Album
 	a.store.DB.Where("owner_id = ?", uid).Order("created_at DESC").Find(&albums)
+	// also surface albums shared with this user (in-album sharing).
+	var shared []AlbumUser
+	a.store.DB.Where("user_id = ?", uid).Find(&shared)
+	if len(shared) > 0 {
+		ids := make([]string, 0, len(shared))
+		for _, s := range shared {
+			ids = append(ids, s.AlbumID)
+		}
+		var more []Album
+		a.store.DB.Where("id IN ?", ids).Find(&more)
+		albums = append(albums, more...)
+	}
 	out := make([]AlbumResponse, 0, len(albums))
 	for _, al := range albums {
 		out = append(out, a.albumToResponse(al))
@@ -229,4 +245,130 @@ func (a *App) handleAlbumSetCover(c *gin.Context) {
 	al.UpdatedAt = time.Now().UTC()
 	a.store.DB.Save(&al)
 	c.JSON(http.StatusOK, a.albumToResponse(al))
+}
+
+// handleAlbumMapMarkers returns geo markers (lat/long) for the album's assets
+// that carry GPS EXIF, matching Immich's GET /api/albums/:id/map-markers.
+func (a *App) handleAlbumMapMarkers(c *gin.Context) {
+	uid := currentUserID(c)
+	id := c.Param("id")
+	var al Album
+	if err := a.store.DB.First(&al, "id = ? AND owner_id = ?", id, uid).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		return
+	}
+	var links []AlbumAsset
+	a.store.DB.Where("album_id = ?", id).Find(&links)
+	ids := make([]string, 0, len(links))
+	for _, l := range links {
+		ids = append(ids, l.AssetID)
+	}
+	markers := []gin.H{}
+	if len(ids) > 0 {
+		var exifs []Exif
+		a.store.DB.Where("asset_id IN ? AND latitude IS NOT NULL AND longitude IS NOT NULL", ids).Find(&exifs)
+		for _, e := range exifs {
+			markers = append(markers, gin.H{
+				"id":      e.AssetID,
+				"lat":     e.Latitude,
+				"lon":     e.Longitude,
+				"city":    e.City,
+				"country": e.Country,
+			})
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"markers": markers})
+}
+
+// handleAlbumSetUsers replaces the album's shared users (Immich PUT /albums/:id/users).
+func (a *App) handleAlbumSetUsers(c *gin.Context) {
+	uid := currentUserID(c)
+	id := c.Param("id")
+	var al Album
+	if err := a.store.DB.First(&al, "id = ? AND owner_id = ?", id, uid).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		return
+	}
+	var b struct {
+		Users []struct {
+			UserID string `json:"userId"`
+			Role   string `json:"role"`
+		} `json:"users"`
+	}
+	_ = c.ShouldBindJSON(&b)
+	a.store.DB.Where("album_id = ?", id).Delete(&AlbumUser{})
+	for _, u := range b.Users {
+		role := u.Role
+		if role == "" {
+			role = "viewer"
+		}
+		a.store.DB.Create(&AlbumUser{AlbumID: id, UserID: u.UserID, Role: role})
+	}
+	c.JSON(http.StatusOK, a.albumToResponse(al))
+}
+
+// handleAlbumAddUser shares the album with a single user (Immich PUT /albums/:id/user/:userId).
+func (a *App) handleAlbumAddUser(c *gin.Context) {
+	uid := currentUserID(c)
+	id := c.Param("id")
+	userId := c.Param("userId")
+	var al Album
+	if err := a.store.DB.First(&al, "id = ? AND owner_id = ?", id, uid).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		return
+	}
+	var b struct {
+		Role string `json:"role"`
+	}
+	_ = c.ShouldBindJSON(&b)
+	role := b.Role
+	if role == "" {
+		role = "viewer"
+	}
+	a.store.DB.Create(&AlbumUser{AlbumID: id, UserID: userId, Role: role})
+	c.JSON(http.StatusOK, a.albumToResponse(al))
+}
+
+// handleAlbumRemoveUser unshares the album from a user.
+func (a *App) handleAlbumRemoveUser(c *gin.Context) {
+	uid := currentUserID(c)
+	id := c.Param("id")
+	userId := c.Param("userId")
+	var al Album
+	if err := a.store.DB.First(&al, "id = ? AND owner_id = ?", id, uid).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		return
+	}
+	a.store.DB.Where("album_id = ? AND user_id = ?", id, userId).Delete(&AlbumUser{})
+	c.JSON(http.StatusOK, a.albumToResponse(al))
+}
+
+// handleAlbumBulkAddAssets adds the same set of assets to several albums at
+// once (Immich PUT /albums/assets with {albumIds, assetIds}).
+func (a *App) handleAlbumBulkAddAssets(c *gin.Context) {
+	uid := currentUserID(c)
+	var b struct {
+		AlbumIDs []string `json:"albumIds"`
+		AssetIDs []string `json:"assetIds"`
+	}
+	_ = c.ShouldBindJSON(&b)
+	now := time.Now().UTC()
+	for _, aid := range b.AlbumIDs {
+		var al Album
+		if err := a.store.DB.First(&al, "id = ? AND owner_id = ?", aid, uid).Error; err != nil {
+			continue
+		}
+		var order int64
+		a.store.DB.Model(&AlbumAsset{}).Where("album_id = ?", aid).Count(&order)
+		for _, assetID := range b.AssetIDs {
+			var cnt int64
+			a.store.DB.Model(&AlbumAsset{}).Where("album_id = ? AND asset_id = ?", aid, assetID).Count(&cnt)
+			if cnt > 0 {
+				continue
+			}
+			a.store.DB.Create(&AlbumAsset{AlbumID: aid, AssetID: assetID, Order: int(order), CreatedAt: now})
+			order++
+		}
+	}
+	c.Status(http.StatusOK)
 }

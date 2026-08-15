@@ -457,3 +457,100 @@ func TestApiKeySingleReadAndUpdate(t *testing.T) {
 		t.Errorf("name not updated: %q", upd.Name)
 	}
 }
+
+// TestSearchAggregations guards the real search/statistics/random/large-assets
+// endpoints (asset.size is now persisted on ingest).
+func TestSearchAggregations(t *testing.T) {
+	app, r, token := newTestServer(t)
+	uploadAsset(t, r, token, "agg1.jpg")
+	uploadAsset(t, r, token, "agg2.jpg")
+
+	w := do(r, "POST", "/api/search/statistics", token, mustJSON(t, map[string]any{}), "application/json")
+	if w.Code != http.StatusOK {
+		t.Fatalf("statistics -> %d: %s", w.Code, w.Body.String())
+	}
+	var stats struct {
+		Total  int64 `json:"total"`
+		Photos int64 `json:"photos"`
+		Videos int64 `json:"videos"`
+		Usage  int64 `json:"usage"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &stats); err != nil {
+		t.Fatalf("statistics decode: %v", err)
+	}
+	if stats.Total < 2 {
+		t.Errorf("expected >=2 assets, got %d", stats.Total)
+	}
+
+	w = do(r, "POST", "/api/search/random", token, mustJSON(t, map[string]any{"take": 10}), "application/json")
+	if w.Code != http.StatusOK {
+		t.Fatalf("random -> %d", w.Code)
+	}
+	var rnd searchResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &rnd); err != nil {
+		t.Fatalf("random decode: %v", err)
+	}
+	if rnd.Assets.Total < 1 {
+		t.Errorf("random returned no assets")
+	}
+
+	// large-assets with size 0 must include everything (size >= 0).
+	w = do(r, "POST", "/api/search/large-assets", token, mustJSON(t, map[string]any{"size": 0, "take": 50}), "application/json")
+	if w.Code != http.StatusOK {
+		t.Fatalf("large-assets -> %d", w.Code)
+	}
+	var large searchResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &large); err != nil {
+		t.Fatalf("large-assets decode: %v", err)
+	}
+	if large.Assets.Total < 2 {
+		t.Errorf("large-assets returned %d, want >=2", large.Assets.Total)
+	}
+
+	// smart search must be an honest 501 (CLIP/ML deferred).
+	w = do(r, "POST", "/api/search/smart", token, mustJSON(t, map[string]string{"query": "cat"}), "application/json")
+	if w.Code != http.StatusNotImplemented {
+		t.Errorf("smart search -> %d, want 501", w.Code)
+	}
+
+	_ = app
+}
+
+// TestAlbumMapMarkers guards GET /albums/:id/map-markers uses real GPS EXIF.
+func TestAlbumMapMarkers(t *testing.T) {
+	app, r, token := newTestServer(t)
+	id := uploadAsset(t, r, token, "marker.jpg")
+	// attach GPS exif
+	app.store.DB.Create(&Exif{ID: id, AssetID: id, Latitude: 48.85, Longitude: 2.35, City: "Paris"})
+
+	// create album and add the asset
+	w := do(r, "POST", "/api/albums", token, mustJSON(t, map[string]any{"albumName": "Trip", "assetIds": []string{id}}), "application/json")
+	var al struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &al); err != nil || al.ID == "" {
+		t.Fatalf("album create: %v body=%s", err, w.Body.String())
+	}
+	w = do(r, "GET", "/api/albums/"+al.ID+"/map-markers", token, nil, "")
+	if w.Code != http.StatusOK {
+		t.Fatalf("map-markers -> %d: %s", w.Code, w.Body.String())
+	}
+	var mm struct {
+		Markers []struct {
+			Lat float64 `json:"lat"`
+			Lon float64 `json:"lon"`
+		} `json:"markers"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &mm); err != nil {
+		t.Fatalf("map-markers decode: %v", err)
+	}
+	found := false
+	for _, m := range mm.Markers {
+		if m.Lat == 48.85 && m.Lon == 2.35 {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected a Paris marker among %+v", mm.Markers)
+	}
+}
