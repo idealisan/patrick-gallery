@@ -641,6 +641,17 @@ func (a *App) handleAssetMetadata(c *gin.Context) {
 	c.JSON(http.StatusOK, exif)
 }
 
+// assetMetadataInput is the editable asset metadata payload, shared by the
+// single-asset and bulk metadata endpoints.
+type assetMetadataInput struct {
+	Description      string   `json:"description"`
+	DateTimeOriginal string   `json:"dateTimeOriginal"`
+	Latitude         *float64 `json:"latitude"`
+	Longitude        *float64 `json:"longitude"`
+	Visibility       string   `json:"visibility"` // timeline | archive | locked
+	Favorite         *bool    `json:"isFavorite"`
+}
+
 // handleAssetMetadataUpdate persists user-editable asset metadata
 // (description / dateTimeOriginal / GPS) plus visibility & favorite state.
 func (a *App) handleAssetMetadataUpdate(c *gin.Context) {
@@ -655,16 +666,15 @@ func (a *App) handleAssetMetadataUpdate(c *gin.Context) {
 		c.Status(http.StatusForbidden)
 		return
 	}
-	var b struct {
-		Description      string   `json:"description"`
-		DateTimeOriginal string   `json:"dateTimeOriginal"`
-		Latitude         *float64 `json:"latitude"`
-		Longitude        *float64 `json:"longitude"`
-		Visibility       string   `json:"visibility"` // timeline | archive | locked
-		Favorite         *bool    `json:"isFavorite"`
-	}
+	var b assetMetadataInput
 	_ = c.ShouldBindJSON(&b)
+	a.applyAssetMetadata(id, b)
+	c.Status(http.StatusOK)
+}
 
+// applyAssetMetadata persists the metadata/visibility/favorite edits for one
+// asset id. Shared by the single-asset and bulk metadata endpoints.
+func (a *App) applyAssetMetadata(id string, b assetMetadataInput) {
 	patch := map[string]any{}
 	if b.Visibility != "" {
 		patch["is_archived"] = b.Visibility == "archive"
@@ -673,9 +683,8 @@ func (a *App) handleAssetMetadataUpdate(c *gin.Context) {
 		patch["is_favorite"] = *b.Favorite
 	}
 	if len(patch) > 0 {
-		a.store.DB.Model(&asset).Updates(patch)
+		a.store.DB.Model(&Asset{}).Where("id = ?", id).Updates(patch)
 	}
-
 	var exif Exif
 	if err := a.store.DB.First(&exif, "asset_id = ?", id).Error; err == nil {
 		if b.Description != "" {
@@ -709,7 +718,79 @@ func (a *App) handleAssetMetadataUpdate(c *gin.Context) {
 		}
 		a.store.DB.Create(ex)
 	}
+}
+
+// handleAssetBulkMetadata applies metadata edits to many assets at once.
+func (a *App) handleAssetBulkMetadata(c *gin.Context) {
+	uid := currentUserID(c)
+	var b struct {
+		IDs []string `json:"ids"`
+		assetMetadataInput
+	}
+	_ = c.ShouldBindJSON(&b)
+	for _, id := range b.IDs {
+		var asset Asset
+		if err := a.store.DB.First(&asset, "id = ?", id).Error; err != nil {
+			continue
+		}
+		if asset.OwnerID != uid && !a.isAdmin(uid) {
+			continue
+		}
+		a.applyAssetMetadata(id, b.assetMetadataInput)
+	}
 	c.Status(http.StatusOK)
+}
+
+// handleAssetCopy duplicates the requested assets for the same owner (new ids,
+// same bytes). Used by the web UI "make a copy" action.
+func (a *App) handleAssetCopy(c *gin.Context) {
+	uid := currentUserID(c)
+	var b struct {
+		IDs     []string `json:"ids"`
+		AlbumID string   `json:"albumId"`
+	}
+	_ = c.ShouldBindJSON(&b)
+	var lib Library
+	if err := a.store.DB.Where("owner_id = ?", uid).First(&lib).Error; err != nil {
+		lib = Library{ID: "", OwnerID: uid}
+	}
+	now := time.Now().UTC()
+	var newIDs []string
+	for _, id := range b.IDs {
+		var asset Asset
+		if err := a.store.DB.First(&asset, "id = ? AND owner_id = ?", id, uid).Error; err != nil {
+			continue
+		}
+		raw, err := os.ReadFile(asset.OriginalPath)
+		if err != nil {
+			continue
+		}
+		ext := filepath.Ext(asset.OriginalPath)
+		dst := filepath.Join(a.cfg.ResourceDir, "upload", newUUID()+ext)
+		if err := os.WriteFile(dst, raw, 0o644); err != nil {
+			continue
+		}
+		cp, err := a.ingestStoredFile(ingestOptions{
+			OwnerID:      uid,
+			LibraryID:    lib.ID,
+			FileName:     asset.OriginalFileName,
+			Ext:          ext,
+			Type:         asset.Type,
+			OriginalPath: dst,
+			IsExternal:   false,
+			FileCreated:  now,
+			FileModified: now,
+			LocalDate:    asset.LocalDateTime,
+		})
+		if err != nil {
+			continue
+		}
+		if b.AlbumID != "" {
+			a.store.DB.Create(&AlbumAsset{AlbumID: b.AlbumID, AssetID: cp.ID, Order: 0, CreatedAt: now})
+		}
+		newIDs = append(newIDs, cp.ID)
+	}
+	c.JSON(http.StatusOK, gin.H{"ids": newIDs, "count": len(newIDs)})
 }
 
 func (a *App) handleAssetThumbnail(c *gin.Context) {

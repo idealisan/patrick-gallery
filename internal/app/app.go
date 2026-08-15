@@ -92,6 +92,9 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.PUT("/user/me/preferences", a.handlePreferences)
 		api.GET("/users/me/preferences", a.handlePreferences)
 		api.PUT("/users/me/preferences", a.handlePreferences)
+		api.GET("/users/me/onboarding", a.handleUserOnboardingGet)
+		api.PUT("/users/me/onboarding", a.handleUserOnboardingPost)
+		api.GET("/users/me/license", a.handleUserLicenseGet)
 		api.GET("/users/:id", a.handleGetUser)
 		api.PUT("/users/:id", a.handleUpdateUser)
 		api.DELETE("/users/:id", a.handleDeleteUser)
@@ -108,6 +111,8 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.GET("/assets/statistics", a.handleAssetStatistics)
 		api.POST("/assets/urls", a.handleAssetBulkInfo)
 		api.GET("/assets/duplicates", a.handleAssetDuplicates)
+		api.PUT("/assets/metadata", a.handleAssetBulkMetadata)
+		api.PUT("/assets/copy", a.handleAssetCopy)
 		api.GET("/assets/:id", a.handleAssetGet)
 		api.PUT("/assets/:id", a.handleAssetUpdate)
 		api.DELETE("/assets", a.handleAssetBulkDelete)
@@ -204,6 +209,11 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.DELETE("/activities/:id", a.handleActivityDelete)
 		api.GET("/activities/asset/:id", a.handleActivityByAsset)
 		api.GET("/activities/album/:id", a.handleActivityByAlbum)
+		api.GET("/activities/statistics", a.handleActivityStatistics)
+
+		// folder view (web UI)
+		api.GET("/view/folder", a.handleViewFolder)
+		api.GET("/view/folder/unique-paths", a.handleViewFolderUniquePaths)
 
 		// shared links
 		api.GET("/shared-links", a.handleSharedLinkList)

@@ -554,3 +554,42 @@ func TestAlbumMapMarkers(t *testing.T) {
 		t.Errorf("expected a Paris marker among %+v", mm.Markers)
 	}
 }
+
+// TestAssetCopyAndBulkMetadata guards PUT /assets/copy and PUT /assets/metadata.
+func TestAssetCopyAndBulkMetadata(t *testing.T) {
+	_, r, token := newTestServer(t)
+	id := uploadAsset(t, r, token, "copy.jpg")
+
+	// copy
+	w := do(r, "PUT", "/api/assets/copy", token, mustJSON(t, map[string]any{"ids": []string{id}}), "application/json")
+	if w.Code != http.StatusOK {
+		t.Fatalf("copy -> %d: %s", w.Code, w.Body.String())
+	}
+	var cp struct {
+		IDs []string `json:"ids"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &cp); err != nil || len(cp.IDs) != 1 {
+		t.Fatalf("copy decode: %v body=%s", err, w.Body.String())
+	}
+	newID := cp.IDs[0]
+	if newID == id {
+		t.Error("copy returned same id")
+	}
+
+	// bulk metadata
+	w = do(r, "PUT", "/api/assets/metadata", token,
+		mustJSON(t, map[string]any{"ids": []string{newID}, "description": "copied!"}), "application/json")
+	if w.Code != http.StatusOK {
+		t.Fatalf("bulk metadata -> %d: %s", w.Code, w.Body.String())
+	}
+	w = do(r, "GET", "/api/assets/"+newID+"/metadata", token, nil, "")
+	var ex struct {
+		Description string `json:"description"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &ex); err != nil {
+		t.Fatalf("metadata get: %v", err)
+	}
+	if ex.Description != "copied!" {
+		t.Errorf("description not applied: %q", ex.Description)
+	}
+}

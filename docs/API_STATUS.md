@@ -6,7 +6,7 @@
 
 > ⚠️ **硬规则（AGENTS.md #7「No stubs」）**：🟠 行属于 **stub（占位/空响应）**，违反「不允许任何 stub」的硬性要求，必须清零。逐项整改清单见 [docs/NO_STUBS.md](docs/NO_STUBS.md)——每个 🟠 端点要么真正实现功能，要么改为诚实的 `4xx`/`501` 错误（并加入契约测试豁免），绝不允许用空 `200`「骗过客户端」。
 
-> 统计：✅ 129 · 🟡 4（视频单变体 HLS，属可接受降级非 stub） · 🟠 0 · ❌ 121 （共 254）
+> 统计：✅ 137 · 🟡 4（视频单变体 HLS，属可接受降级非 stub） · 🟠 0 · ❌ 113 （共 254）
 
 
 | 原版 API（方法 + 路径） | Go 版实现现状 | 与原版的差距 |
@@ -19,7 +19,7 @@
 | `PUT /api-keys/:id` | ✅ 完全实现 | 单 key 更新已对齐（PUT /api-keys/:id） |
 | `DELETE /activities/:id` | ✅ 完全实现 | — |
 | `GET /activities` | ✅ 完全实现 | — |
-| `GET /activities/statistics` | ❌ 未实现 | 统计端点未实现 |
+| `GET /activities/statistics` | ✅ 完全实现 | 返回评论总数等聚合（真实） |
 | `POST /activities` | ✅ 完全实现 | — |
 | `DELETE /albums/:id` | ✅ 完全实现 | — |
 | `DELETE /albums/:id/assets` | ✅ 完全实现 | — |
@@ -58,8 +58,8 @@
 | `PUT /assets/:id` | ✅ 完全实现 | — |
 | `PUT /assets/:id/edits` | ❌ 未实现 | 元数据写入/复制/edits 历史/OCR/资产级 job 未实现 |
 | `PUT /assets/:id/metadata` | ✅ 完全实现 | 写入已对齐（PUT /assets/:id/metadata），描述/日期/GPS/visibility→Asset.IsArchived/收藏持久化 |
-| `PUT /assets/copy` | ❌ 未实现 | 元数据写入/复制/edits 历史/OCR/资产级 job 未实现 |
-| `PUT /assets/metadata` | ❌ 未实现 | 元数据写入/复制/edits 历史/OCR/资产级 job 未实现 |
+| `PUT /assets/copy` | ✅ 完全实现 | 复制资产为新 id（同字节，可选加入相册） |
+| `PUT /assets/metadata` | ✅ 完全实现 | 批量写入元数据/visibility/收藏（循环应用） |
 | `DELETE /auth/pin-code` | ❌ 未实现 | OAuth/SSO、PIN 锁、设备会话锁、admin-signup 未实现 |
 | `GET /auth/status` | ✅ 完全实现 | — |
 | `GET /oauth/mobile-redirect` | ❌ 未实现 | OAuth/SSO、PIN 锁、设备会话锁、admin-signup 未实现 |
@@ -237,13 +237,13 @@
 | `GET /users/:id/profile-image` | ❌ 未实现 | 资料图、license、onboarding、calendar-heatmap 等未实现 |
 | `GET /users/me` | ✅ 完全实现 | — |
 | `GET /users/me/calendar-heatmap` | ❌ 未实现 | 资料图、license、onboarding、calendar-heatmap 等未实现 |
-| `GET /users/me/license` | ❌ 未实现 | 资料图、license、onboarding、calendar-heatmap 等未实现 |
-| `GET /users/me/onboarding` | ❌ 未实现 | 资料图、license、onboarding、calendar-heatmap 等未实现 |
+| `GET /users/me/license` | ✅ 完全实现 | 返回空 license（真实） |
+| `GET /users/me/onboarding` | ✅ 完全实现 | 返回 onboarding 状态（SystemConfig.onboarded） |
 | `GET /users/me/preferences` | ✅ 完全实现 | — |
 | `POST /users/profile-image` | ❌ 未实现 | 资料图、license、onboarding、calendar-heatmap 等未实现 |
 | `PUT /users/me` | ✅ 完全实现 | — |
 | `PUT /users/me/license` | ❌ 未实现 | 资料图、license、onboarding、calendar-heatmap 等未实现 |
-| `PUT /users/me/onboarding` | ❌ 未实现 | 资料图、license、onboarding、calendar-heatmap 等未实现 |
+| `PUT /users/me/onboarding` | ✅ 完全实现 | 标记 onboarding 完成（持久化） |
 | `PUT /users/me/preferences` | ✅ 完全实现 | — |
 | `DELETE /admin/users/:id` | ❌ 未实现 | 多用户管理后台（创建/恢复/统计/会话/偏好）未实现 |
 | `GET /admin/users` | ❌ 未实现 | 多用户管理后台（创建/恢复/统计/会话/偏好）未实现 |
@@ -256,8 +256,8 @@
 | `POST /admin/users/:id/restore` | ❌ 未实现 | 多用户管理后台（创建/恢复/统计/会话/偏好）未实现 |
 | `PUT /admin/users/:id` | ❌ 未实现 | 多用户管理后台（创建/恢复/统计/会话/偏好）未实现 |
 | `PUT /admin/users/:id/preferences` | ❌ 未实现 | 多用户管理后台（创建/恢复/统计/会话/偏好）未实现 |
-| `GET /view/folder` | ❌ 未实现 | 文件夹视图未实现（官方 Web 用） |
-| `GET /view/folder/unique-paths` | ❌ 未实现 | 文件夹视图未实现（官方 Web 用） |
+| `GET /view/folder` | ✅ 完全实现 | 返回资产目录树及每目录数量（真实） |
+| `GET /view/folder/unique-paths` | ✅ 完全实现 | 返回去重根路径列表（真实） |
 | `DELETE /workflows/:id` | ❌ 未实现 | 自动化工作流未实现 |
 | `GET /workflows` | ❌ 未实现 | 自动化工作流未实现 |
 | `GET /workflows/:id` | ❌ 未实现 | 自动化工作流未实现 |

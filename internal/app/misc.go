@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -184,6 +185,65 @@ func (a *App) handleActivityByAlbum(c *gin.Context) {
 	var acts []Activity
 	a.store.DB.Where("album_id = ?", aid).Order("created_at DESC").Find(&acts)
 	c.JSON(http.StatusOK, acts)
+}
+
+// handleActivityStatistics returns aggregate activity counts (album comments).
+func (a *App) handleActivityStatistics(c *gin.Context) {
+	uid := currentUserID(c)
+	var total int64
+	a.store.DB.Model(&Activity{}).Where("user_id = ?", uid).Count(&total)
+	c.JSON(http.StatusOK, gin.H{
+		"total":    total,
+		"comments": total,
+		"likes":    int64(0),
+	})
+}
+
+// handleViewFolder returns the folder tree (parent directories of the user's
+// asset original paths) with per-folder asset counts — Immich's web folder view.
+func (a *App) handleViewFolder(c *gin.Context) {
+	uid := currentUserID(c)
+	var assets []Asset
+	a.store.DB.Where("owner_id = ? AND is_trash = ?", uid, false).Find(&assets)
+	counts := map[string]int{}
+	for _, as := range assets {
+		if as.OriginalPath == "" {
+			continue
+		}
+		dir := filepath.Dir(as.OriginalPath)
+		counts[dir]++
+	}
+	folders := make([]gin.H, 0, len(counts))
+	for dir, n := range counts {
+		folders = append(folders, gin.H{
+			"id":     dir,
+			"name":   filepath.Base(dir),
+			"path":   dir,
+			"assets": n,
+		})
+	}
+	c.JSON(http.StatusOK, gin.H{"folders": folders, "total": len(folders)})
+}
+
+// handleViewFolderUniquePaths returns the distinct root (top-level) paths of
+// the user's assets.
+func (a *App) handleViewFolderUniquePaths(c *gin.Context) {
+	uid := currentUserID(c)
+	var assets []Asset
+	a.store.DB.Where("owner_id = ? AND is_trash = ?", uid, false).Find(&assets)
+	seen := map[string]bool{}
+	paths := []string{}
+	for _, as := range assets {
+		if as.OriginalPath == "" {
+			continue
+		}
+		root := filepath.Dir(as.OriginalPath)
+		if !seen[root] {
+			seen[root] = true
+			paths = append(paths, root)
+		}
+	}
+	c.JSON(http.StatusOK, paths)
 }
 
 // ---------------- shared links ----------------
@@ -618,6 +678,27 @@ func (a *App) handleAdminOnboardingPost(c *gin.Context) {
 	cfg.Onboarded = true
 	a.store.DB.Save(&cfg)
 	c.JSON(http.StatusOK, gin.H{"isOnboarded": true})
+}
+
+// handleUserOnboardingGet returns the current user's onboarding state.
+func (a *App) handleUserOnboardingGet(c *gin.Context) {
+	var cfg SystemConfig
+	a.store.DB.First(&cfg, "id = ?", "singleton")
+	c.JSON(http.StatusOK, gin.H{"isOnboarded": cfg.Onboarded})
+}
+
+// handleUserOnboardingPost marks onboarding complete for the current user.
+func (a *App) handleUserOnboardingPost(c *gin.Context) {
+	var cfg SystemConfig
+	a.store.DB.First(&cfg, "id = ?", "singleton")
+	cfg.Onboarded = true
+	a.store.DB.Save(&cfg)
+	c.JSON(http.StatusOK, gin.H{"isOnboarded": true})
+}
+
+// handleUserLicenseGet returns the (empty) license for the current user.
+func (a *App) handleUserLicenseGet(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"license": nil, "licenseKey": "", "activationKey": ""})
 }
 
 // ---------------- jobs ----------------
