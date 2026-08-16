@@ -1,6 +1,6 @@
 # BUG-007：视频上传后无法播放（HLS 主播放清单返回绝对 `http://` URL 触发混合内容拦截）+ 视频元数据缺失（duration/ratio 为 0）
 
-> 状态：**Open（调查完成，未修复）** · 日期：2026-08-16 · 严重度：**High（视频观看完全不可用）**，含两个 Medium 级元数据子问题
+> 状态：**部分 Resolved（子问题 1 已修复、构建、部署并用真实浏览器验证；子问题 2/3 依赖视频引擎，受 placeholder 后端阻塞）** · 日期：2026-08-16 · 严重度：**High（视频观看完全不可用）**，含两个 Medium 级元数据子问题
 >
 > 触发来源：用户上传 HAR 抓包 `上传视频流程.har`（经反向代理 `https://eo795eal4s-8081.cnb.run` 抓取，即 AGENTS.md 要求的「反向代理公网 URL」真实浏览器流程）。
 
@@ -86,14 +86,14 @@ func (a *App) handleVideoStreamMaster(c *gin.Context) {
 - 子问题 1：HLS 端点确实返回了内容（200 + 合法 m3u8），只是 URL 协议写错，属于契约形状偏差，应按官方契约改成相对路径。
 - 子问题 2/3：返回的 `duration:0`/`ratio:0` 是「未抽取元数据」的真实当前状态，并非硬编码空成功；正确做法是补全抽取能力（可行，已有 `internal/video.Processor` 接口与 purego FFmpeg 后端）。若某些环境下视频引擎确实不可用，按 AGENTS.md 规则 7 应**诚实**回退（例如继续返回 0 并可记录在 `docs/GAP_ANALYSIS.md`），但当前核心问题不是「假成功」而是「该做没做」。
 
-## 修复方向（仅建议，本次未改代码）
+## 修复方向（子问题 1 已实施并部署；2/3 待视频引擎）
 
-1. **子问题 1（关键）**：`handleVideoStreamMaster` 改为输出**相对**变体地址，去掉 scheme/host：
+1. **子问题 1（关键，已修复）**：`handleVideoStreamMaster` 已改为输出**相对**变体地址，去掉 scheme/host（`internal/app/hls.go:89`）：
    ```go
    variant := fmt.Sprintf("%s/0/playlist.m3u8", asset.ID)  // 相对主清单所在目录解析
    ```
-   与官方 `hls.service.ts:143` 对齐；这样在反向代理 HTTPS 下自然走 https，消除混合内容拦截。不必依赖 `X-Forwarded-Proto`（相对路径对所有部署形态都安全）。
-2. **子问题 2/3**：在 `ingestStoredFile` 对 `VIDEO` 类型资产调用 `a.video.Probe(raw)` 取 `DurationSec`（×1000 存毫秒）、`Width`、`Height`；回填 `Duration` 列与 `Width/Height`（驱动 `ratio`）。注意降级：若 `Probe` 不可用（`placeholder` 后端）则保持原值（诚实回退），不可伪造。
+   与官方 `hls.service.ts:143` 对齐；在反向代理 HTTPS 下自然走 https，消除混合内容拦截。已构建部署，经真实浏览器可验证 `main.m3u8` 变体行为相对路径（无 `http://`）、`.../0/playlist.m3u8` 与 `seg-0.mp4` 不再 STATUS 0。注意：当前 `serveEncodedMP4` 因视频引擎为 placeholder（`[video] no native/ffmpeg backend available`）会回退到原始文件 `c.File(asset.OriginalPath)`，视频仍可播放（播放原始文件），故混合内容修复后观看可用；真正的转码/缩略图需视频引擎接入（见下）。
+2. **子问题 2/3（待视频引擎）**：需在 `ingestStoredFile` 对 `VIDEO` 类型资产调用 `a.video.Probe(raw)` 取 `DurationSec`（×1000 存毫秒）、`Width`、`Height`；回填 `Duration` 列与 `Width/Height`（驱动 `ratio`）。当前 `a.video` 为 `placeholder` 后端（`internal/video/placeholder.go`：`Probe` 返回 error、转码不可用），故无法抽取元数据。需接入 `internal/video/ffmpeg_methods.go` 的 purego FFmpeg 后端并按 AGENTS.md 硬规则打包共享库（THIRD_PARTY.md），方能使 `duration`/`ratio` 非零。在引擎不可用时应诚实回退（继续返回 0，不伪造），符合规则 7。
 
 ## 影响
 
