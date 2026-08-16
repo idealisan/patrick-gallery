@@ -301,7 +301,7 @@ func (a *App) handleSyncStream(c *gin.Context) {
 	a.store.DB.Where("owner_id = ?", uid).Find(&ownedAlbums)
 	var sharedAlbums []Album
 	a.store.DB.
-		Where("id IN (SELECT album_id FROM album_users WHERE user_id = ?)", uid).
+		Where("id IN (SELECT album_id FROM "+new(AlbumUser).TableName()+" WHERE user_id = ?)", uid).
 		Find(&sharedAlbums)
 
 	seen := make(map[string]bool)
