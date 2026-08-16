@@ -1,12 +1,12 @@
 # API 契约一致性回归测试（Schemathesis）
 
-immich-go 以[官方 Immich v3.1.0 OpenAPI 契约](https://github.com/immich-app/immich/blob/v3.1.0/open-api/immich-openapi-spec.json)为兼容基准。本项目用行业标准 property-based API 测试工具 **[Schemathesis](https://schemathesis.readthedocs.io/)** 对运行中的 immich-go 做真实契约一致性核验，并将其作为**回归测试手段**：任何让响应体形状（DTO）偏离契约的改动都会被 CI 拦下。
+immich-go 的兼容基准是**官方客户端与网页版实际代码**（immich 仓库 `server/`、`web/`、`packages/sdk/`，tag **v3.1.0**）。本项目用行业标准 property-based API 测试工具 **[Schemathesis](https://schemathesis.readthedocs.io/)** 对运行中的 immich-go 做真实契约一致性核验，并将其作为**回归测试手段**：任何让响应体形状（DTO）偏离契约的改动都会被 CI 拦下。[官方 Immich v3.1.0 OpenAPI 规范](https://github.com/immich-app/immich/blob/v3.1.0/open-api/immich-openapi-spec.json)仅作为 Schemathesis 校验所用的 schema 来源，**不是契约权威**。
 
 历史运行报告见 [`../reports/schemathesis-v3.1.0.md`](../reports/schemathesis-v3.1.0.md)；原始产物（JUnit + 文本）在 [`../reports/schemathesis/`](../reports/schemathesis/)。
 
 ## 为什么不是手写检查器
 
-早期用 `scripts/api_consistency.py`（stdlib-only 的 GET 检查器）做只读一致性调查，但它只能“猜”响应体是否合法、且会漏报 DTO 形状错误（例如把 `{"markers":[...]}` 当成合法、把平行数组对象当成合法）。Schemathesis 直接拿**官方 OpenAPI schema** 校验每个响应，能精确报告 `response_schema_conformance` / `content_type_conformance` / `status_code_conformance` / `not_a_server_error` 四类违例——这正是修复 A1–A4（见 STATUS.md §K）的关键手段。两者互补：`api_consistency.py` 覆盖 75 个 GET 的广撒网，Schemathesis 对可生成样例的 operation 做严格 schema 校验。
+早期用 `scripts/api_consistency.py`（stdlib-only 的 GET 检查器）做只读一致性调查，但它只能“猜”响应体是否合法、且会漏报 DTO 形状错误（例如把 `{"markers":[...]}` 当成合法、把平行数组对象当成合法）。Schemathesis 直接拿 **OpenAPI schema**（仅作回归校验输入）校验每个响应，能精确报告 `response_schema_conformance` / `content_type_conformance` / `status_code_conformance` / `not_a_server_error` 四类违例——这正是修复 A1–A4（见 STATUS.md §K）的关键手段。两者互补：`api_consistency.py` 覆盖 75 个 GET 的广撒网，Schemathesis 对可生成样例的 operation 做严格 schema 校验。权威契约仍以官方客户端与网页版实际代码为准。
 
 ## 回归门禁脚本
 
