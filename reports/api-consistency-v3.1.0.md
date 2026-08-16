@@ -1,12 +1,12 @@
-# immich-go vs Immich OpenAPI v3.1.0 — API 一致性报告
+# immich-go vs Immich v3.1.0 — API 一致性报告
 
-生成工具: `scripts/api_consistency.py`（stdlib-only，OpenAPI 驱动的一致性检查器）
-基准契约: `open-api/immich-openapi-specs.json`（immich-app/immich tag **v3.1.0**，254 method-paths，base /api）
+生成工具: `scripts/api_consistency.py`（stdlib-only，OpenAPI 驱动的辅助检查器）
+基准契约: 权威以**官方客户端与网页版实际代码**（immich 仓库 `server/`、`web/`、`packages/sdk/`，tag **v3.1.0**）为准；`open-api/immich-openapi-specs.json`（254 method-paths，base /api）仅作路径/方法清单参考。
 被测实现: immich-go（运行 `IMMICH_COMPAT_VERSION=3.1.0`）
 
 ## 关于「原版 vs Go 版」
 - 本仓库无 docker/ffmpeg，**无法在本环境拉起原版 Immich**（需 Postgres+Redis+ML 全栈），故未对运行中实例做并排测试。
-- 「原版」在此以**官方 OpenAPI 契约**为代表（即原版服务器对外发布的接口契约）。以该契约为基准测试 immich-go 实现 = 对「原版契约 vs Go 实现」做一致性调查。
+- 「原版」在此以**官方客户端与网页版实际代码**（immich 仓库 `server/`、`web/`、`packages/sdk/`）为代表——这才是兼容的权威依据；OpenAPI 规范信息不足，仅作辅助参考。以官方实际代码为准测试 immich-go 实现 = 对「原版实际行为 vs Go 实现」做一致性调查。
 - 同一套 `scripts/api_consistency.py` + 官方 spec 只需 `BASE_URL=<原版地址>` 即可对任一原版实例产出并行报告，方法完全一致。
 
 ## 入口说明（一致性检查器局限）
@@ -17,7 +17,7 @@
 ---- 以下为检查器原始输出 ----
 
 
-# immich-go API 一致性报告 (基准: Immich OpenAPI v3.1.0)
+# immich-go API 一致性报告 (基准: Immich 官方客户端/网页版实际代码 v3.1.0)
 BASE_URL=http://localhost:8099  (IMMICH_COMPAT_VERSION=3.1.0)
 
 METHOD  PATH                                                    ST    CONTENT-TYPE                 NOTE
