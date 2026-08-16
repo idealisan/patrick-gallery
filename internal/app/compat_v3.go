@@ -1,10 +1,13 @@
 package app
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -190,34 +193,198 @@ func (a *App) handleSyncAck(c *gin.Context) {
 }
 
 // handleSyncStream emits a real snapshot of the user's library as Immich
-// sync deltas (AssetV1 for each asset, AlbumV1 for each album with its member
-// ids). This is the first-time / full reconciliation payload the official
-// client consumes; incremental advancement is keyed off the last ack
-// (handleSyncAck). Live changes after connect are pushed over the websocket
-// event channel.
+// v3.1.0 sync deltas. The official mobile client (SyncApiRepository.streamChanges)
+// POSTs a SyncStreamDto{types:[...]} and expects a response with
+// Content-Type: application/jsonlines+json whose body is one JSON object per
+// line, each shaped as {type, data, ack}. The line's `type` must be one of the
+// SyncEntityType enum strings (AuthUserV1, UserV1, AssetV2, AlbumV2,
+// AlbumUserV1, AlbumToAssetV1, SyncCompleteV1, ...); the matching converter in
+// the client's _kResponseMap parses `data`. We emit the types we can produce
+// from real state (single-user instance: the current user, their assets,
+// albums + shares) and terminate with SyncCompleteV1.
+//
+// Every required field (those the generated fromJson asserts with `!`) is
+// emitted unconditionally; omitting any of them throws
+// "Null check operator used on a null value" in the client and aborts login.
+// Types that have no data here (partners, stacks, memories, people, faces,
+// ocr, ...) are intentionally NOT emitted — the client tolerates their
+// absence rather than crashing, which is the honest state for this instance.
 func (a *App) handleSyncStream(c *gin.Context) {
 	uid := currentUserID(c)
-	deltas := make([]gin.H, 0, 64)
+	w := c.Writer
+	c.Header("Content-Type", "application/jsonlines+json")
+	c.Status(http.StatusOK)
 
+	emit := func(typeStr string, data any) {
+		b, err := json.Marshal(gin.H{"type": typeStr, "data": data, "ack": ""})
+		if err != nil {
+			return
+		}
+		w.Write(b)
+		w.Write([]byte{'\n'})
+	}
+
+	rfc := func(t time.Time) string { return t.UTC().Format(time.RFC3339) }
+	nilStr := func(s string) any { if s == "" { return nil }; return s }
+
+	// ---- current user (authUsersV1 + usersV1) ----
+	var u User
+	if err := a.store.DB.First(&u, "id = ?", uid).Error; err == nil {
+		usage := a.userQuotaUsage(uid)
+		avatarColor := u.AvatarColor
+		if avatarColor == "" {
+			avatarColor = "primary"
+		}
+		hasProfile := u.ProfileImagePath != ""
+
+		emit("AuthUserV1", gin.H{
+			"email":             u.Email,
+			"hasProfileImage":   hasProfile,
+			"id":                u.ID,
+			"isAdmin":           u.IsAdmin,
+			"name":              u.Name,
+			"oauthId":           u.OAuthId,
+			"profileChangedAt":  rfc(u.ProfileChangedAt),
+			"quotaUsageInBytes": usage,
+			"avatarColor":       avatarColor,
+			"deletedAt":         nil,
+			"pinCode":           nil,
+			"quotaSizeInBytes":  u.QuotaSizeInBytes, // *int64 -> null when unset
+			"storageLabel":      nilStr(u.StorageLabel),
+		})
+		emit("UserV1", gin.H{
+			"email":            u.Email,
+			"hasProfileImage":  hasProfile,
+			"id":               u.ID,
+			"name":             u.Name,
+			"profileChangedAt": rfc(u.ProfileChangedAt),
+			"avatarColor":      avatarColor,
+			"deletedAt":        nil,
+		})
+	}
+
+	// ---- assets (assetsV2) ----
 	var assets []Asset
 	a.store.DB.Where("owner_id = ? AND is_trash = ?", uid, false).Find(&assets)
 	for _, as := range assets {
-		deltas = append(deltas, gin.H{"type": "AssetV1", "asset": a.toResponse(as)})
+		visibility := "timeline"
+		if as.IsArchived {
+			visibility = "archive"
+		}
+		emit("AssetV2", gin.H{
+			"checksum":         as.Checksum,
+			"createdAt":        rfc(as.CreatedAt),
+			"deletedAt":        nil,
+			"duration":         durationMicros(as.Duration),
+			"fileCreatedAt":    rfc(as.FileCreatedAt),
+			"fileModifiedAt":   rfc(as.FileModifiedAt),
+			"height":           as.Height,
+			"id":               as.ID,
+			"isEdited":         false,
+			"isFavorite":       as.IsFavorite,
+			"libraryId":        nilStr(as.LibraryId),
+			"livePhotoVideoId": nilStr(as.LivePhotoVideoID),
+			"localDateTime":    rfc(as.LocalDateTime),
+			"originalFileName": as.OriginalFileName,
+			"ownerId":          as.OwnerID,
+			"stackId":          nil,
+			"thumbhash":        nilStr(as.Thumbhash),
+			"type":             as.Type, // IMAGE | VIDEO | AUDIO | OTHER
+			"visibility":       visibility,
+			"width":            as.Width,
+		})
 	}
 
-	var albums []Album
-	a.store.DB.Where("owner_id = ?", uid).Find(&albums)
-	for _, al := range albums {
+	// ---- albums (albumsV2) + shares (albumUsersV1) + links (albumAssetsV2) ----
+	// Owned albums plus albums shared with this user.
+	var ownedAlbums []Album
+	a.store.DB.Where("owner_id = ?", uid).Find(&ownedAlbums)
+	var sharedAlbums []Album
+	a.store.DB.
+		Where("id IN (SELECT album_id FROM album_users WHERE user_id = ?)", uid).
+		Find(&sharedAlbums)
+
+	seen := make(map[string]bool)
+	emitAlbum := func(al Album) {
+		if seen[al.ID] {
+			return
+		}
+		seen[al.ID] = true
+		var thumb any
+		if al.AlbumThumbnailAssetId != "" {
+			thumb = al.AlbumThumbnailAssetId
+		}
+		emit("AlbumV2", gin.H{
+			"createdAt":         rfc(al.CreatedAt),
+			"description":       al.Description,
+			"id":                al.ID,
+			"isActivityEnabled": al.IsActivityEnabled,
+			"name":              al.AlbumName,
+			"order":             "asc",
+			"thumbnailAssetId":  thumb,
+			"updatedAt":         rfc(al.UpdatedAt),
+		})
+		// owner link
+		emit("AlbumUserV1", gin.H{
+			"albumId": al.ID,
+			"userId":  al.OwnerID,
+			"role":    "owner",
+		})
+		// explicit shares
+		var shares []AlbumUser
+		a.store.DB.Where("album_id = ?", al.ID).Find(&shares)
+		for _, s := range shares {
+			emit("AlbumUserV1", gin.H{
+				"albumId": al.ID,
+				"userId":  s.UserID,
+				"role":    s.Role, // editor | viewer
+			})
+		}
+		// asset links
 		var links []AlbumAsset
 		a.store.DB.Where("album_id = ?", al.ID).Order("\"order\" ASC, created_at ASC").Find(&links)
-		ids := make([]string, 0, len(links))
 		for _, l := range links {
-			ids = append(ids, l.AssetID)
+			emit("AlbumToAssetV1", gin.H{
+				"albumId": l.AlbumID,
+				"assetId": l.AssetID,
+			})
 		}
-		deltas = append(deltas, gin.H{"type": "AlbumV1", "album": a.albumToResponse(al), "assets": ids})
+	}
+	for _, al := range ownedAlbums {
+		emitAlbum(al)
+	}
+	for _, al := range sharedAlbums {
+		emitAlbum(al)
 	}
 
-	c.JSON(http.StatusOK, deltas)
+	// ---- terminal marker ----
+	emit("SyncCompleteV1", gin.H{})
+}
+
+// durationMicros converts an Immich duration string ("HH:MM:SS", "HH:MM:SS.mmm",
+// or a plain seconds value) into integer microseconds, the unit SyncAssetV2
+// expects. Returns nil for non-video / empty input so the client's nullable int
+// field stays null rather than a bogus 0.
+func durationMicros(s string) any {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil
+	}
+	// "HH:MM:SS" or "HH:MM:SS.mmm"
+	if strings.Count(s, ":") == 2 {
+		parts := strings.Split(s, ":")
+		h, err1 := strconv.Atoi(parts[0])
+		m, err2 := strconv.Atoi(parts[1])
+		sec, err3 := strconv.ParseFloat(parts[2], 64)
+		if err1 == nil && err2 == nil && err3 == nil {
+			total := float64(h)*3600 + float64(m)*60 + sec
+			return int64(total * 1e6)
+		}
+	}
+	if v, err := strconv.ParseFloat(s, 64); err == nil {
+		return int64(v * 1e6)
+	}
+	return nil
 }
 
 // ---- people / faces ----

@@ -357,7 +357,8 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.GET("/sync/ack", a.handleSyncAck)
 		api.POST("/sync/ack", a.handleSyncAck)
 		api.DELETE("/sync/ack", a.handleSyncAck)
-		api.GET("/sync/stream", a.handleSyncStream)
+		api.POST("/sync/stream", a.handleSyncStream)
+	api.GET("/sync/stream", a.handleSyncStream)
 		api.GET("/people/:id/statistics", a.handlePersonStatistics)
 		// faces: detection/recognition need an ML backend (deferred) -> 501.
 		api.GET("/faces", a.handleFacesList)
