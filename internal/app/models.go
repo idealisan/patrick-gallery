@@ -27,8 +27,13 @@ type User struct {
 	IsEmailActive bool   `json:"isEmailActive,omitempty"`
 
 	// admin-managed fields (mirror Immich's UserAdminResponseDto)
-	PinCode           string    `gorm:"type:text" json:"-"`
-	QuotaSizeInBytes  *int64    `gorm:"type:bigint" json:"quotaSizeInBytes,omitempty"`
+	PinCode          string `gorm:"type:text" json:"-"`
+	QuotaSizeInBytes *int64 `gorm:"type:bigint" json:"quotaSizeInBytes"`
+	// QuotaUsageInBytes is computed per-request (not persisted). It MUST be
+	// present (null when no usage) so the web's `quotaSizeInBytes !== null`
+	// check evaluates correctly; omitting it yields JS `undefined` which the
+	// web treats as "has quota" and renders the storage meter as NaN.
+	QuotaUsageInBytes *int64    `gorm:"-" json:"quotaUsageInBytes"`
 	ProfileImagePath  string    `gorm:"type:text" json:"profileImagePath"`
 	ProfileChangedAt  time.Time `json:"profileChangedAt"`
 	OAuthId           string    `gorm:"type:text" json:"oauthId,omitempty"`

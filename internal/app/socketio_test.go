@@ -52,16 +52,32 @@ func TestSocketIOHandshakeAndEvents(t *testing.T) {
 		t.Fatal("open packet missing sid")
 	}
 
-	// 2) connect -> ack
+	// 2) connect -> ack. The server also pushes the on_server_version event
+	// right after the open packet, so keep reading until we see the Socket.IO
+	// connect ack (a packet starting with "40"); ignore pings and the
+	// version announcement in between.
 	if err := conn.WriteMessage(websocket.TextMessage, []byte("40")); err != nil {
 		t.Fatalf("write connect: %v", err)
 	}
-	_, ack, err := conn.ReadMessage()
-	if err != nil {
-		t.Fatalf("read connect ack: %v", err)
+	ack := ""
+	for {
+		_, msg, err := conn.ReadMessage()
+		if err != nil {
+			t.Fatalf("read connect ack: %v", err)
+		}
+		s := string(msg)
+		if s == "2" { // Engine.IO ping -> pong
+			_ = conn.WriteMessage(websocket.TextMessage, []byte("3"))
+			continue
+		}
+		if strings.HasPrefix(s, "40") {
+			ack = s
+			break
+		}
+		// otherwise (e.g. 42 on_server_version) ignore and keep reading
 	}
-	if string(ack) != "40" {
-		t.Fatalf("expected connect ack '40', got %q", string(ack))
+	if !strings.HasPrefix(ack, "40") {
+		t.Fatalf("expected connect ack starting with '40', got %q", ack)
 	}
 
 	// 3) emit an event and expect a Socket.IO event packet (42[...])
@@ -77,10 +93,20 @@ func TestSocketIOHandshakeAndEvents(t *testing.T) {
 				_ = conn.WriteMessage(websocket.TextMessage, []byte("3"))
 				continue
 			}
-			if strings.HasPrefix(s, "42") {
-				got <- s
-				return
+			if !strings.HasPrefix(s, "42") {
+				continue
 			}
+			// Skip the server-version announcement so we only assert on the
+			// event we explicitly emitted below.
+			var ev []json.RawMessage
+			if json.Unmarshal([]byte(s[2:]), &ev) == nil && len(ev) >= 1 {
+				var name string
+				if json.Unmarshal(ev[0], &name) == nil && name == "on_server_version" {
+					continue
+				}
+			}
+			got <- s
+			return
 		}
 	}()
 
@@ -99,8 +125,8 @@ func TestSocketIOHandshakeAndEvents(t *testing.T) {
 		if err := json.Unmarshal(arr[0], &name); err != nil {
 			t.Fatalf("event name: %v", err)
 		}
-		if name != "onAssetUpload" {
-			t.Fatalf("expected onAssetUpload, got %q", name)
+		if name != "on_upload_success" {
+			t.Fatalf("expected on_upload_success, got %q", name)
 		}
 		var payload map[string]any
 		_ = json.Unmarshal(arr[1], &payload)

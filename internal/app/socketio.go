@@ -118,6 +118,24 @@ func socketIOPacket(typ string, name string, payload map[string]any) string {
 	return "42" + string(b)
 }
 
+// socketIOServerVersion builds the on_server_version event the official web
+// sidebar needs to display the server version. Without it the client's
+// `$serverVersion` stays null and the sidebar renders "未知" (Unknown).
+// ServerVersionResponseDto = { major, minor, patch, prerelease }.
+func (a *App) socketIOServerVersion() string {
+	dto := map[string]any{
+		"major":      a.cfg.CompatMajor,
+		"minor":      a.cfg.CompatMinor,
+		"patch":      a.cfg.CompatPatch,
+		"prerelease": nil,
+	}
+	b, err := json.Marshal([]any{"on_server_version", dto})
+	if err != nil {
+		return ""
+	}
+	return "42" + string(b)
+}
+
 // socketIOSession builds the Socket.IO v4 namespace-connect ack payload. The
 // official Immich server (socket.io v4) replies to the client's `40` connect
 // packet with `40{"sid":"<id>"}`; the client reads packet.data.sid to finish
@@ -167,6 +185,12 @@ func (a *App) socketIOWebsocket(c *gin.Context) {
 	}
 	writePkt("0" + socketIOOpen(sid))
 
+	// Announce the server version immediately so the web sidebar does not
+	// show "未知". The client subscribes to on_server_version globally.
+	if pkt := a.socketIOServerVersion(); pkt != "" {
+		writePkt(pkt)
+	}
+
 	sub := a.bus.subscribe()
 	defer a.bus.unsubscribe(sub)
 
@@ -210,6 +234,9 @@ func (a *App) socketIOWebsocket(c *gin.Context) {
 				switch pkt[1] {
 				case '0': // Socket.IO connect -> v4 ack with session handshake
 					writePkt("40" + socketIOSession(sid))
+					if pkt := a.socketIOServerVersion(); pkt != "" {
+						writePkt(pkt)
+					}
 				case '1': // disconnect
 					return
 				}
@@ -239,6 +266,7 @@ func (a *App) socketIOPolling(c *gin.Context) {
 		body, _ := io.ReadAll(c.Request.Body)
 		if strings.Contains(string(body), "40") {
 			a.sioConnectAck.Store(sid, struct{}{})
+			a.sioVersionPending.Store(sid, struct{}{})
 		}
 		c.Status(http.StatusOK)
 		return
@@ -250,6 +278,16 @@ func (a *App) socketIOPolling(c *gin.Context) {
 		a.sioConnectAck.Delete(sid)
 		c.Data(http.StatusOK, "text/plain; charset=UTF-8", []byte("40"+socketIOSession(sid)+"\n"))
 		return
+	}
+
+	// Deliver the server version event to a freshly-connected polling client
+	// before any bus event (so the web sidebar shows the version, not "未知").
+	if _, ok := a.sioVersionPending.Load(sid); ok {
+		a.sioVersionPending.Delete(sid)
+		if pkt := a.socketIOServerVersion(); pkt != "" {
+			c.Data(http.StatusOK, "text/plain; charset=UTF-8", []byte(pkt+"\n"))
+			return
+		}
 	}
 
 	// Long-poll GET: block until an event is available (or timeout).

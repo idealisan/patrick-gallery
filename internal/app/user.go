@@ -21,6 +21,10 @@ func (a *App) handleMe(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
 	}
+	// Populate quota usage so the web storage meter renders correctly
+	// (see User.QuotaUsageInBytes / QuotaSizeInBytes in models.go).
+	usage := a.userQuotaUsage(uid)
+	u.QuotaUsageInBytes = &usage
 	c.JSON(http.StatusOK, u)
 }
 
