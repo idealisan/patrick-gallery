@@ -3,9 +3,13 @@
 /immich-go.exe
 *.db
 *.db-journal
+*.db-shm
+*.db-wal
 /resources/
 /.cache/
 /server.log
+/immich-go.log
+*.har
 /build_err.txt
 *.out
 
