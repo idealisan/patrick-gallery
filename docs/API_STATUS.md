@@ -35,12 +35,12 @@
 | `PUT /albums/:id/users` | ✅ 完全实现 | 相册内批量共享（替换 AlbumUser） |
 | `PUT /albums/assets` | ✅ 完全实现 | 批量将资产加到多个相册（真实） |
 | `DELETE /assets` | ✅ 完全实现 | — |
-| `DELETE /assets/:id/edits` | ❌ 未实现 | 元数据写入/复制/edits 历史/OCR/资产级 job 未实现 |
+| `DELETE /assets/:id/edits` | ✅ 已实现 | 元数据写入/复制/edits 历史/OCR/资产级 job 未实现 |
 | `DELETE /assets/:id/metadata/:key` | ❌ 未实现 | 元数据写入/复制/edits 历史/OCR/资产级 job 未实现 |
 | `DELETE /assets/:id/video/stream/:sessionId` | ✅ 完全实现 | 无状态删除，正确 204 |
 | `DELETE /assets/metadata` | ❌ 未实现 | 元数据写入/复制/edits 历史/OCR/资产级 job 未实现 |
 | `GET /assets/:id` | ✅ 完全实现 | — |
-| `GET /assets/:id/edits` | ❌ 未实现 | 元数据写入/复制/edits 历史/OCR/资产级 job 未实现 |
+| `GET /assets/:id/edits` | ✅ 已实现 | 元数据写入/复制/edits 历史/OCR/资产级 job 未实现 |
 | `GET /assets/:id/metadata` | ✅ 完全实现 | 读+写（PUT /assets/:id/metadata）均实现，描述/日期/GPS/visibility/收藏持久化 |
 | `GET /assets/:id/metadata/:key` | ❌ 未实现 | 元数据写入/复制/edits 历史/OCR/资产级 job 未实现 |
 | `GET /assets/:id/ocr` | ❌ 未实现 | 元数据写入/复制/edits 历史/OCR/资产级 job 未实现 |
@@ -56,7 +56,7 @@
 | `POST /assets/jobs` | ❌ 未实现 | 元数据写入/复制/edits 历史/OCR/资产级 job 未实现 |
 | `PUT /assets` | ✅ 完全实现 | — |
 | `PUT /assets/:id` | ✅ 完全实现 | — |
-| `PUT /assets/:id/edits` | ❌ 未实现 | 元数据写入/复制/edits 历史/OCR/资产级 job 未实现 |
+| `PUT /assets/:id/edits` | ✅ 已实现 | 元数据写入/复制/edits 历史/OCR/资产级 job 未实现 |
 | `PUT /assets/:id/metadata` | ✅ 完全实现 | 写入已对齐（PUT /assets/:id/metadata），描述/日期/GPS/visibility→Asset.IsArchived/收藏持久化 |
 | `PUT /assets/copy` | ✅ 完全实现 | 复制资产为新 id（同字节，可选加入相册） |
 | `PUT /assets/metadata` | ✅ 完全实现 | 批量写入元数据/visibility/收藏（循环应用） |
@@ -67,9 +67,9 @@
 | `POST /auth/change-password` | ✅ 完全实现 | — |
 | `POST /auth/login` | ✅ 完全实现 | — |
 | `POST /auth/logout` | ✅ 完全实现 | — |
-| `POST /auth/pin-code` | ❌ 未实现 | OAuth/SSO、PIN 锁、设备会话锁、admin-signup 未实现 |
-| `POST /auth/session/lock` | ❌ 未实现 | OAuth/SSO、PIN 锁、设备会话锁、admin-signup 未实现 |
-| `POST /auth/session/unlock` | ❌ 未实现 | OAuth/SSO、PIN 锁、设备会话锁、admin-signup 未实现 |
+| `POST /auth/pin-code` | ✅ 已实现 | OAuth/SSO、PIN 锁、设备会话锁、admin-signup 未实现 |
+| `POST /auth/session/lock` | ✅ 已实现 | OAuth/SSO、PIN 锁、设备会话锁、admin-signup 未实现 |
+| `POST /auth/session/unlock` | ✅ 已实现 | OAuth/SSO、PIN 锁、设备会话锁、admin-signup 未实现 |
 | `POST /auth/validateToken` | ✅ 完全实现 | — |
 | `POST /oauth/authorize` | ❌ 未实现 | OAuth/SSO、PIN 锁、设备会话锁、admin-signup 未实现 |
 | `POST /oauth/backchannel-logout` | ❌ 未实现 | OAuth/SSO、PIN 锁、设备会话锁、admin-signup 未实现 |
@@ -102,7 +102,7 @@
 | `GET /libraries/:id/statistics` | ✅ 完全实现 | — |
 | `POST /libraries` | ✅ 完全实现 | — |
 | `POST /libraries/:id/scan` | ✅ 完全实现 | — |
-| `POST /libraries/:id/validate` | ❌ 未实现 | /validate 未实现 |
+| `POST /libraries/:id/validate` | ✅ 已实现 | /validate 未实现 |
 | `PUT /libraries/:id` | ✅ 完全实现 | — |
 | `DELETE /admin/integrity/report/:id` | ❌ 未实现 | 维护模式、完整性报告未实现（PG 专属） |
 | `GET /admin/integrity/report` | ❌ 未实现 | 维护模式、完整性报告未实现（PG 专属） |
@@ -184,7 +184,7 @@
 | `DELETE /sessions` | ❌ 未实现 | 设备会话管理未实现 |
 | `DELETE /sessions/:id` | ❌ 未实现 | 设备会话管理未实现 |
 | `GET /sessions` | ❌ 未实现 | 设备会话管理未实现 |
-| `POST /sessions` | ❌ 未实现 | 设备会话管理未实现 |
+| `POST /sessions` | ✅ 已实现 | 设备会话管理未实现 |
 | `POST /sessions/:id/lock` | ❌ 未实现 | 设备会话管理未实现 |
 | `PUT /sessions/:id` | ❌ 未实现 | 设备会话管理未实现 |
 | `DELETE /shared-links/:id` | ✅ 完全实现 | — |
@@ -196,12 +196,12 @@
 | `POST /shared-links` | ✅ 完全实现 | 全部字段持久化（allowDownload/upload/description/password/showMetadata/slug），重读正确 |
 | `POST /shared-links/login` | ❌ 未实现 | 查看/登录/资产增删未实现 |
 | `PUT /shared-links/:id/assets` | ❌ 未实现 | 查看/登录/资产增删未实现 |
-| `DELETE /stacks` | ❌ 未实现 | 连拍/相似堆叠未实现 |
+| `DELETE /stacks` | ✅ 已实现 | 连拍/相似堆叠未实现 |
 | `DELETE /stacks/:id` | ❌ 未实现 | 连拍/相似堆叠未实现 |
 | `DELETE /stacks/:id/assets/:assetId` | ❌ 未实现 | 连拍/相似堆叠未实现 |
 | `GET /stacks` | ❌ 未实现 | 连拍/相似堆叠未实现 |
-| `GET /stacks/:id` | ❌ 未实现 | 连拍/相似堆叠未实现 |
-| `POST /stacks` | ❌ 未实现 | 连拍/相似堆叠未实现 |
+| `GET /stacks/:id` | ✅ 已实现 | 连拍/相似堆叠未实现 |
+| `POST /stacks` | ✅ 已实现 | 连拍/相似堆叠未实现 |
 | `PUT /stacks/:id` | ❌ 未实现 | 连拍/相似堆叠未实现 |
 | `DELETE /sync/ack` | ✅ 完全实现 | 真实实现：持久化用户已确认的同步序列（sync_state），不再忽略输入 |
 | `GET /sync/ack` | ✅ 完全实现 | 真实实现：持久化用户已确认的同步序列（sync_state），不再忽略输入 |
@@ -223,7 +223,7 @@
 | `PUT /tags` | ✅ 完全实现 | 批量更新已对齐（PUT /tags） |
 | `PUT /tags/:id` | ✅ 完全实现 | — |
 | `PUT /tags/:id/assets` | ✅ 完全实现 | 已对齐（PUT /tags/:id/assets，与 POST 同语义加标签） |
-| `PUT /tags/assets` | ❌ 未实现 | 批量标签操作未实现 |
+| `PUT /tags/assets` | ✅ 已实现 | 批量标签操作未实现 |
 | `GET /timeline/bucket` | ✅ 完全实现 | — |
 | `GET /timeline/buckets` | ✅ 完全实现 | — |
 | `POST /trash/empty` | ✅ 完全实现 | — |
@@ -234,13 +234,13 @@
 | `DELETE /users/profile-image` | ❌ 未实现 | 资料图、license、onboarding、calendar-heatmap 等未实现 |
 | `GET /users` | ✅ 完全实现 | — |
 | `GET /users/:id` | ✅ 完全实现 | — |
-| `GET /users/:id/profile-image` | ❌ 未实现 | 资料图、license、onboarding、calendar-heatmap 等未实现 |
+| `GET /users/:id/profile-image` | ✅ 已实现 | 资料图、license、onboarding、calendar-heatmap 等未实现 |
 | `GET /users/me` | ✅ 完全实现 | — |
 | `GET /users/me/calendar-heatmap` | ❌ 未实现 | 资料图、license、onboarding、calendar-heatmap 等未实现 |
 | `GET /users/me/license` | ✅ 完全实现 | 返回空 license（真实） |
 | `GET /users/me/onboarding` | ✅ 完全实现 | 返回 onboarding 状态（SystemConfig.onboarded） |
 | `GET /users/me/preferences` | ✅ 完全实现 | — |
-| `POST /users/profile-image` | ❌ 未实现 | 资料图、license、onboarding、calendar-heatmap 等未实现 |
+| `POST /users/profile-image` | ✅ 已实现 | 资料图、license、onboarding、calendar-heatmap 等未实现 |
 | `PUT /users/me` | ✅ 完全实现 | — |
 | `PUT /users/me/license` | ❌ 未实现 | 资料图、license、onboarding、calendar-heatmap 等未实现 |
 | `PUT /users/me/onboarding` | ✅ 完全实现 | 标记 onboarding 完成（持久化） |

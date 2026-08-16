@@ -22,9 +22,9 @@
 | ✅ | DELETE /api/albums/{id} | — | (void/stream) | 已实现 |
 | ✅ | PATCH /api/albums/{id} | UpdateAlbumDto | AlbumResponseDto | 已实现 |
 | ✅ | POST /api/albums | CreateAlbumDto | AlbumResponseDto | 已实现 |
-| ✅ | PUT /api/assets/{id}/edits | AssetEditsCreateDto | AssetEditsResponseDto | 缺失 |
-| ✅ | GET /api/assets/{id}/edits | — | AssetEditsResponseDto | 缺失 |
-| ✅ | DELETE /api/assets/{id}/edits | — | (void/stream) | 缺失 |
+| ✅ | PUT /api/assets/{id}/edits | AssetEditsCreateDto | AssetEditsResponseDto | 已实现 |
+| ✅ | GET /api/assets/{id}/edits | — | AssetEditsResponseDto | 已实现 |
+| ✅ | DELETE /api/assets/{id}/edits | — | (void/stream) | 已实现 |
 | ✅ | PUT /api/assets/{id}/metadata | AssetMetadataUpsertDto | List<AssetMetadataResponseDto> | 已实现 |
 | ✅ | GET /api/assets/{id} | — | AssetResponseDto | 已实现 |
 | ✅ | PUT /api/assets/{id} | UpdateAssetDto | AssetResponseDto | 已实现 |
@@ -34,17 +34,17 @@
 | ✅ | POST /api/auth/change-password | ChangePasswordDto | UserAdminResponseDto | 已实现 |
 | ✅ | POST /api/auth/login | LoginCredentialDto | LoginResponseDto | 已实现 |
 | ✅ | POST /api/auth/logout | — | LogoutResponseDto | 已实现 |
-| ✅ | POST /api/auth/pin-code | PinCodeSetupDto | (void/stream) | 缺失 |
-| ✅ | POST /api/auth/session/lock | — | (void/stream) | 缺失 |
-| ✅ | POST /api/auth/session/unlock | SessionUnlockDto | (void/stream) | 缺失 |
+| ✅ | POST /api/auth/pin-code | PinCodeSetupDto | (void/stream) | 已实现 |
+| ✅ | POST /api/auth/session/lock | — | (void/stream) | 已实现 |
+| ✅ | POST /api/auth/session/unlock | SessionUnlockDto | (void/stream) | 已实现 |
 | ✅ | GET /api/auth/status | — | AuthStatusResponseDto | 已实现 |
 | ✅ | POST /api/auth/validateToken | — | ValidateAccessTokenResponseDto | 已实现 |
-| ✅ | POST /api/libraries/{id}/validate | ValidateLibraryDto | ValidateLibraryResponseDto | 缺失 |
+| ✅ | POST /api/libraries/{id}/validate | ValidateLibraryDto | ValidateLibraryResponseDto | 已实现 |
 | ✅ | GET /api/map/markers | — | List<MapMarkerResponseDto> | 已实现 |
 | ✅ | POST /api/oauth/authorize | OAuthConfigDto | OAuthAuthorizeResponseDto | 缺失 |
 | ✅ | POST /api/oauth/callback | OAuthCallbackDto | LoginResponseDto | 缺失 |
 | ✅ | DELETE /api/partners/{id} | — | (void/stream) | 已实现 |
-| ✅ | PUT /api/partners/{id} | PartnerUpdateDto | PartnerResponseDto | 缺失 |
+| ✅ | PUT /api/partners/{id} | PartnerUpdateDto | PartnerResponseDto | 已实现 |
 | ✅ | POST /api/partners | PartnerCreateDto | PartnerResponseDto | 已实现 |
 | ✅ | GET /api/partners | — | List<PartnerResponseDto> | 已实现 |
 | ✅ | PUT /api/people/{id} | PersonUpdateDto | PersonResponseDto | 已实现 |
@@ -59,18 +59,18 @@
 | ✅ | GET /api/server/ping | — | ServerPingResponse | 已实现 |
 | ✅ | GET /api/server/storage | — | ServerStorageResponseDto | 已实现 |
 | ✅ | GET /api/server/version | — | ServerVersionResponseDto | 已实现 |
-| ✅ | POST /api/sessions | SessionCreateDto | SessionCreateResponseDto | 缺失 |
+| ✅ | POST /api/sessions | SessionCreateDto | SessionCreateResponseDto | 已实现 |
 | ✅ | DELETE /api/shared-links/{id} | — | (void/stream) | 已实现 |
 | ✅ | PATCH /api/shared-links/{id} | SharedLinkEditDto | SharedLinkResponseDto | 已实现 |
 | ✅ | POST /api/shared-links | SharedLinkCreateDto | SharedLinkResponseDto | 已实现 |
 | ✅ | GET /api/shared-links | — | List<SharedLinkResponseDto> | 已实现 |
-| ✅ | GET /api/stacks/{id} | — | StackResponseDto | 缺失 |
-| ✅ | POST /api/stacks | StackCreateDto | StackResponseDto | 缺失 |
-| ✅ | DELETE /api/stacks | BulkIdsDto | (void/stream) | 缺失 |
+| ✅ | GET /api/stacks/{id} | — | StackResponseDto | 已实现 |
+| ✅ | POST /api/stacks | StackCreateDto | StackResponseDto | 已实现 |
+| ✅ | DELETE /api/stacks | BulkIdsDto | (void/stream) | 已实现 |
 | ✅ | DELETE /api/sync/ack | SyncAckDeleteDto | (void/stream) | 已实现 |
 | ✅ | POST /api/sync/ack | SyncAckSetDto | (void/stream) | 已实现 |
 | ✅ | PUT /api/tags/{id}/assets | BulkIdsDto | List<BulkIdResponseDto> | 已实现 |
-| ✅ | PUT /api/tags/assets | TagBulkAssetsDto | TagBulkAssetsResponseDto | 缺失 |
+| ✅ | PUT /api/tags/assets | TagBulkAssetsDto | TagBulkAssetsResponseDto | 已实现 |
 | ✅ | GET /api/tags | — | List<TagResponseDto> | 已实现 |
 | ✅ | PUT /api/tags | TagUpsertDto | List<TagResponseDto> | 已实现 |
 | ✅ | POST /api/trash/empty | — | TrashResponseDto | 已实现 |
@@ -79,7 +79,7 @@
 | ✅ | GET /api/users/me/preferences | — | UserPreferencesResponseDto | 已实现 |
 | ✅ | PUT /api/users/me | UserUpdateMeDto | UserAdminResponseDto | 已实现 |
 | ✅ | GET /api/users/me | — | UserAdminResponseDto | 已实现 |
-| ✅ | POST /api/users/profile-image | — | CreateProfileImageResponseDto | 缺失 |
+| ✅ | POST /api/users/profile-image | — | CreateProfileImageResponseDto | 已实现 |
 | ✅ | GET /api/users | — | List<UserResponseDto> | 已实现 |
 | ✅ | GET /api/view/folder/unique-paths | — | List<String> | 已实现 |
 | ✅ | GET /api/view/folder | — | List<AssetResponseDto> | 已实现 |
@@ -276,7 +276,7 @@
 ## 三、差距汇总
 
 - App 实际调用 API 总数：**72**
-  - 已实现：**56**
-  - 缺失（未注册）：**16**
+  - 已实现：**70**
+  - 缺失（未注册）：**2**（`POST /api/oauth/authorize`、`POST /api/oauth/callback`，需外部 IdP，按 AGENTS.md 延后）
   - 缺失(501诚实不支持)：**0**
-- 全部 SDK API 总数：**254**；Go 路由已注册：**225**
+- 全部 SDK API 总数：**254**；Go 路由已注册：**242**

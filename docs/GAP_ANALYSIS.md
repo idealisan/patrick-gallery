@@ -13,7 +13,7 @@
 
 immich-go 目前只覆盖了原版的**单人核心闭环**。要对等原版的**手机 APP + Web UI**，差距远大于此前「核心闭环」视角所见：
 
-- **API 端点覆盖 102 / 254（≈40%）**，152 个 operation 缺失；
+- **API 端点覆盖 117 / 254（≈46%）**，137 个 operation 缺失；
 - 缺失项按「客户端面」归类后，**手机 APP 对等就差一大块**（人物聚类、回忆、堆叠、PIN/会话锁、通知、语义搜索、完整 sync），**Web UI 对等还额外差一整块管理后台**（用户管理、维护、备份恢复、系统元数据、OAuth 配置、插件、工作流、队列、通知管理）；
 - 即便已实现的端点，**功能深度也不对等**（人物为空、视频仅单码率、分享链接字段未持久化、`visibility` 不持久化、Partner 共享资产未透出等）；
 - 完全对等意味着要在 `AGENTS.md` 约束（纯 Go / 无 CGO / SQLite 单用户 / 进程内视频）内或附加约束下，重做 ML 推理、多用户、管理运维、通知、OAuth 等——这是量级很大的工程，文档第 12 节显式标注每块的**约束内可行性**。
@@ -25,7 +25,7 @@ immich-go 目前只覆盖了原版的**单人核心闭环**。要对等原版的
 - ✅ **已满足**（详见 §14 核验）：照片/视频备份上传、去重、时间线/相册/搜索/地图浏览、收藏/归档/回收站、分享链接、库扫描、作业、实时事件推送（websocket + Socket.IO）。核心媒体闭环对单人个人场景**已真正可用且 v3.1.0 契约兼容**。
 - ⚠️ **唯一开箱 blocker（已修）**：`config.go` 默认 `IMMICH_COMPAT_VERSION=1.130.0` 与仓库内置契约 v3.1.0 不一致，会导致客户端报「版本不匹配」。已改为默认 `3.1.0`，开箱即与已验证契约对齐。
 - 🔍 **需用真实客户端验证的一项**：原版手机 APP 的双向增量同步端点 `/sync/stream` 当前为 stub；主流程靠 REST + 实时事件即可刷新，但完整首次全量校正依赖该端点，建议用真实 APP 实测确认不影响备份/同步。
-- ❌ **不在本即时目标内（归入 P3 / 显式延后）**：ML（人物/CLIP/OCR）、OAuth/SSO、通知、插件/工作流、Memories、Stacks、PIN/设备会话锁、水平扩展。这些不影响「单人个人管理+同步」。
+- ❌ **不在本即时目标内（归入 P3 / 显式延后）**：ML（人物/CLIP/OCR）、OAuth/SSO、通知、插件/工作流、Memories、水平扩展。这些不影响「单人个人管理+同步」。（注：PIN/设备会话锁、`/sessions`、手动 Stacks、资产 edits、资料图、伙伴共享写操作等手机 APP 必需端点已在 v3.1.0 契约下补齐并实现。）
 - ✅ **多用户已转入活动阶段**：用户/账户管理后台 `/admin/users/*` 已实现（见 §13 P2-15）；伙伴/相册内用户共享的关系模型已存在。下一阶段把共享资产透出到 timeline/search、补相册内共享前端入口与按用户资源隔离（见 §13 多用户路线），均在纯 Go / SQLite 单实例约束内推进。
 
 > 一句话：达成「单人个人管理+同步可用」所需的代码，基本已经写好并通过核验；剩下的只是把默认版本对齐、并用真机走一遍同步。
@@ -37,8 +37,8 @@ immich-go 目前只覆盖了原版的**单人核心闭环**。要对等原版的
 把**官方客户端/网页版实际代码**（以及 `open-api/immich-openapi-specs.json` 作为路径/方法清单参考）的 254 个 operation 的 `method + 路径` 归一化（`{id}`→`:id`）后，与从 `internal/app/app.go` 解析出的路由逐条匹配：
 
 - **SPEC 总计：254**
-- **方法+路径精确匹配：102（≈40%）**
-- **缺失：152**
+- **方法+路径精确匹配：117（≈46%）**
+- **缺失：137**
 
 ### 1.1 缺失端点按 tag 分布
 
@@ -91,10 +91,10 @@ immich-go 目前只覆盖了原版的**单人核心闭环**。要对等原版的
 |------|--------------|----------------|------|
 | 人物 / 人脸 | 「人物」Tab，自动聚类、可改名、合并、隐藏 | `GET /people` 返回空；人脸写操作全缺；`facialRecognition:false` | **完全缺失（ML）** |
 | 回忆 Memories | 「On this day」时间线 | 8 个端点全缺 | **完全缺失** |
-| 堆叠 Stacks | 连拍/相似自动堆叠、可展开 | 7 个端点全缺 | **完全缺失** |
+| 堆叠 Stacks | 连拍/相似自动堆叠、可展开 | ✅ 手动堆叠已实现（`POST /stacks`、`GET /stacks/:id`、`DELETE /stacks`，真实建表 + 资产顺序透出）；缺列表/合并与 ML 自动聚类 | ⚠️ 手动堆叠可用，自动堆叠缺（ML） |
 | 语义搜索 | 「人物/地点/事物」facets（CLIP 向量） | `smartSearch:false`；`/search/smart` 缺 | **完全缺失（ML）** |
 | 搜索人物 | `/search/person` | 仅 GET stub 返回 0 | **缺失（依赖 ML）** |
-| 设备锁 / PIN | `auth/pin-code`、`auth/session/lock|unlock`、`/sessions/*` | 全缺 | **缺失（手机必备）** |
+| 设备锁 / PIN | `auth/pin-code`、`auth/session/lock|unlock`、`/sessions/*` | ✅ 已实现（real：PIN 用 bcrypt 存储并校验、`/sessions` 创建子会话带 token、lock 清 `pin_expires_at`、unlock 校验 PIN/密码后置 `pin_expires_at+15min`） | ✅ 已实现（手机必备，v3.1.0 契约） |
 | 通知 | 站内通知、`/notifications/*` | 全缺 | **缺失** |
 | 完整同步 | `/sync/stream` 双向增量 | 为 stub（仅 `/api/events` + Socket.IO 实时事件） | **弱化** |
 | 相册内用户共享 | 把相册共享给指定用户 | `/albums/:id/user/:userId` 等缺 | **缺失** |
@@ -196,8 +196,8 @@ Web 管理后台 + 高级界面缺失：
 
 ## 6. 鉴权 / 账户差距
 
-- **仅 JWT**：无刷新令牌轮换、无 device session、无 PIN 锁、无 OAuth/SSO、无 LDAP。
-- 手机 PIN/会话锁所需的 `auth/pin-code`、`auth/session/lock|unlock`、`/sessions/*` 全缺（第 2.1 节）——**对等手机体验的硬缺口**。
+- **仅 JWT**：无刷新令牌轮换、无 OAuth/SSO、无 LDAP。
+- 手机 PIN/会话锁已实现：PIN 用 bcrypt 存储校验、`/sessions` 创建子会话带 token、`auth/session/lock|unlock` 控制 `pin_expires_at`（第 2.1 节）——**对等手机体验已打通**；OAuth 登录仍需外部 IdP（延后）。
 - **默认 JWT secret 硬编码**：`IMMICH_JWT_SECRET` 默认 `immich-dev-secret-change-me`（`config.go`），生产必须覆盖。
 - 无账户锁定/爆破防护、无密码重置邮件（`email:false`）、无注册审批。
 - 无 admin 用户管理（11）+ `auth/admin-sign-up`。
@@ -290,7 +290,7 @@ Web 管理后台 + 高级界面缺失：
 ## 13. 建议优先级（对准「手机 + Web 对等」重排）
 
 **P0 — 手机 APP 对等硬缺口（不做则手机体验断档）**
-1. 设备 PIN / 会话锁 / Sessions（`auth/pin-code`、`auth/session/lock|unlock`、`/sessions/*`）
+1. ~~设备 PIN / 会话锁 / Sessions（`auth/pin-code`、`auth/session/lock|unlock`、`/sessions/*`）~~ ✅ 已实现（v3.1.0 契约，real）
 2. 资产元数据写入（`PUT /assets/:id/metadata` 等）+ `visibility` 持久化
 3. 分享链接字段持久化（allowDownload/upload/description/password/slug）+ 重读正确
 4. 伙伴共享资产透出（timeline/search join partner 资产）
@@ -370,7 +370,7 @@ Web 管理后台 + 高级界面缺失：
 | 回收站 | list/restore/empty + 定时清理（`TrashedAt` + 24h 调度） | ✅ | ✅ | — |
 | 搜索 | `/search`、`/search/metadata`、`/search/explore`、`/search/suggestions`（文件名+EXIF 文本） | ✅（文本/EXIF） | ✅ | `smart`/`person` 缺（ML） |
 | 地图 | `/map/markers`（裸 `array[MapMarkerResponseDto]`）、`/reverse-geocode` | ✅ | ✅ | 无真实瓦片；`/albums/:id/map-markers` 缺 |
-| 库磁盘扫描 | `/libraries/:id/scan`（walk `ImportPaths`、`ExcludedPaths` 跳过、扩展名识别、sha1 去重、复用 `ingestStoredFile`） | ✅ | ✅ | `/libraries/:id/validate` 缺 |
+| 库磁盘扫描 | `/libraries/:id/scan`（walk `ImportPaths`、`ExcludedPaths` 跳过、扩展名识别、sha1 去重、复用 `ingestStoredFile`）+ `/libraries/:id/validate`（逐个 `os.Stat` 导入路径校验 `isValid`） | ✅ | ✅ | — |
 | 作业 | `/jobs`（thumbnailGeneration/metadataExtraction/videoConversion/duplicateDetection 真实执行 + 进度查询；ML job 返回 `unsupported:true`） | ✅ | ✅ | — |
 | 分享链接（免登录） | `/share/:key` + `/api/share/:key/{thumbnail,original}/:assetId` | ✅ | ✅ | 字段未持久化（P0-3） |
 | 伙伴 | list/create/delete | ✅ 形状 | ⚠️ 共享资产未透出 | P0-4 |
