@@ -15,7 +15,6 @@ package video
 // errBackendUnavailable and the selector falls back to the placeholder.
 
 import (
-	"bytes"
 	"errors"
 	"os"
 	"path/filepath"
@@ -86,7 +85,6 @@ type ffFuncs struct {
 	avformatFindStreamInfo func(ctx uintptr, d *uintptr) int
 	avReadFrame           func(ctx, pkt uintptr) int
 	avformatCloseInput    func(ps *uintptr)
-	avioAllocContext      func(buf uintptr, bufSize int, writeFlag int, opaque, readCb, seekCb, writeCb uintptr) uintptr
 	avformatNewStream     func(ctx, codec uintptr) uintptr
 	avformatAllocOutputCtx2 func(ps *uintptr, ofmt uintptr, name, url uintptr) int
 	avioOpen              func(ps *uintptr, url uintptr, flags int) int
@@ -207,7 +205,6 @@ func loadFFmpeg() (*ffmpeg, error) {
 	purego.RegisterLibFunc(&fn.avformatFindStreamInfo, loaded["libavformat"], "avformat_find_stream_info")
 	purego.RegisterLibFunc(&fn.avReadFrame, loaded["libavformat"], "av_read_frame")
 	purego.RegisterLibFunc(&fn.avformatCloseInput, loaded["libavformat"], "avformat_close_input")
-	purego.RegisterLibFunc(&fn.avioAllocContext, loaded["libavformat"], "avio_alloc_context")
 	purego.RegisterLibFunc(&fn.avformatNewStream, loaded["libavformat"], "avformat_new_stream")
 	purego.RegisterLibFunc(&fn.avformatAllocOutputCtx2, loaded["libavformat"], "avformat_alloc_output_context2")
 	purego.RegisterLibFunc(&fn.avioOpen, loaded["libavformat"], "avio_open")
@@ -389,79 +386,55 @@ func cstr(s string) uintptr {
 	return uintptr(unsafe.Pointer(&b[0]))
 }
 
-// decodeState carries the in-memory source for the AVIO callbacks.
-type decodeState struct {
-	r    *bytes.Reader
-	buf  []byte
-	src  []byte
-}
-
-// openInputMemory opens an AVFormatContext over the given bytes using a
-// custom AVIO context. Returns the context pointer and a cleanup func.
-func (f *ffmpeg) openInputMemory(src []byte) (ctx uintptr, cleanup func(), err error) {
+// openInput opens an AVFormatContext over the given bytes. The source is
+// materialised to a temporary file and opened through libavformat's native
+// file protocol so that seeking works reliably: the MOV/MP4 demuxer reads the
+// sample tables after avformat_find_stream_info has consumed the stream to
+// EOF, which the previous in-memory custom-AVIO path could not satisfy
+// (av_read_frame returned an error immediately after find_stream_info).
+//
+// This stays fully in-process: no CGO, no external CLI, no network. The temp
+// file is only a local I/O sink that FFmpeg reads back; the cleanup func
+// removes it. This deliberately mirrors the mux side (ffmpeg_transcode.go),
+// which already uses a temp file because the in-memory AVIO output path is
+// ABI-fragile across FFmpeg builds.
+func (f *ffmpeg) openInput(src []byte) (ctx uintptr, cleanup func(), err error) {
 	fn := f.fn
-	st := &decodeState{src: src}
-	st.r = bytes.NewReader(src)
-	st.buf = make([]byte, 32768)
 
-	readCb := purego.NewCallback(func(opaque, buf uintptr, bufSize int) int32 {
-		if buf == 0 || bufSize <= 0 {
-			return 0
-		}
-		s := (*decodeState)(unsafe.Pointer(opaque))
-		if s == nil || s.r == nil {
-			return -1
-		}
-		// Read directly into the C-provided buffer (no intermediate Go slice).
-		n, _ := s.r.Read(unsafe.Slice((*byte)(unsafe.Pointer(buf)), bufSize))
-		return int32(n)
-	})
-	seekCb := purego.NewCallback(func(opaque uintptr, offset int64, whence int) int64 {
-		s := (*decodeState)(unsafe.Pointer(opaque))
-		var off int64
-		switch whence {
-		case seekSet:
-			off = offset
-		case seekCur:
-			off = int64(s.r.Size()) - int64(s.r.Len()) + offset
-		case seekEnd:
-			off = int64(len(s.src)) + offset
-		case 0x10000: // AVSEEK_SIZE: return total size
-			return int64(len(s.src))
-		default:
-			return -1
-		}
-		if off < 0 || off > int64(len(s.src)) {
-			return -1
-		}
-		s.r = bytes.NewReader(s.src[off:])
-		return off
-	})
-
-	avioBuf := fn.avMalloc(uintptr(len(st.buf)))
-	avio := fn.avioAllocContext(avioBuf, len(st.buf), 0, uintptr(unsafe.Pointer(st)), readCb, seekCb, 0)
-	if avio == 0 {
-		fn.avFree(avioBuf)
-		return 0, nil, errors.New("avio_alloc_context failed")
+	tmp, err := os.CreateTemp("", "immich-vid-*.tmp")
+	if err != nil {
+		return 0, nil, errors.New("open input: temp file: " + err.Error())
+	}
+	tmpName := tmp.Name()
+	if _, werr := tmp.Write(src); werr != nil {
+		tmp.Close()
+		os.Remove(tmpName)
+		return 0, nil, errors.New("open input: write temp: " + werr.Error())
+	}
+	if cerr := tmp.Close(); cerr != nil {
+		os.Remove(tmpName)
+		return 0, nil, errors.New("open input: close temp: " + cerr.Error())
 	}
 
 	ctx = fn.avformatAllocContext()
 	if ctx == 0 {
-		fn.avFree(avioBuf)
+		os.Remove(tmpName)
 		return 0, nil, errors.New("avformat_alloc_context failed")
 	}
-	// set ctx->pb (offset 32 in ffmpeg 5.0+; verified on 6.1.1/aarch64)
-	*(*uintptr)(unsafe.Pointer(ctx + 32)) = avio
-
 	var pctx uintptr = ctx
-	if rc := fn.avformatOpenInput(&pctx, 0, 0, nil); avNeg(rc) {
+	if rc := fn.avformatOpenInput(&pctx, cstr(tmpName), 0, nil); avNeg(rc) {
 		fn.avformatCloseInput(&pctx)
+		os.Remove(tmpName)
 		return 0, nil, errors.New("avformat_open_input failed")
 	}
 	if rc := fn.avformatFindStreamInfo(ctx, nil); avNeg(rc) {
 		fn.avformatCloseInput(&pctx)
+		os.Remove(tmpName)
 		return 0, nil, errors.New("avformat_find_stream_info failed")
 	}
-	cleanup = func() { fn.avformatCloseInput(&pctx) }
+	cleanup = func() {
+		fn.avformatCloseInput(&pctx)
+		os.Remove(tmpName)
+	}
 	return ctx, cleanup, nil
 }

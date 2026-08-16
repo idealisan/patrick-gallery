@@ -4,8 +4,10 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -61,9 +63,10 @@ type mediaResult struct {
 	exif       *Exif  // populated for images; nil for videos / failures
 	localDate  time.Time
 	// gallery-fidelity fields consumed by the asset response
-	width     int    // pixel width (image from EXIF/decode, video from probe)
-	height    int    // pixel height
-	thumbhash string // base64 ThumbHash placeholder (Immich-compatible)
+	width     int     // pixel width (image from EXIF/decode, video from probe)
+	height    int     // pixel height
+	duration  float64 // seconds (video from probe); 0 for images / unknown
+	thumbhash string  // base64 ThumbHash placeholder (Immich-compatible)
 }
 
 // processMedia reads the file at path, generates a thumbnail and (for images)
@@ -136,10 +139,11 @@ func (a *App) processMedia(path, assetID, ownerID, typ string, fallbackDate time
 				res.thumbhash = th
 			}
 		}
-		// Pixel dimensions from the container probe (best-effort).
+		// Pixel dimensions + duration from the container probe (best-effort).
 		if md, perr := a.video.Probe(raw); perr == nil {
 			res.width = md.Width
 			res.height = md.Height
+			res.duration = md.DurationSec
 		}
 	}
 
@@ -202,6 +206,7 @@ func (a *App) ingestStoredFile(opts ingestOptions) (*Asset, error) {
 		Size:             int64(len(raw)),
 		Width:            res.width,
 		Height:           res.height,
+		Duration:         durSecToMsString(res.duration),
 		Thumbhash:        res.thumbhash,
 		CreatedAt:        now,
 		UpdatedAt:        now,
@@ -224,6 +229,17 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// durSecToMsString converts a duration in seconds to the milliseconds string
+// the Asset model stores (the web reads AssetResponseDto.duration as
+// integer-milliseconds). Non-positive input yields "" so the response shows
+// no duration overlay (never a fake 0).
+func durSecToMsString(sec float64) string {
+	if sec <= 0 {
+		return ""
+	}
+	return strconv.Itoa(int(math.Round(sec * 1000)))
 }
 
 // copyToUploadDir copies src into the resource upload dir under a fresh UUID

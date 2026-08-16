@@ -17,7 +17,7 @@ func maxInt(a, b int) int {
 
 // videoStream returns the first video stream index and its AVCodecParameters.
 func (f *ffmpeg) videoStream(ctx uintptr) (int, uintptr, error) {
-	nb := *(*uint32)(unsafe.Pointer(ctx + 44)) // AVFormatContext.nb_streams
+	nb := *(*uint32)(unsafe.Pointer(ctx + 44))          // AVFormatContext.nb_streams
 	streamsPtr := *(*uintptr)(unsafe.Pointer(ctx + 48)) // AVFormatContext.streams
 	for i := uint32(0); i < nb; i++ {
 		streamPtr := *(*uintptr)(unsafe.Pointer(streamsPtr + uintptr(i)*8))
@@ -52,7 +52,7 @@ func (f *ffmpeg) decodeFrame(cctx, fmtCtx uintptr, vidx int, cb func(frame uintp
 		}
 		rc := fn.avReadFrame(fmtCtx, pkt)
 		eof := avNeg(rc)
-		if !eof && int(*(*int32)(unsafe.Pointer(pkt+36))) != vidx { // stream_index
+		if !eof && int(*(*int32)(unsafe.Pointer(pkt + 36))) != vidx { // stream_index
 			fn.avPacketUnref(pkt)
 			continue
 		}
@@ -86,7 +86,7 @@ func (f *ffmpeg) decodeFrame(cctx, fmtCtx uintptr, vidx int, cb func(frame uintp
 
 // Thumbnail decodes the first video frame and returns an encoded image.
 func (f *ffmpeg) Thumbnail(in []byte, opts ThumbnailOptions) ([]byte, error) {
-	ctx, cleanup, err := f.openInputMemory(in)
+	ctx, cleanup, err := f.openInput(in)
 	if err != nil {
 		return nil, err
 	}
@@ -189,9 +189,28 @@ func (f *ffmpeg) Thumbnail(in []byte, opts ThumbnailOptions) ([]byte, error) {
 
 var errStopDecode = errors.New("stop")
 
+// streamDurationSec reads AVStream.duration (int64 @48, ffmpeg 6.1.x ABI) and
+// rescales it by the stream time_base (AVRational @32) into seconds. Returns
+// 0 when the stream has no usable duration (e.g. AV_NOPTS_VALUE or a zero
+// time_base). Verified against the pinned FFmpeg 6.1.3 headers.
+func (f *ffmpeg) streamDurationSec(ctx uintptr, vidx int) float64 {
+	nb := *(*uint32)(unsafe.Pointer(ctx + 44))          // AVFormatContext.nb_streams
+	streamsPtr := *(*uintptr)(unsafe.Pointer(ctx + 48)) // AVFormatContext.streams
+	if vidx < 0 || uint32(vidx) >= nb {
+		return 0
+	}
+	st := *(*uintptr)(unsafe.Pointer(streamsPtr + uintptr(vidx)*8))
+	num, den := getAVRational(st, 32)         // AVStream.time_base {num@32, den@36}
+	dur := *(*int64)(unsafe.Pointer(st + 48)) // AVStream.duration (int64)
+	if dur <= 0 || den == 0 {
+		return 0
+	}
+	return float64(dur) * float64(num) / float64(den)
+}
+
 // Probe returns container/stream metadata.
 func (f *ffmpeg) Probe(in []byte) (*Metadata, error) {
-	ctx, cleanup, err := f.openInputMemory(in)
+	ctx, cleanup, err := f.openInput(in)
 	if err != nil {
 		return nil, err
 	}
@@ -203,10 +222,10 @@ func (f *ffmpeg) Probe(in []byte) (*Metadata, error) {
 		m.Width = int(parW(par))
 		m.Height = int(parH(par))
 		m.VideoCodec = codecName(int(codecID(par)))
-		_ = vidx
+		m.DurationSec = f.streamDurationSec(ctx, vidx)
 	}
 	// first audio stream (codec_type==1)
-	nb := *(*uint32)(unsafe.Pointer(ctx + 44)) // AVFormatContext.nb_streams
+	nb := *(*uint32)(unsafe.Pointer(ctx + 44))          // AVFormatContext.nb_streams
 	streamsPtr := *(*uintptr)(unsafe.Pointer(ctx + 48)) // AVFormatContext.streams
 	for i := uint32(0); i < nb; i++ {
 		streamPtr := *(*uintptr)(unsafe.Pointer(streamsPtr + uintptr(i)*8))

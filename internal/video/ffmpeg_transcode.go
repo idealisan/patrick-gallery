@@ -21,7 +21,7 @@ import (
 func (f *ffmpeg) transcode(in []byte, opts TranscodeOptions) ([]byte, error) {
 	fn := f.fn
 
-	ctx, cleanup, err := f.openInputMemory(in)
+	ctx, cleanup, err := f.openInput(in)
 	if err != nil {
 		return nil, err
 	}

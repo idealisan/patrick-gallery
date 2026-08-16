@@ -1,0 +1,99 @@
+2026-08-16 13:45:33.253099 | info     | HashService          | Starting hashing of assets |
+2026-08-16 13:45:33.249363 | severe   | IsolateLogger        | Error in runInIsolateGentle for remote-sync | ApiException 404: Failed to get sync stream: {"error":"not found","statusCode":404} |
+#0      SyncApiRepository.streamChanges (package:immich_mobile/infrastructure/repositories/sync_api.repository.dart:99)
+<asynchronous suspension>
+#1      SyncStreamService.sync (package:immich_mobile/domain/services/sync_stream.service.dart:80)
+<asynchronous suspension>
+#2      runInIsolateGentle.<anonymous closure> (package:immich_mobile/utils/isolate.dart:43)
+<asynchronous suspension>
+#3      IsolateWorker._isolateEntry.<anonymous closure> (package:immich_mobile/utils/isolate_worker.dart:146)
+<asynchronous suspension>
+
+2026-08-16 13:45:33.163581 | info     | SyncStreamService    | Remote sync request for user |
+2026-08-16 13:45:33.141613 | info     | DeviceSyncService    | Device sync took - 37ms |
+2026-08-16 13:45:33.141534 | warning  | DeviceSyncService    | Full device sync cancelled |
+2026-08-16 13:45:33.139821 | warning  | AuthGuard            | Unauthorized access token. |
+2026-08-16 13:45:33.097658 | severe   | AuthenticationNotifier | Error getting user information from the server [CATCH ALL] | ParallelWaitError: Null check operator used on a null value |
+#0      UserAdminResponseDto.fromJson (package:openapi/model/user_admin_response_dto.dart:198)
+#1      ApiClient.fromJson (package:openapi/api_client.dart:877)
+#2      ApiClient.deserialize (package:openapi/api_client.dart:159)
+<asynchronous suspension>
+#3      UsersApi.getMyUser (package:openapi/api/users_api.dart:382)
+<asynchronous suspension>
+#4      FutureRecord2.wait.<anonymous closure> (dart:async/future_extensions.dart:88)
+<asynchronous suspension>
+#5      UserApiRepository.getMyUser (package:immich_mobile/infrastructure/repositories/user_api.repository.dart:14)
+<asynchronous suspension>
+#6      UserService.refreshMyUser (package:immich_mobile/domain/services/user.service.dart:30)
+<asynchronous suspension>
+#7      Future.timeout.<anonymous closure> (dart:async/future_impl.dart:1061)
+<asynchronous suspension>
+#8      AuthNotifier.saveAuthInfo (package:immich_mobile/providers/auth.provider.dart:142)
+<asynchronous suspension>
+#9      AuthNotifier.login (package:immich_mobile/providers/auth.provider.dart:85)
+<asynchronous suspension>
+#10     LoginForm.build.login (package:immich_mobile/widgets/forms/login/login_form.dart:236)
+<asynchronous suspension>
+#11     ImmichFormController.submit (package:immich_ui/src/components/form.dart:34)
+<asynchronous suspension>
+#12     _ImmichTextButtonState._runAction (package:immich_ui/src/components/text_button.dart:41)
+<asynchronous suspension>
+
+2026-08-16 13:45:00.105143 | info     | HashService          | Starting hashing of assets |
+2026-08-16 13:45:00.102938 | severe   | IsolateLogger        | Error in runInIsolateGentle for remote-sync | ApiException 404: Failed to get sync stream: {"error":"not found","statusCode":404} |
+#0      SyncApiRepository.streamChanges (package:immich_mobile/infrastructure/repositories/sync_api.repository.dart:99)
+<asynchronous suspension>
+#1      SyncStreamService.sync (package:immich_mobile/domain/services/sync_stream.service.dart:80)
+<asynchronous suspension>
+#2      runInIsolateGentle.<anonymous closure> (package:immich_mobile/utils/isolate.dart:43)
+<asynchronous suspension>
+#3      IsolateWorker._isolateEntry.<anonymous closure> (package:immich_mobile/utils/isolate_worker.dart:146)
+<asynchronous suspension>
+
+2026-08-16 13:45:00.052729 | warning  | DeviceSyncService    | Full device sync cancelled |
+2026-08-16 13:45:00.015165 | info     | SyncStreamService    | Remote sync request for user |
+2026-08-16 13:45:00.006544 | warning  | AuthGuard            | Unauthorized access token. |
+2026-08-16 13:44:59.962309 | severe   | AuthenticationNotifier | Error getting user information from the server [CATCH ALL] | ParallelWaitError: Null check operator used on a null value |
+#0      UserAdminResponseDto.fromJson (package:openapi/model/user_admin_response_dto.dart:198)
+#1      ApiClient.fromJson (package:openapi/api_client.dart:877)
+#2      ApiClient.deserialize (package:openapi/api_client.dart:159)
+<asynchronous suspension>
+#3      UsersApi.getMyUser (package:openapi/api/users_api.dart:382)
+<asynchronous suspension>
+#4      FutureRecord2.wait.<anonymous closure> (dart:async/future_extensions.dart:88)
+<asynchronous suspension>
+#5      UserApiRepository.getMyUser (package:immich_mobile/infrastructure/repositories/user_api.repository.dart:14)
+<asynchronous suspension>
+#6      UserService.refreshMyUser (package:immich_mobile/domain/services/user.service.dart:30)
+<asynchronous suspension>
+#7      Future.timeout.<anonymous closure> (dart:async/future_impl.dart:1061)
+<asynchronous suspension>
+#8      AuthNotifier.saveAuthInfo (package:immich_mobile/providers/auth.provider.dart:142)
+<asynchronous suspension>
+#9      AuthNotifier.login (package:immich_mobile/providers/auth.provider.dart:85)
+<asynchronous suspension>
+#10     LoginForm.build.login (package:immich_mobile/widgets/forms/login/login_form.dart:236)
+<asynchronous suspension>
+#11     ImmichFormController.submit (package:immich_ui/src/components/form.dart:34)
+<asynchronous suspension>
+#12     _ImmichTextButtonState._runAction (package:immich_ui/src/components/text_button.dart:41)
+<asynchronous suspension>
+
+2026-08-16 13:43:23.382555 | severe   | AuthService          | Error logging out | FormatException: Unexpected character (at character 1)
+<!doctype html>
+^
+ |
+#0      _ChunkedJsonParser.fail (dart:convert-patch/convert_patch.dart:1467)
+#1      _ChunkedJsonParser.parseNumber (dart:convert-patch/convert_patch.dart:1333)
+#2      _ChunkedJsonParser.parse (dart:convert-patch/convert_patch.dart:935)
+#3      _parseJson (dart:convert-patch/convert_patch.dart:35)
+#4      JsonDecoder.convert (dart:convert/json.dart:640)
+#5      JsonCodec.decode (dart:convert/json.dart:219)
+#6      ApiClient.deserialize.<anonymous closure> (package:openapi/api_client.dart:159)
+#7      compute.<anonymous closure> (package:flutter/src/foundation/_isolates_io.dart:23)
+#8      _RemoteRunner._run (dart:isolate:1116)
+#9      _RemoteRunner._remoteExecute (dart:isolate:1110)
+#10     _delayEntrypointInvocation.<anonymous closure> (dart:isolate-patch/isolate_patch.dart:316)
+#11     _RawReceivePort._handleMessage (dart:isolate-patch/isolate_patch.dart:192)
+
+2026-08-16 13:43:23.198828 | severe   | SplashScreenPage     | Missing crucial offline login info - Logging out completely |

@@ -108,3 +108,4 @@ func (a *App) handleVideoStreamMaster(c *gin.Context) {
   - `.../0/seg-0.mp4` → 200，`video/mp4`；
   - 视频实际可播放、无 `pageerror`。`curl` 单列 `main.m3u8` 看不出问题（curl 不执行混合内容拦截），必须用真实浏览器。
 - 子问题 2/3：上传视频后 `curl 'https://<host>/api/timeline/bucket?timeBucket=...&visibility=timeline'` 应返回该视频 `duration` 为非零毫秒、`ratio` 为 `宽/高`（>0）。
+
