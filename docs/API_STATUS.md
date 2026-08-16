@@ -1,6 +1,6 @@
 # immich-go API 实现现状清单（对照原版 v3.1.0）
 
-> 以官方 OpenAPI 契约 `open-api/immich-openapi-specs.json`（tag **v3.1.0**，254 个 operation）为基准，与 `internal/app/app.go` 实际路由逐条核对。
+> 以**官方客户端与网页版实际代码**（immich 仓库 `server/`、`web/`、`packages/sdk/`，tag **v3.1.0**）为权威基准，与 `internal/app/app.go` 实际路由逐条核对；`open-api/immich-openapi-specs.json`（254 个 operation）仅作回归校验参考，不作为"为准"的最终依据。
 
 > 状态列四档：**✅ 完全实现**（真实逻辑+契约兼容）/ **🟡 部分实现**（已实现但逻辑不完整或弱于原版）/ **🟠 API占位/逻辑存疑**（端点存在但仅返回空/最小形状，无真实逻辑）/ **❌ 未实现**（端点缺失，或仅以不同 HTTP 方法提供）。
 
