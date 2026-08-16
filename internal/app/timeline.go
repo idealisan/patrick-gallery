@@ -180,7 +180,14 @@ func (a *App) buildTimeBucketAssets(assets []Asset) timeBucketAssetsResponse {
 		}
 		// local offset (hours) between the photo's local time and its UTC stamp
 		r.LocalOffsetHours[i] = as.LocalDateTime.Sub(as.FileCreatedAt).Hours()
-		r.Stack[i] = []string{} // stacking unsupported
+		// Stacking is unsupported. The official server emits `null` (not an
+		// empty array) for a non-stacked asset's slot in the parallel `stack`
+		// array. The web reconstructs `asset.stack` from this slot and, for a
+		// truthy (non-null) value, does `Number.parseInt(slot[1])`. An empty
+		// array `[]` is truthy in JS, slot[1] is undefined, and the parse yields
+		// NaN, which the thumbnail renders as the literal text "NaN". Leaving the
+		// slice element nil makes it serialize to `null`, matching the contract.
+		r.Stack[i] = nil
 		if e, ok := exifByID[as.ExifID]; ok {
 			r.City[i] = e.City
 			r.Country[i] = e.Country
