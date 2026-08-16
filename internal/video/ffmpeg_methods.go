@@ -127,20 +127,26 @@ func (f *ffmpeg) Thumbnail(in []byte, opts ThumbnailOptions) ([]byte, error) {
 		if w == 0 || h == 0 {
 			return nil // skip until a real frame
 		}
+		// Scale BOTH dimensions by the same factor so the aspect ratio is
+		// preserved (longest edge -> edge). The previous code only shrank the
+		// shorter side and left dw at the full source width, so a 16:9 clip
+		// produced a 1920x180 long horizontal bar instead of 320x180.
 		scale := float64(edge) / float64(maxInt(w, h))
-		dw, dh := w, h
-		if w >= h {
-			dh = int(float64(h) * scale)
-		} else {
-			dw = int(float64(w) * scale)
-		}
+		dw := int(float64(w) * scale)
+		dh := int(float64(h) * scale)
 		if dw < 1 {
 			dw = 1
 		}
 		if dh < 1 {
 			dh = 1
 		}
-		sws := f.fn.swsGetContext(uintptr(w), uintptr(h), avPixFmtYUV420P, uintptr(dw), uintptr(dh), avPixFmtRGBA,
+		// The decoder may emit a pixel format other than YUV420P (e.g. NV12
+		// on some builds). Passing the frame's ACTUAL format to sws_scale is
+		// mandatory; hard-coding YUV420P here previously misread the chroma
+		// planes and produced wrong-colour thumbnails (a dark purple/grey
+		// frame instead of the real content).
+		srcFmt := int(ctxFrameFormat(frame))
+		sws := f.fn.swsGetContext(uintptr(w), uintptr(h), uintptr(srcFmt), uintptr(dw), uintptr(dh), avPixFmtRGBA,
 			0x10 /*SWS_BILINEAR*/, 0, 0, 0)
 		if sws == 0 {
 			return errors.New("sws_getContext failed")
@@ -152,10 +158,16 @@ func (f *ffmpeg) Thumbnail(in []byte, opts ThumbnailOptions) ([]byte, error) {
 		}
 		defer f.fn.avFree(rgbaBuf)
 
+		// Copy ALL source planes + strides (not just plane 0). Leaving planes
+		// 1/2 as zero made sws_scale dereference NULL chroma pointers on
+		// planar formats, yielding garbage colours. Mirror the transcode path
+		// (ffmpeg_transcode.go) which reads planes 0..3 correctly.
 		var srcPlanes [4]uintptr
 		var srcStrides [4]int32
-		srcPlanes[0] = frameData0(frame)
-		srcStrides[0] = frameStride0(frame)
+		for i := 0; i < 4; i++ {
+			srcPlanes[i] = *(*uintptr)(unsafe.Pointer(frame + uintptr(i)*8))
+			srcStrides[i] = *(*int32)(unsafe.Pointer(frame + 64 + uintptr(i)*4))
+		}
 		var dstPlanes [4]uintptr
 		var dstStrides [4]int32
 		dstPlanes[0] = rgbaBuf

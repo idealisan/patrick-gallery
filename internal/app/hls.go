@@ -98,16 +98,20 @@ func (a *App) handleVideoStreamPlaylist(c *gin.Context) {
 	if !ok {
 		return
 	}
-	dur := parseDurationInt(asset.Duration)
-	if dur <= 0 {
-		dur = 3600 // safe VOD fallback when duration is unknown
+	// Asset.Duration is stored in MILLISECONDS (see durSecToMsString /
+	// msToString), but HLS #EXTINF expects SECONDS. Emitting the raw value
+	// (e.g. 46533.000) makes players refuse to start playback. Convert ms->s.
+	durMs := parseDurationInt(asset.Duration)
+	durSec := float64(durMs) / 1000.0
+	if durSec <= 0 {
+		durSec = 3600 // safe VOD fallback when duration is unknown
 	}
 	c.Header("Content-Type", "application/vnd.apple.mpegurl")
 	// One segment referencing our transcoded MP4 (relative path resolves to the
 	// segment route below).
 	c.String(http.StatusOK,
 		"#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-PLAYLIST-TYPE:VOD\n#EXTINF:%.3f,\n%s\n#EXT-X-ENDLIST\n",
-		float64(dur), "seg-0.mp4")
+		durSec, "seg-0.mp4")
 }
 
 // handleVideoStreamSegment mirrors
