@@ -124,18 +124,87 @@ func (a *App) handleAssetStatistics(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"images": images, "videos": videos, "total": total})
 }
 
-// handleServerStatistics mirrors GET /api/server/statistics (global counts
-// across all non-trashed assets).
+// userStatsEntry is the per-user usage shape the official web expects
+// (UsageByUserDto). QuotaSizeInBytes is a *int64 so it serializes to null when
+// a user has no quota (matches the web's `quotaSizeInBytes !== null` check).
+type userStatsEntry struct {
+	UserID           string `json:"userId"`
+	UserName         string `json:"userName"`
+	Photos           int64  `json:"photos"`
+	Videos           int64  `json:"videos"`
+	Usage            int64  `json:"usage"`
+	UsagePhotos      int64  `json:"usagePhotos"`
+	UsageVideos      int64  `json:"usageVideos"`
+	QuotaSizeInBytes *int64 `json:"quotaSizeInBytes"`
+}
+
+// handleServerStatistics mirrors GET /api/server/statistics. It returns the
+// ServerStatsResponseDto the official web consumes (photo/video counts plus
+// storage usage in bytes, both as totals and per user). The web reads `usage`
+// as a byte count (passes it to getBytesWithUnit) and iterates `usageByUser`,
+// so all of these fields MUST be present and numeric — returning `usage` as a
+// counts object (the old behavior) broke the admin "Server Status" page.
+// See web/src/routes/admin/server-status/ServerStatisticsPanel.svelte.
 func (a *App) handleServerStatistics(c *gin.Context) {
-	var images, videos, total int64
-	a.store.DB.Model(&Asset{}).Where("is_trash = ?", false).Count(&total)
-	a.store.DB.Model(&Asset{}).Where("is_trash = ? AND type = ?", false, "IMAGE").Count(&images)
-	a.store.DB.Model(&Asset{}).Where("is_trash = ? AND type = ?", false, "VIDEO").Count(&videos)
+	uid := currentUserID(c)
+	if !a.isAdmin(uid) {
+		c.Status(http.StatusForbidden)
+		return
+	}
+
+	// Seed a per-user accumulator for every known user (so users with zero
+	// assets still appear with zeros rather than being omitted).
+	byUser := map[string]*userStatsEntry{}
+	var users []User
+	a.store.DB.Find(&users)
+	for i := range users {
+		byUser[users[i].ID] = &userStatsEntry{
+			UserID:           users[i].ID,
+			UserName:         users[i].Name,
+			QuotaSizeInBytes: users[i].QuotaSizeInBytes,
+		}
+	}
+
+	var assets []Asset
+	a.store.DB.Where("is_trash = ?", false).Find(&assets)
+
+	var photos, videos int64
+	var usage, usagePhotos, usageVideos int64
+	for _, as := range assets {
+		sz := as.Size // original file size in bytes (set at ingest)
+		usage += sz
+		e, ok := byUser[as.OwnerID]
+		if !ok {
+			e = &userStatsEntry{UserID: as.OwnerID, QuotaSizeInBytes: nil}
+			byUser[as.OwnerID] = e
+		}
+		e.Usage += sz
+		switch as.Type {
+		case "IMAGE":
+			photos++
+			e.Photos++
+			usagePhotos += sz
+			e.UsagePhotos += sz
+		case "VIDEO":
+			videos++
+			e.Videos++
+			usageVideos += sz
+			e.UsageVideos += sz
+		}
+	}
+
+	list := make([]userStatsEntry, 0, len(byUser))
+	for _, e := range byUser {
+		list = append(list, *e)
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"photos": images,
-		"videos": videos,
-		"total":  total,
-		"usage":  gin.H{"photos": images, "videos": videos, "total": total},
+		"photos":      photos,
+		"videos":      videos,
+		"usage":       usage,
+		"usagePhotos": usagePhotos,
+		"usageVideos": usageVideos,
+		"usageByUser": list,
 	})
 }
 

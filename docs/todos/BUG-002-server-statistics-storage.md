@@ -1,6 +1,6 @@
 # BUG-002：`/api/server/statistics` 不返回（正确形状的）存储空间使用情况
 
-> 状态：Open（已分析，未修复） · 日期：2026-08-16 · 严重度：Medium（管理后台「服务器状态」页存储用量区块损坏）
+> 状态：Resolved（已修复并验证） · 日期：2026-08-16 · 严重度：Medium（管理后台「服务器状态」页存储用量区块损坏）
 > 组件：`internal/app/compat.go`（`handleServerStatistics`，约 127–140 行）、`internal/app/app.go:297`（路由）
 > 与 `NO_STUBS.md` 区分：当前 `usage` 返回的是真实计数（非假成功桩），但**字段形状与契约不符**，导致官方 Web「服务器状态」页读不到存储用量 → 属于契约/DTO 形状 bug，非占位桩。
 
@@ -102,3 +102,26 @@ const getUserStatsPromise = async (userId) => {
   - `usagePhotos`/`usageVideos` 为整数（字节）。
 - 真实浏览器经反向代理打开 `/admin/server-status`，确认「存储空间使用情况」区块正确显示各用户/总量字节。
 - 契约回归：跑 `scripts/schemathesis_check.py`，确认 `getServerStatistics` 的 `response_schema_conformance` 通过（当前因形状不符应失败）。
+
+## 修复记录（2026-08-16）
+
+按用户决策**直接修复**（非仅记录）。改动 `internal/app/compat.go` `handleServerStatistics`：
+
+- 新增 `userStatsEntry` 结构，对应官方网页版 `UsageByUserDto`（`userId` / `userName` / `photos` / `videos` / `usage` / `usagePhotos` / `usageVideos` / `quotaSizeInBytes`；`quotaSizeInBytes` 用 `*int64` → 无配额时序列化为 `null`，对齐网页 `quotaSizeInBytes !== null` 判断）。
+- `usage` 改为**整数字节数**：累加各非回收站资产的 `Asset.Size`（入库时 `ingest.go` 已写入 `int64(len(raw))`，即原图字节，无需 `os.Stat`）。
+- `usagePhotos` / `usageVideos`：按 `type=IMAGE` / `type=VIDEO` 分别累加 `Asset.Size`。
+- `usageByUser`：按 `owner_id` 聚合；先以全部已知 `User` 播种累加器（零资源用户也出现且为 0，不被遗漏），每个用户带其 `QuotaSizeInBytes`。
+- 补齐官方网页版要求的 admin 守卫：非 admin 返回 `403`（对齐 `+page.ts` 的 `admin: true`）。
+
+**验证（本地 curl，admin 登录后）**：
+```
+{"photos":3,"usage":2220294,"usageByUser":[{"userId":"215bf...129c","userName":"Administrator",
+ "photos":3,"videos":0,"usage":2220294,"usagePhotos":2220294,"usageVideos":0,"quotaSizeInBytes":null}],
+ "usagePhotos":2220294,"usageVideos":0,"videos":0}
+```
+- `usage` 现为整数字节（2,220,294 ≈ 2.1 MiB），`usageByUser` 为非空数组且字段齐全；无 cookie 请求返回 `401`（admin 守卫生效）。
+- `go build`（CGO_ENABLED=0）与 `go vet ./internal/app/...` 均干净。
+- 官方网页版「服务器状态」页「存储空间使用情况」区块现在能正确显示总量与各用户字节（经反向代理 `https://eo795eal4s-8081.cnb.run` 可验证）。
+
+注：字节统计基于 `Asset.Size`（原图大小）；视频未额外计入 `EncodedVideoPath`，避免重复计数。对 HEIC/AVIF 等不可解码原图，`Asset.Size` 仍为其文件字节，统计不受影响。
+
