@@ -84,7 +84,12 @@ Go 方式重建，或显式引入受控的外部组件；水平多租户扩展�
      resolved by **fixing the backend to the official contract** (per rule 7) or,
      where a capability is genuinely infeasible under our hard rules, returning an
      **honest** 4xx/501 — never by quietly swapping in a custom UI or a fake
-     endpoint. The official web UI is the source of truth for the contract.
+     endpoint. The official web UI **and the official client SDK / source code**
+     are the source of truth for the contract — **NOT the OpenAPI spec**. The
+     `open-api/immich-openapi-specs.json` document is only an *input to the
+     Schemathesis regression harness*; when it disagrees with what the real
+     official client or web actually sends/expects, the real code wins and the
+     spec is treated as incomplete (see rule 8 and the workflow note below).
    - The official immich web source / release used is a build-time dependency and
      MUST be recorded in `THIRD_PARTY.md` (exact tag, URL, license).
 7. **No stubs, no mocking — every endpoint must do real work.** This is a
@@ -180,11 +185,13 @@ Go 方式重建，或显式引入受控的外部组件；水平多租户扩展�
   before pushing — there is no Go on the runner's checkout cache, so CI is
   the only safety net if you skip local checks.
 - **API 契约回归测试**：CI 的 `contract-test` job 会构建并启动 immich-go，用
-  Schemathesis 4.24.3 针对官方 Immich v3.1.0 OpenAPI 契约做一致性校验，并在
-  DTO 形状（`response_schema_conformance`）、`content_type_conformance`、5xx
-  上回归时失败。本地可运行 `python3 scripts/schemathesis_check.py` 复现；已知
-  未实现端点的 4xx 缺口豁免于 `scripts/schemathesis-allowlist.txt`（详见
-  `docs/CONTRACT_TESTING.md`）。改动响应体形状前请先跑此脚本。
+  Schemathesis 4.24.3 以官方 Immich v3.1.0 **OpenAPI 规范作为回归校验所用的
+  schema 来源**做一致性校验，并在 DTO 形状（`response_schema_conformance`）、
+  `content_type_conformance`、5xx 上回归时失败。**注意**：OpenAPI 仅是回归检测
+  工具，权威契约以**官方客户端与网页版实际代码**为准（见下方 workflow 说明）。
+  本地可运行 `python3 scripts/schemathesis_check.py` 复现；已知未实现端点的 4xx
+  缺口豁免于 `scripts/schemathesis-allowlist.txt`（详见 `docs/CONTRACT_TESTING.md`）。
+  改动响应体形状前请先跑此脚本。
 - Video backends that fail to load (library absent) MUST degrade gracefully
   (server still starts, video endpoints return a placeholder / the original)
   so the cross-platform binaries keep working everywhere.
@@ -195,6 +202,14 @@ Go 方式重建，或显式引入受控的外部组件；水平多租户扩展�
   `/photos`, the login form is gone, authenticated calls return 200, and there
   is no client-side `pageerror`. `curl` does NOT satisfy this requirement.
 - Record any intentional limitation in `STATUS.md`.
+- **提交与推送纪律（workflow）**：每一个小小的变更完成之后，**立即提交（commit）
+  并推送（push）代码**到远端（`origin`/`main`）。任何时候**待提交的改动文件数
+  不得超过 5 个**——改动一旦累积接近上限，先提交推送再继续，绝不把大量未提交
+  改动堆在一起。提交信息用中文简述本次变更。若某次改动本身超过 5 个文件，先
+  拆成多个小提交分批推送。
+- **契约权威来源**：实现或修复任何 endpoint 时，以**官方客户端与网页版实际代码**
+  （immich 仓库的 `server/`、`web/`、`packages/sdk/`）为权威契约，OpenAPI 规范
+  仅作回归校验参考，不作为"为准"的最终依据。
 - The authoritative gap tracker (endpoint coverage + parity verdict) is
   [docs/GAP_ANALYSIS.md](docs/GAP_ANALYSIS.md). Core media functions
   (upload/sync/management) are tracked there as "done & contract-compatible";
