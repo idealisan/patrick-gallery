@@ -80,6 +80,24 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 	// original server. DTO shapes are unchanged (already match the contract).
 	r.GET("/api/server/media-types", a.handleServerMediaTypes)
 	r.GET("/api/server/version-history", a.handleServerVersionHistory)
+
+	// Root-path aliases (/server/* without the /api prefix) for clients such as
+	// the official Immich iOS app that poll /server/version (and other
+	// server-info endpoints) during bootstrap/version-check. Without these
+	// aliases the request falls through to the SPA history-fallback
+	// (main.go NoRoute) and returns HTML, which the client cannot parse as a
+	// version and reports as "version incompatible" (see docs/todos/BUG-005).
+	// Explicit routes here take precedence over NoRoute, so JSON is served.
+	r.GET("/server/ping", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"res": "pong"}) })
+	r.GET("/server/health", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "ok", "checks": []any{}}) })
+	r.GET("/server/about", a.handleAbout)
+	r.GET("/server/version", a.handleServerVersion)
+	r.GET("/server/config", a.handleServerConfig)
+	r.GET("/server/features", a.handleServerFeatures)
+	r.GET("/server/media-types", a.handleServerMediaTypes)
+	r.GET("/server/version-history", a.handleServerVersionHistory)
+	r.GET("/server/version-check", a.handleServerVersionCheck)
+
 	r.GET("/api/system-config/defaults", a.handleSystemConfigDefaults)
 	r.GET("/api/auth/status", a.handleAuthStatus)
 	r.POST("/api/auth/validateToken", a.handleAuthValidateToken)

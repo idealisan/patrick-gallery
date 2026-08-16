@@ -605,7 +605,7 @@ func (a *App) handleSystemConfigGet(c *gin.Context) {
 		"trashDays":           trashDays,
 		"repository":          "immich-go",
 		"releaseChannel":      "nightly",
-		"version":             "1.0.0-go",
+		"version":             a.cfg.CompatVersion,
 	})
 }
 
