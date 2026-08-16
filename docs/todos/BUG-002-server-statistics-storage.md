@@ -21,6 +21,36 @@ $ curl -s -b <cookie> http://127.0.0.1:8081/api/server/statistics
 {"photos":3,"total":3,"usage":{"photos":3,"total":3,"videos":0},"videos":0}
 ```
 
+### 官方网页版实际消费代码（v3.1.0，权威依据）
+
+路由加载：`web/src/routes/admin/server-status/+page.ts` 调 `getServerStatistics()`（来自 `@immich/sdk`），且 `authenticate(url, { admin: true })`。区块组件 `ServerStatisticsPanel.svelte` 实际读取的字段（节选）：
+
+```svelte
+// 总存储用量：usage 必须是一个「字节数」传给 getBytesWithUnit
+const storagePromise = statsPromise.then((data) => {
+  const [value, unit] = getBytesWithUnit(data.usage, data.usage > TiB ? 2 : 0);
+  return { value, unit };
+});
+
+// 每用户明细：在 usageByUser 上做 .find(userStats => userStats.userId === userId)
+const getUserStatsPromise = async (userId) => {
+  const stats = await statsPromise;
+  return stats.usageByUser.find((userStats) => userStats.userId === userId);
+};
+// 表格单元格：
+//   userStats.photos   —— 照片数
+//   userStats.usagePhotos —— <FormatBytes bytes={userStats.usagePhotos} /> （字节）
+//   userStats.videos   —— 视频数
+//   userStats.usageVideos —— <FormatBytes bytes={userStats.usageVideos} /> （字节）
+//   userStats.usage    —— <FormatBytes bytes={userStats.usage} /> （字节）
+//   userStats.quotaSizeInBytes —— 配额（null = 无限）
+```
+
+要点：
+- `data.usage` 被直接当作**字节数**传入 `getBytesWithUnit`，因此必须返回整数（字节）；返回对象会让用量显示为空/NaN。
+- `data.usageByUser` 被 `.find(...)` 调用，**必须存在且为数组**；缺失会抛 `TypeError` 导致「用户用量明细」表格崩溃。
+- 每个 `usageByUser[]` 项需要：`userId` / `photos` / `videos` / `usagePhotos`（字节）/ `usageVideos`（字节）/ `usage`（字节）/ `quotaSizeInBytes`。
+
 对照**官方网页版实际代码**（immich v3.1.0 `web/src/routes/admin/server-status/ServerStatisticsPanel.svelte` 经 `@immich/sdk` 的 `getServerStatistics()` 调用，路由守卫 `admin: true`）实际消费的字段——**OpenAPI 规范信息不足，以真实代码为准**：
 
 | 字段 | 契约类型 / 含义 | 当前返回 |
