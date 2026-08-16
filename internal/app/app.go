@@ -37,6 +37,11 @@ type App struct {
 	// return the v4 connect ack (40{"sid":...}) the client expects. Keyed by
 	// the Engine.IO sid; entries are short-lived (deleted once acked).
 	sioConnectAck sync.Map
+
+	// sioVersionPending tracks polling transports that still need the
+	// on_server_version event delivered on their next long-poll GET (the
+	// websocket transport emits it immediately on connect).
+	sioVersionPending sync.Map
 }
 
 func NewApp(cfg *Config, store *Store) *App {
@@ -65,6 +70,14 @@ func NewApp(cfg *Config, store *Store) *App {
 // (health, about, auth login) are registered outside the auth guard.
 func (a *App) RegisterRoutes(r *gin.Engine) {
 	// ---- public ----
+	// RFC-style discovery endpoint the official iOS/Android clients hit first
+	// (GET /.well-known/immich) to learn the API base path. Without it the
+	// mobile apps POST /auth/login with no /api prefix and fall through to the
+	// SPA fallback (HTML 200), so login never succeeds. The official response
+	// shape is {"api":{"endpoint":"/api"}}.
+	r.GET("/.well-known/immich", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"api": gin.H{"endpoint": "/api"}})
+	})
 	r.GET("/api/server/ping", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"res": "pong"}) })
 	r.GET("/api/server/health", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "ok", "checks": []any{}}) })
 	r.GET("/api/server/about", a.handleAbout)

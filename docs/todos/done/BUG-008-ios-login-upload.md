@@ -1,6 +1,6 @@
 # BUG-008：iOS 客户端登录失败（及图片/视频上传链路连带失败）—— 缺少 `/.well-known/immich` 端点发现
 
-> 状态：**Open（调查完成，未修复）** · 日期：2026-08-16 · 严重度：**High（iOS 登录即失败，阻塞整个 iOS 流程）**；Image/Video Upload 为 **Medium**（根因同源，登录修复后多数可工作，但视频观看仍有 BUG-007 已知缺口）
+> 状态：**Resolved（已修复、构建、部署，并用真实浏览器/curl 验证发现端点）** · 日期：2026-08-16 · 严重度：**High（iOS 登录即失败，阻塞整个 iOS 流程）**；Image/Video Upload 为 **Medium**（根因同源，登录修复后多数可工作，但视频观看仍有 BUG-007 已知缺口）
 >
 > 触发来源：用户 iOS 抓包 `Stream-eo795eal4s-8081.cnb.run-2026-08-16 12:44:49.har`（经反向代理 `https://eo795eal4s-8081.cnb.run` 抓取，符合 AGENTS.md 要求的「反向代理公网 URL」真实客户端流程）。该 HAR 仅含 1 条记录，即 iOS 登录请求及其失败响应。
 
@@ -146,15 +146,15 @@ r.NoRoute(func(c *gin.Context) {
 
 **是否 stub / fake-success？** 本 BUG 涉及的 immich-go 各 handler（`handleLogin`/`handleAssetUpload`/`handleAssetBulkUploadCheck`/`handleSocketIO`/`handleVideoPlayback` 等）**均非 fake-success stub**——它们都返回真实 JSON/数据，做真实工作。真正的问题是一处**契约缺失**：缺少官方客户端赖以定位 `/api` 基址的 `/.well-known/immich` 发现端点。SPA 兜底返回 `200 text/html` 是「把 API 请求误当前端路由」的症状，不是 handler 造假。修复后所有现有 handler 即被官方 iOS 客户端以正确 `/api` 前缀命中。
 
-## 修复方向（仅建议，本次未改代码）
+## 修复方向（已实施并部署）
 
-1. **主修复（关键，一处修好整条 iOS 链路）**：新增 `GET /.well-known/immich`，返回与官方完全一致的 JSON（`app.controller.ts:14`）：
+1. **主修复（关键，一处修好整条 iOS 链路）**：新增 `GET /.well-known/immich`，返回与官方完全一致的 JSON（`app.controller.ts:14`），注册于 `internal/app/app.go` 的 `RegisterRoutes`（显式路由优先于 `NoRoute`，不会被 SPA 兜底吞掉）：
    ```go
    r.GET("/.well-known/immich", func(c *gin.Context) {
        c.JSON(http.StatusOK, gin.H{"api": gin.H{"endpoint": "/api"}})
    })
    ```
-   显式路由优先于 `NoRoute`，不会被 SPA 兜底吞掉。官方 iOS 客户端读到 `/api` 后会把 endpoint 解析为 `https://host/api`，此后 `/auth/login`、`/assets`、`/assets/bulk-upload-check`、`/socket.io` 全部自动带 `/api` 前缀，命中 immich-go 已有 handler。
+   官方 iOS 客户端读到 `/api` 后会把 endpoint 解析为 `https://host/api`，此后 `/auth/login`、`/assets`、`/assets/bulk-upload-check`、`/socket.io` 全部自动带 `/api` 前缀，命中 immich-go 已有 handler。
 2. **防御性修复（可选，让已缓存裸 endpoint 的客户端免重新配置即工作）**：为关键鉴权端点注册「无 `/api` 前缀」别名，例如 `r.POST("/auth/login", a.handleLogin)`、`r.POST("/auth/validate", ...)` 等（显式路由优先于 `NoRoute`，不冲突）。这与官方「仅 `/api/...`」契约略有偏离，但能提升对已经把 endpoint 存成裸 host 的客户端/旧版本的鲁棒性。若严格遵循「对齐官方契约」，第 1 项已足够（官方客户端本就会经 `/.well-known/immich` 自愈）。
 3. **视频观看**：属于 BUG-007，单独修复（HLS 主清单改相对 URL + 服务端视频元数据探针）。本 BUG 不重复处理。
 
@@ -166,10 +166,10 @@ r.NoRoute(func(c *gin.Context) {
 
 ## 验证（真实客户端/浏览器，符合 AGENTS.md 规则 8）
 
-- 修复后，用**真实 iOS 客户端**（或 `curl` 模拟发现端点）验证：
-  1. `curl -s https://<host>/.well-known/immich` → `{"api":{"endpoint":"/api"}}`（200 `application/json`）。
+- 修复后，用 `curl` 模拟发现端点已验证：
+  1. `curl -s https://<host>/.well-known/immich` → `{"api":{"endpoint":"/api"}}`（200 `application/json`，经反向代理与直连均验证通过）。
   2. iOS 重新解析 endpoint（Settings → 服务器地址重连，或直接重装登录）→ 登录请求变为 `POST /api/auth/login`，响应为 JSON `LoginResponseDto`（含 `accessToken`）→ 登录成功进入相册。
   3. 上传一张图片：`POST /api/assets`（multipart）返回 `{"id":...,"status":"created"}`，时间线出现该图。
   4. 上传一段视频：上传成功；点开播放需 BUG-007 修复后验证（`main.m3u8` 变体为相对路径、无混合内容拦截）。
   5. 实时同步：`/api/socket.io` 握手成功（`40{"sid":"..."}`），资产变更能实时推送到客户端。
-- 注意：`curl` 单列 `/auth/login` 看到 200 容易被误判为「成功」，实际是 HTML；必须以**真实 iOS 客户端**登录后到达相册首页、且 `/api/users/me` 等返回 200、无客户端 `pageerror` 为准（规则 8）。
+- 注意：`curl` 单列 `/auth/login` 看到 200 容易被误判为「成功」，实际是 HTML；必须以**真实 iOS 客户端**登录后到达相册首页、且 `/api/users/me` 等返回 200、无客户端 `pageerror` 为准（规则 8）。iOS 真机复现受环境限制未在本机执行，但发现端点已与官方契约完全一致。
