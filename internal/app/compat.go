@@ -198,13 +198,26 @@ func (a *App) handleServerStatistics(c *gin.Context) {
 		list = append(list, *e)
 	}
 
+	// Safety net: expose the same disk fields the web reads from
+	// /api/server/storage (diskSizeRaw / diskUseRaw) on the statistics
+	// response too, so any consumer keyed to /api/server/statistics still
+	// sees finite, real disk numbers instead of a missing/NaN value.
+	total, _, used, derr := diskUsage(a.cfg.ResourceDir)
+	var diskSizeRaw, diskUseRaw int64
+	if derr == nil {
+		diskSizeRaw = int64(total)
+		diskUseRaw = int64(used)
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"photos":      photos,
-		"videos":      videos,
-		"usage":       usage,
-		"usagePhotos": usagePhotos,
-		"usageVideos": usageVideos,
-		"usageByUser": list,
+		"photos":       photos,
+		"videos":       videos,
+		"usage":        usage,
+		"usagePhotos":  usagePhotos,
+		"usageVideos":  usageVideos,
+		"usageByUser":  list,
+		"diskSizeRaw":  diskSizeRaw,
+		"diskUseRaw":   diskUseRaw,
 	})
 }
 

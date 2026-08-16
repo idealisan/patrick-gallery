@@ -71,6 +71,61 @@ func (a *App) handleServerStorage(c *gin.Context) {
 	})
 }
 
+// handleServerInfo mirrors GET /api/server/info. It returns the
+// ServerInfoResponseDto the official web consumes for the sidebar storage
+// meter (diskSizeRaw / diskUseRaw) plus the server version metadata block.
+// The official web (getServerInfo) polls this endpoint on load and stores the
+// result as `serverInfo`; the storage meter computes used/total from
+// serverInfo.diskUseRaw / serverInfo.diskSizeRaw. Returning real disk numbers
+// here (and a sensible version block) keeps the meter finite instead of NaN.
+// See web/src/routes/(user)/administration/server-settings/storage-management.
+func (a *App) handleServerInfo(c *gin.Context) {
+	total, avail, used, err := diskUsage(a.cfg.ResourceDir)
+	if err != nil {
+		// Resource dir missing/unmountable: report zeros rather than failing
+		// the client's periodic info poll.
+		c.JSON(http.StatusOK, gin.H{
+			"diskAvailable":       "",
+			"diskAvailableRaw":    0,
+			"diskSize":            "",
+			"diskSizeRaw":         0,
+			"diskUse":             "",
+			"diskUseRaw":          0,
+			"diskUsagePercentage": 0,
+			"version":             a.cfg.CompatVersion,
+			"releasedAt":          "",
+			"versionChanged":      false,
+			"schemaChanged":       false,
+			"buildDate":           "",
+			"buildId":             "",
+			"isDocker":            false,
+			"databaseBackup":      false,
+		})
+		return
+	}
+	var pct float64
+	if total > 0 {
+		pct = float64(used) / float64(total) * 100
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"diskAvailable":       humanBytes(avail),
+		"diskAvailableRaw":    avail,
+		"diskSize":            humanBytes(total),
+		"diskSizeRaw":         total,
+		"diskUse":             humanBytes(used),
+		"diskUseRaw":          used,
+		"diskUsagePercentage": pct,
+		"version":             a.cfg.CompatVersion,
+		"releasedAt":          "2024-01-01T00:00:00.000Z",
+		"versionChanged":      false,
+		"schemaChanged":       false,
+		"buildDate":           time.Now().UTC().Format(time.RFC3339),
+		"buildId":             "",
+		"isDocker":            false,
+		"databaseBackup":      false,
+	})
+}
+
 // humanBytes formats a byte count using binary (KiB/MiB/...) units.
 func humanBytes(n uint64) string {
 	const unit = 1024

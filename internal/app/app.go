@@ -336,6 +336,7 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.GET("/search/suggestions", a.handleSearchSuggestions)
 		api.GET("/server/version-check", a.handleServerVersionCheck)
 		api.GET("/server/storage", a.handleServerStorage)
+		api.GET("/server/info", a.handleServerInfo)
 		api.GET("/server/apk-links", a.handleServerApkLinks)
 		api.GET("/server/license", a.handleServerLicense)
 		api.PUT("/server/license", a.handleServerLicense)
