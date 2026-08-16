@@ -77,14 +77,16 @@ func (a *App) handleVideoStreamMaster(c *gin.Context) {
 	if !ok {
 		return
 	}
-	scheme := "http"
-	if c.Request.TLS != nil {
-		scheme = "https"
-	}
-	// Absolute variant URL so the client can resolve it regardless of how the
-	// master playlist itself was requested.
-	variant := fmt.Sprintf("%s://%s/api/assets/%s/video/stream/%s/0/playlist.m3u8",
-		scheme, c.Request.Host, asset.ID, asset.ID)
+	// Relative (scheme-less) variant URL. The official web resolves the
+	// playlist against the page origin, so we must NOT hard-code http:// here:
+	// behind a TLS-terminating reverse proxy the Go side sees
+	// c.Request.TLS == nil and would otherwise emit an http:// URL, which the
+	// HTTPS page blocks as mixed content (the variant playlist request fails
+	// with STATUS 0 and the video never plays). A path-relative URL keeps the
+	// page's scheme (https) and resolves against the master playlist URL
+	// (/api/assets/:id/video/stream/ -> /api/assets/:id/video/stream/:id/0/
+	// playlist.m3u8), matching the official hls.service.ts contract.
+	variant := fmt.Sprintf("%s/0/playlist.m3u8", asset.ID)
 	c.Header("Content-Type", "application/vnd.apple.mpegurl")
 	c.String(http.StatusOK, "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=2000000,RESOLUTION=1280x720\n%s\n", variant)
 }
