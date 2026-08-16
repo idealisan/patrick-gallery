@@ -72,6 +72,12 @@ func OpenDB(dbPath, resourceDir string) (*Store, error) {
 	if err := s.seed(); err != nil {
 		return nil, err
 	}
+	// Backfill user.status for rows created before the column existed so the
+	// official v3.1.0 mobile client's UserAdminResponseDto (which requires a
+	// valid, non-null status) never receives an empty/unknown value.
+	if err := s.DB.Model(&User{}).Where("status = '' OR status IS NULL").Update("status", "active").Error; err != nil {
+		return nil, err
+	}
 	if err := s.ensureJWTSecret(); err != nil {
 		return nil, err
 	}
@@ -118,6 +124,7 @@ func (s *Store) seed() error {
 			IsAdmin:              true,
 			ShouldChangePassword: false,
 			AvatarColor:          "primary",
+			Status:               "active",
 			CreatedAt:            time.Now().UTC(),
 			UpdatedAt:            time.Now().UTC(),
 		}

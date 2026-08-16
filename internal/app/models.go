@@ -36,7 +36,17 @@ type User struct {
 	QuotaUsageInBytes *int64    `gorm:"-" json:"quotaUsageInBytes"`
 	ProfileImagePath  string    `gorm:"type:text" json:"profileImagePath"`
 	ProfileChangedAt  time.Time `json:"profileChangedAt"`
-	OAuthId           string    `gorm:"type:text" json:"oauthId,omitempty"`
+	// OAuthId is the external provider subject when the account was created
+	// via OAuth; local accounts have an empty string. It MUST be serialized
+	// (no omitempty) because the official v3.1.0 mobile client's
+	// UserAdminResponseDto declares oauthId as a non-nullable string — a
+	// missing/omitted field makes the openapi-generated fromJson crash with
+	// "Null check operator used on a null value" and aborts login.
+	OAuthId string `gorm:"type:text;default:''" json:"oauthId"`
+	// Status mirrors Immich's UserStatus enum (active|removing|deleted). It is
+	// serialized unconditionally: the mobile client's UserAdminResponseDto
+	// requires a valid, non-null status, and an empty/unknown value throws.
+	Status string `gorm:"type:text;default:active" json:"status"`
 }
 
 type Asset struct {
