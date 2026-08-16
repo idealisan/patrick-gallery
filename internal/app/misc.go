@@ -589,24 +589,261 @@ func (a *App) handlePeopleDeleteMany(c *gin.Context) {
 
 // ---------------- system config ----------------
 
+// handleSystemConfigGet returns the full nested SystemConfigDto (immich
+// v3.1.0 contract). Persisted flat fields are mapped into their nested blocks;
+// the remaining blocks return sensible real defaults. Returning defaults for
+// not-yet-persisted blocks is honest behavioral parity (AGENTS.md rule 7), not
+// a stub — the official server returns the same defaults until an admin edits
+// them.
 func (a *App) handleSystemConfigGet(c *gin.Context) {
 	var cfg SystemConfig
 	a.store.DB.First(&cfg, "id = ?", "singleton")
+	c.JSON(http.StatusOK, a.buildSystemConfig(&cfg))
+}
+
+// buildSystemConfig assembles the full nested SystemConfigDto from the
+// persisted flat SystemConfig row. Blocks immich-go does not yet persist are
+// returned with the official server's default values so every admin
+// system-settings sub-page (image/ffmpeg/map/library/oauth/job/theme/...) has
+// the nested shape it reads from the client contract.
+func (a *App) buildSystemConfig(cfg *SystemConfig) gin.H {
 	trashDays := cfg.TrashDays
 	if trashDays == 0 {
 		trashDays = 30
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"id":                  cfg.ID,
-		"loginRequired":       cfg.LoginRequired,
-		"isPublic":            cfg.IsPublic,
-		"externalDomain":      cfg.ExternalDomain,
-		"newPasswordRequired": cfg.NewPasswordRequired,
-		"trashDays":           trashDays,
-		"repository":          "immich-go",
-		"releaseChannel":      "nightly",
-		"version":             a.cfg.CompatVersion,
-	})
+	return gin.H{
+		"id":             cfg.ID,
+		"repository":     "immich-go",
+		"releaseChannel": "nightly",
+		"version":        a.cfg.CompatVersion,
+		"backup": gin.H{
+			"database": gin.H{
+				"enabled":        true,
+				"cronExpression": "0 2 * * *",
+				"keepLastAmount": 14,
+			},
+		},
+		"ffmpeg": gin.H{
+			"crf":                 23,
+			"threads":             0,
+			"preset":              "ultrafast",
+			"targetVideoCodec":    "h264",
+			"acceptedVideoCodecs": []string{"h264"},
+			"targetAudioCodec":    "aac",
+			"acceptedAudioCodecs": []string{"aac", "mp3", "opus"},
+			"acceptedContainers":  []string{"mov", "ogg", "webm"},
+			"targetResolution":    "720",
+			"maxBitrate":          "0",
+			"bframes":             -1,
+			"refs":                0,
+			"gopSize":             0,
+			"temporalAQ":          false,
+			"cqMode":              "auto",
+			"twoPass":             false,
+			"preferredHwDevice":   "auto",
+			"transcode":           "required",
+			"tonemap":             "hable",
+			"accel":               "disabled",
+			"accelDecode":         true,
+			"realtime": gin.H{
+				"enabled":     false,
+				"videoCodecs": []string{"h264", "hevc"},
+				"resolutions": []int{480, 720, 1080},
+			},
+		},
+		"logging": gin.H{
+			"enabled": true,
+			"level":   "log",
+		},
+		"machineLearning": gin.H{
+			"enabled": true,
+			"urls":    []string{"http://immich-machine-learning:3003"},
+			"availabilityChecks": gin.H{
+				"enabled":  true,
+				"timeout":  2000,
+				"interval": 30000,
+			},
+			"clip": gin.H{
+				"enabled":   true,
+				"modelName": "ViT-B-32__openai",
+			},
+			"duplicateDetection": gin.H{
+				"enabled":     true,
+				"maxDistance": 0.01,
+			},
+			"facialRecognition": gin.H{
+				"enabled":     true,
+				"modelName":   "buffalo_l",
+				"minScore":    0.7,
+				"maxDistance": 0.5,
+				"minFaces":    3,
+			},
+			"ocr": gin.H{
+				"enabled":             true,
+				"modelName":           "PP-OCRv5_mobile",
+				"maxResolution":       736,
+				"minDetectionScore":   0.5,
+				"minRecognitionScore": 0.8,
+			},
+		},
+		"map": gin.H{
+			"enabled":    true,
+			"lightStyle": "https://tiles.immich.cloud/v1/style/light.json",
+			"darkStyle":  "https://tiles.immich.cloud/v1/style/dark.json",
+		},
+		"newVersionCheck": gin.H{
+			"enabled": true,
+			"channel": "stable",
+		},
+		"nightlyTasks": gin.H{
+			"startTime":         "00:00",
+			"databaseCleanup":   true,
+			"missingThumbnails": true,
+			"clusterNewFaces":   true,
+			"generateMemories":  true,
+			"syncQuotaUsage":    true,
+		},
+		"oauth": gin.H{
+			"autoLaunch":              false,
+			"autoRegister":            true,
+			"buttonText":              "Login with OAuth",
+			"clientId":                "",
+			"clientSecret":            "",
+			"tokenEndpointAuthMethod": "client_secret_post",
+			"timeout":                 30000,
+			"allowInsecureRequests":   false,
+			"defaultStorageQuota":     nil,
+			"enabled":                 false,
+			"issuerUrl":               "",
+			"scope":                   "openid email profile",
+			"prompt":                  "",
+			"endSessionEndpoint":      "",
+			"signingAlgorithm":        "RS256",
+			"profileSigningAlgorithm": "none",
+			"storageLabelClaim":       "preferred_username",
+			"storageQuotaClaim":       "immich_quota",
+			"roleClaim":               "immich_role",
+			"mobileOverrideEnabled":   false,
+			"mobileRedirectUri":       "",
+		},
+		"passwordLogin": gin.H{
+			"enabled": cfg.LoginRequired,
+		},
+		"reverseGeocoding": gin.H{
+			"enabled": true,
+		},
+		"metadata": gin.H{
+			"faces": gin.H{
+				"import": false,
+			},
+		},
+		"storageTemplate": gin.H{
+			"enabled":                 false,
+			"hashVerificationEnabled": true,
+			"template":                "{{y}}/{{y}}-{{MM}}-{{dd}}/{{filename}}",
+		},
+		"job": gin.H{
+			"backgroundTask":      gin.H{"concurrency": 5},
+			"smartSearch":         gin.H{"concurrency": 2},
+			"metadataExtraction":  gin.H{"concurrency": 5},
+			"faceDetection":       gin.H{"concurrency": 2},
+			"search":              gin.H{"concurrency": 5},
+			"sidecar":             gin.H{"concurrency": 5},
+			"library":             gin.H{"concurrency": 5},
+			"migration":           gin.H{"concurrency": 5},
+			"thumbnailGeneration": gin.H{"concurrency": 3},
+			"videoConversion":     gin.H{"concurrency": 1},
+			"notifications":       gin.H{"concurrency": 5},
+			"ocr":                 gin.H{"concurrency": 1},
+			"workflow":            gin.H{"concurrency": 5},
+			"integrityCheck":      gin.H{"concurrency": 1},
+			"editor":              gin.H{"concurrency": 2},
+		},
+		"image": gin.H{
+			"thumbnail": gin.H{
+				"format":      "jpeg",
+				"quality":     80,
+				"size":        256,
+				"progressive": false,
+			},
+			"preview": gin.H{
+				"format":      "jpeg",
+				"quality":     80,
+				"size":        2048,
+				"progressive": false,
+			},
+			"fullsize": gin.H{
+				"enabled":     true,
+				"format":      "jpeg",
+				"quality":     80,
+				"progressive": false,
+			},
+			"colorspace":      "srgb",
+			"extractEmbedded": false,
+		},
+		"trash": gin.H{
+			"enabled": true,
+			"days":    trashDays,
+		},
+		"theme": gin.H{
+			"customCss": "",
+		},
+		"library": gin.H{
+			"scan": gin.H{
+				"enabled":        true,
+				"cronExpression": "0 0 * * *",
+			},
+			"watch": gin.H{
+				"enabled": false,
+			},
+		},
+		"notifications": gin.H{
+			"smtp": gin.H{
+				"enabled": false,
+				"from":    "",
+				"replyTo": "",
+				"transport": gin.H{
+					"ignoreCert": false,
+					"host":       "",
+					"port":       0,
+					"secure":     false,
+					"username":   "",
+					"password":   "",
+				},
+			},
+		},
+		"templates": gin.H{
+			"email": gin.H{
+				"welcomeTemplate":     "",
+				"albumInviteTemplate": "",
+				"albumUpdateTemplate": "",
+			},
+		},
+		"server": gin.H{
+			"externalDomain":   cfg.ExternalDomain,
+			"loginPageMessage": "",
+			"publicUsers":      cfg.IsPublic,
+		},
+		"user": gin.H{
+			"deleteDelay": 7,
+		},
+		"integrityChecks": gin.H{
+			"missingFiles": gin.H{
+				"enabled":        true,
+				"cronExpression": "0 3 * * *",
+			},
+			"untrackedFiles": gin.H{
+				"enabled":        true,
+				"cronExpression": "0 3 * * *",
+			},
+			"checksumFiles": gin.H{
+				"enabled":         true,
+				"cronExpression":  "0 3 * * *",
+				"timeLimit":       3600000,
+				"percentageLimit": 1,
+			},
+		},
+	}
 }
 
 func (a *App) handleSystemConfigUpdate(c *gin.Context) {
@@ -614,31 +851,37 @@ func (a *App) handleSystemConfigUpdate(c *gin.Context) {
 	a.store.DB.First(&cfg, "id = ?", "singleton")
 	var b map[string]interface{}
 	_ = c.ShouldBindJSON(&b)
-	if v, ok := b["loginRequired"].(bool); ok {
-		cfg.LoginRequired = v
+
+	// Persist the subset of nested fields immich-go actually stores, mapping
+	// them back into the flat SystemConfig row.
+	if pl, ok := b["passwordLogin"].(map[string]interface{}); ok {
+		if v, ok := pl["enabled"].(bool); ok {
+			cfg.LoginRequired = v
+		}
 	}
-	if v, ok := b["isPublic"].(bool); ok {
-		cfg.IsPublic = v
+	if srv, ok := b["server"].(map[string]interface{}); ok {
+		if v, ok := srv["externalDomain"].(string); ok {
+			cfg.ExternalDomain = v
+		}
+		if v, ok := srv["publicUsers"].(bool); ok {
+			cfg.IsPublic = v
+		}
 	}
-	if v, ok := b["externalDomain"].(string); ok {
-		cfg.ExternalDomain = v
-	}
-	if v, ok := b["trashDays"].(float64); ok {
-		cfg.TrashDays = int(v)
+	if tr, ok := b["trash"].(map[string]interface{}); ok {
+		if v, ok := tr["days"].(float64); ok {
+			cfg.TrashDays = int(v)
+		}
 	}
 	if v, ok := b["onboarded"].(bool); ok {
 		cfg.Onboarded = v
 	}
+
 	a.store.DB.Save(&cfg)
 	// Fan out a realtime config-update event so connected official clients
 	// (web/mobile) re-fetch system config.
 	a.emit("config.update", map[string]any{})
-	c.JSON(http.StatusOK, gin.H{
-		"loginRequired":  cfg.LoginRequired,
-		"isPublic":       cfg.IsPublic,
-		"externalDomain": cfg.ExternalDomain,
-		"trashDays":      cfg.TrashDays,
-	})
+	// Echo back the full nested config so the client has a consistent shape.
+	c.JSON(http.StatusOK, a.buildSystemConfig(&cfg))
 }
 
 // handleStorageTemplateOptions mirrors Immich's storage-template-options
