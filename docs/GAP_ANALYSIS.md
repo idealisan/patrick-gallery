@@ -4,7 +4,7 @@
 >
 > 因此，本复盘不再把「多用户 / ML / 管理后台 / 通知 / OAuth」等标为「超出范围」——在「对等」目标下，它们都是**必须补齐的差距**，区别只在于实现成本与受 `AGENTS.md` 硬规则的约束程度。
 >
-> 所有结论均基于 `internal/app/app.go` 实际路由、各 handler 实现、`internal/video`、`internal/store`、`internal/app/models.go` 与官方契约 `open-api/immich-openapi-specs.json`（tag **v3.1.0**，254 operation）的逐项 diff，而非凭记忆。
+> 所有结论均基于 `internal/app/app.go` 实际路由、各 handler 实现、`internal/video`、`internal/store`、`internal/app/models.go`，并**以官方客户端与网页版实际代码**（immich 仓库 `server/`、`web/`、`packages/sdk/`，tag **v3.1.0**）为权威逐项核对；`open-api/immich-openapi-specs.json`（254 operation）仅作路径/方法清单参考，不作为"为准"的最终依据。
 > 配套状态见 [STATUS.md](../STATUS.md)；契约门禁见 [CONTRACT_TESTING.md](CONTRACT_TESTING.md)；原版并排对比 harness 见 [SIDE_BY_SIDE.md](SIDE_BY_SIDE.md)。
 
 ---
@@ -34,7 +34,7 @@ immich-go 目前只覆盖了原版的**单人核心闭环**。要对等原版的
 
 ## 1. 覆盖范围与数字（精确 diff）
 
-把官方契约 254 个 operation 的 `method + 路径` 归一化（`{id}`→`:id`）后，与从 `internal/app/app.go` 解析出的路由逐条匹配：
+把**官方客户端/网页版实际代码**（以及 `open-api/immich-openapi-specs.json` 作为路径/方法清单参考）的 254 个 operation 的 `method + 路径` 归一化（`{id}`→`:id`）后，与从 `internal/app/app.go` 解析出的路由逐条匹配：
 
 - **SPEC 总计：254**
 - **方法+路径精确匹配：102（≈40%）**
