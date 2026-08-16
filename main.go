@@ -29,6 +29,12 @@ func main() {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.Use(gin.Recovery())
+	if os.Getenv("IMMICH_REQ_LOG") != "" {
+		r.Use(func(c *gin.Context) {
+			c.Next()
+			log.Printf("[req] %s %s -> %d", c.Request.Method, c.Request.URL.Path, c.Writer.Status())
+		})
+	}
 	application.RegisterRoutes(r)
 
 	// Serve the embedded SPA for every non-API route (SPA fallback).
