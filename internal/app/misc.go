@@ -124,6 +124,7 @@ func (a *App) handleTrashEmpty(c *gin.Context) {
 		if as.ResizePath != "" {
 			_ = os.Remove(as.ResizePath)
 		}
+		_ = os.Remove(previewCachePath(as.OriginalPath, as.ID))
 	}
 	a.store.DB.Where("owner_id = ? AND is_trash = ?", uid, true).Delete(&Asset{})
 	a.emit("asset.delete", map[string]any{"ids": []string{}})

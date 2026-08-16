@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	imgproc "immich-go/internal/image"
 	"immich-go/internal/video"
 )
 
@@ -476,6 +477,7 @@ func (a *App) handleAssetBulkDelete(c *gin.Context) {
 			if asset.ResizePath != "" {
 				_ = os.Remove(asset.ResizePath)
 			}
+			_ = os.Remove(previewCachePath(asset.OriginalPath, asset.ID))
 		} else {
 			asset.IsTrash = true
 			now := time.Now().UTC()
@@ -793,6 +795,12 @@ func (a *App) handleAssetCopy(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ids": newIDs, "count": len(newIDs)})
 }
 
+// handleAssetThumbnail serves a generated representation of an asset per the
+// official /api/assets/:id/thumbnail contract. The `size` query selects:
+//   - "thumbnail" / unset -> the small (256px) stored thumbnail (ResizePath)
+//   - "preview" / "fullsize" -> a high-quality render generated in real time
+//     from the original (cached to disk), used by the lightbox/detail view
+//   - "original" -> the original bytes (deprecated in the contract; served here)
 func (a *App) handleAssetThumbnail(c *gin.Context) {
 	uid := currentUserID(c)
 	id := c.Param("id")
@@ -805,11 +813,68 @@ func (a *App) handleAssetThumbnail(c *gin.Context) {
 		c.Status(http.StatusForbidden)
 		return
 	}
-	if asset.ResizePath == "" {
+
+	switch c.Query("size") {
+	case "original":
+		c.File(asset.OriginalPath)
+		return
+	case "preview", "fullsize":
+		a.servePreview(c, &asset)
+		return
+	default: // "thumbnail" or empty -> small stored thumbnail
+		if asset.ResizePath == "" {
+			c.Status(http.StatusNotFound)
+			return
+		}
+		c.File(asset.ResizePath)
+	}
+}
+
+// previewCachePath derives an on-disk cache location for a generated preview,
+// placed alongside the original so it stays co-located with the asset.
+func previewCachePath(originalPath, id string) string {
+	ext := filepath.Ext(originalPath)
+	base := strings.TrimSuffix(originalPath, ext)
+	return base + "." + id + ".preview.jpg"
+}
+
+// servePreview generates (and caches) a high-quality preview render of an image
+// asset on the fly from its original, scaled to cfg.PreviewSize. It falls back
+// to the stored thumbnail and then to the original when the source cannot be
+// decoded (e.g. HEIC/AVIF, which have no pure-Go decoder in this build).
+func (a *App) servePreview(c *gin.Context, asset *Asset) {
+	raw, err := os.ReadFile(asset.OriginalPath)
+	if err != nil || len(raw) == 0 {
+		if asset.ResizePath != "" {
+			c.File(asset.ResizePath)
+			return
+		}
 		c.Status(http.StatusNotFound)
 		return
 	}
-	c.File(asset.ResizePath)
+
+	// Serve a cached render if it exists (cheap repeat requests).
+	cachePath := previewCachePath(asset.OriginalPath, asset.ID)
+	if data, serr := os.ReadFile(cachePath); serr == nil && len(data) > 0 {
+		c.Header("Content-Type", "image/jpeg")
+		c.Data(http.StatusOK, "image/jpeg", data)
+		return
+	}
+
+	data, err := imgproc.Preview(raw, a.cfg.PreviewSize, 0)
+	if err != nil || len(data) == 0 {
+		// Decoding failed (unsupported format) -> serve whatever we have.
+		if asset.ResizePath != "" {
+			c.File(asset.ResizePath)
+			return
+		}
+		c.File(asset.OriginalPath)
+		return
+	}
+	// Best-effort cache; serving still succeeds if the write fails.
+	_ = os.WriteFile(cachePath, data, 0o644)
+	c.Header("Content-Type", "image/jpeg")
+	c.Data(http.StatusOK, "image/jpeg", data)
 }
 
 // handleAssetPreview serves a mid-size representation: the generated

@@ -118,6 +118,21 @@ func socketIOPacket(typ string, name string, payload map[string]any) string {
 	return "42" + string(b)
 }
 
+// socketIOSession builds the Socket.IO v4 namespace-connect ack payload. The
+// official Immich server (socket.io v4) replies to the client's `40` connect
+// packet with `40{"sid":"<id>"}`; the client reads packet.data.sid to finish
+// the handshake. Replying with a bare `40` (engine.io v2 style) makes the v4
+// client throw "It seems you are trying to reach a Socket.IO server in v2.x
+// with a v3.x client" — which is exactly the realtime-sync breakage. See
+// docs/COMPAT_FINDINGS.md.
+func socketIOSession(sid string) string {
+	b, err := json.Marshal(map[string]string{"sid": sid})
+	if err != nil {
+		return ""
+	}
+	return string(b)
+}
+
 // handleSocketIO routes Engine.IO requests by transport.
 func (a *App) handleSocketIO(c *gin.Context) {
 	if strings.EqualFold(c.Query("transport"), "websocket") {
@@ -143,7 +158,13 @@ func (a *App) socketIOWebsocket(c *gin.Context) {
 		_ = conn.WriteMessage(websocket.TextMessage, []byte(s))
 	}
 
-	sid := newUUID()
+	// Reuse the Engine.IO sid from the polling handshake when this is an
+	// upgrade (the original server keeps one sid across the upgrade); mint a
+	// fresh one for a direct websocket connection.
+	sid := c.Query("sid")
+	if sid == "" {
+		sid = newUUID()
+	}
 	writePkt("0" + socketIOOpen(sid))
 
 	sub := a.bus.subscribe()
@@ -187,8 +208,8 @@ func (a *App) socketIOWebsocket(c *gin.Context) {
 		case '4': // Engine.IO message -> Socket.IO packet
 			if len(pkt) >= 2 {
 				switch pkt[1] {
-				case '0': // Socket.IO connect -> ack
-					writePkt("40")
+				case '0': // Socket.IO connect -> v4 ack with session handshake
+					writePkt("40" + socketIOSession(sid))
 				case '1': // disconnect
 					return
 				}
@@ -211,10 +232,23 @@ func (a *App) socketIOPolling(c *gin.Context) {
 	}
 
 	if c.Request.Method == http.MethodPost {
-		// Client sends its packets here (e.g. the "40" connect). We accept and
-		// acknowledge; the app will then upgrade to the websocket transport.
-		_, _ = io.Copy(io.Discard, c.Request.Body)
+		// Client sends its packets here (e.g. the "40" namespace-connect).
+		// Record that a connect arrived so the next long-poll GET can return
+		// the v4 connect ack (40{"sid":...}) the client expects, then upgrade
+		// to the websocket transport.
+		body, _ := io.ReadAll(c.Request.Body)
+		if strings.Contains(string(body), "40") {
+			a.sioConnectAck.Store(sid, struct{}{})
+		}
 		c.Status(http.StatusOK)
+		return
+	}
+
+	// If the client already sent a namespace-connect over POST, answer with
+	// the Socket.IO v4 connect ack first (the client reads packet.data.sid).
+	if _, ok := a.sioConnectAck.Load(sid); ok {
+		a.sioConnectAck.Delete(sid)
+		c.Data(http.StatusOK, "text/plain; charset=UTF-8", []byte("40"+socketIOSession(sid)+"\n"))
 		return
 	}
 

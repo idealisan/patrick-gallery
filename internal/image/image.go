@@ -12,7 +12,9 @@ import (
 	stderrors "errors"
 	stdimage "image"
 	"image/jpeg"
+	"math"
 
+	"golang.org/x/image/draw"
 	"golang.org/x/image/webp"
 	"github.com/rwcarlsen/goexif/exif"
 
@@ -162,31 +164,15 @@ func Decode(raw []byte) (stdimage.Image, string, error) {
 	return nil, "unknown", errUnsupported
 }
 
-// Thumbnail decodes raw and returns a longest-edge JPEG, applying EXIF
-// Orientation. A maxEdge <= 0 defaults to 256. The image is only downscaled
-// (never upscaled).
+// Thumbnail decodes raw and returns a longest-edge JPEG thumbnail, applying
+// EXIF Orientation. A maxEdge <= 0 defaults to 256. The image is only
+// downscaled (never upscaled). It delegates to Preview so the thumbnail also
+// benefits from high-quality resampling (no more distorted lines).
 func Thumbnail(raw []byte, maxEdge int) ([]byte, error) {
 	if maxEdge <= 0 {
 		maxEdge = 256
 	}
-
-	img, _, err := Decode(raw)
-	if err != nil {
-		return nil, err
-	}
-
-	// Apply EXIF orientation.
-	info, _ := Extract(raw)
-	img = orientImage(img, info.Orientation)
-
-	// Scale longest edge to maxEdge (downscale only).
-	img = scaleImage(img, maxEdge)
-
-	var buf bytes.Buffer
-	if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: 82}); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
+	return Preview(raw, maxEdge, 82)
 }
 
 // orientImage returns a copy of img transformed per the EXIF orientation, or
@@ -230,10 +216,15 @@ func orientImage(src stdimage.Image, orient int) stdimage.Image {
 	return dst
 }
 
-// scaleImage scales the longest edge of src down to maxEdge using nearest
-// neighbor. If src is already no larger than maxEdge on its longest edge, it
-// is returned unchanged.
+// scaleImage scales the longest edge of src down to at most maxEdge using
+// high-quality resampling (golang.org/x/image/draw). The image is only
+// downscaled, never upscaled. For large reductions (ratio > 2) an intermediate
+// pass is applied to suppress aliasing. If src is already no larger than
+// maxEdge on its longest edge, the original image is returned unchanged.
 func scaleImage(src stdimage.Image, maxEdge int) stdimage.Image {
+	if maxEdge <= 0 {
+		return src
+	}
 	b := src.Bounds()
 	w, h := b.Dx(), b.Dy()
 	longest := w
@@ -245,8 +236,8 @@ func scaleImage(src stdimage.Image, maxEdge int) stdimage.Image {
 	}
 
 	factor := float64(maxEdge) / float64(longest)
-	nw := int(float64(w) * factor)
-	nh := int(float64(h) * factor)
+	nw := int(math.Round(float64(w) * factor))
+	nh := int(math.Round(float64(h) * factor))
 	if nw < 1 {
 		nw = 1
 	}
@@ -255,20 +246,51 @@ func scaleImage(src stdimage.Image, maxEdge int) stdimage.Image {
 	}
 
 	dst := stdimage.NewRGBA(stdimage.Rect(0, 0, nw, nh))
-	sxScale := float64(w) / float64(nw)
-	syScale := float64(h) / float64(nh)
-	for dy := 0; dy < nh; dy++ {
-		sy := int(float64(dy)*syScale + 0.5)
-		if sy >= h {
-			sy = h - 1
+
+	// A single cubic/B-spline pass aliases badly for large downscaling ratios
+	// (sharp lines break up into artifacts). Apply a cheaper intermediate pass
+	// to roughly twice the target size, then a final high-quality pass. This
+	// mirrors how production image pipelines (libvips/sharp) downscale.
+	ratio := float64(longest) / float64(maxEdge)
+	if ratio > 2 {
+		midFactor := float64(maxEdge*2) / float64(longest)
+		midW := int(math.Round(float64(w) * midFactor))
+		midH := int(math.Round(float64(h) * midFactor))
+		if midW < 1 {
+			midW = 1
 		}
-		for dx := 0; dx < nw; dx++ {
-			sx := int(float64(dx)*sxScale + 0.5)
-			if sx >= w {
-				sx = w - 1
-			}
-			dst.Set(dx, dy, src.At(sx, sy))
+		if midH < 1 {
+			midH = 1
 		}
+		mid := stdimage.NewRGBA(stdimage.Rect(0, 0, midW, midH))
+		draw.ApproxBiLinear.Scale(mid, mid.Bounds(), src, src.Bounds(), draw.Over, nil)
+		src = mid
 	}
+
+	draw.CatmullRom.Scale(dst, dst.Bounds(), src, src.Bounds(), draw.Over, nil)
 	return dst
+}
+
+// Preview decodes raw and returns a longest-edge JPEG using high-quality
+// resampling. A maxEdge <= 0 defaults to 2560; a quality <= 0 defaults to 85.
+// The image is only downscaled (never upscaled). EXIF orientation is applied.
+func Preview(raw []byte, maxEdge, quality int) ([]byte, error) {
+	if maxEdge <= 0 {
+		maxEdge = 2560
+	}
+	if quality <= 0 {
+		quality = 85
+	}
+	img, _, err := Decode(raw)
+	if err != nil {
+		return nil, err
+	}
+	info, _ := Extract(raw)
+	img = orientImage(img, info.Orientation)
+	img = scaleImage(img, maxEdge)
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: quality}); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }

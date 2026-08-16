@@ -31,6 +31,12 @@ type App struct {
 
 	// jobStates tracks progress of background jobs keyed by job id.
 	jobStates sync.Map
+
+	// sioConnectAck tracks Socket.IO polling transports that have sent a
+	// namespace-connect packet (40) over POST, so the next long-poll GET can
+	// return the v4 connect ack (40{"sid":...}) the client expects. Keyed by
+	// the Engine.IO sid; entries are short-lived (deleted once acked).
+	sioConnectAck sync.Map
 }
 
 func NewApp(cfg *Config, store *Store) *App {
@@ -65,6 +71,15 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 	r.GET("/api/server/version", a.handleServerVersion)
 	r.GET("/api/server/config", a.handleServerConfig)
 	r.GET("/api/server/features", a.handleServerFeatures)
+	// Per the official Immich v3.1.0 contract (open-api/immich-openapi-specs.json,
+	// /server/media-types and /server/version-history carry no security scheme),
+	// these are PUBLIC server-info endpoints. The official web calls them during
+	// app bootstrap — often before the auth cookie exists — so gating them behind
+	// AuthGuard returns 401 and the client logs "Failed to load supported media
+	// types". They must be served without the auth guard, exactly like the
+	// original server. DTO shapes are unchanged (already match the contract).
+	r.GET("/api/server/media-types", a.handleServerMediaTypes)
+	r.GET("/api/server/version-history", a.handleServerVersionHistory)
 	r.GET("/api/system-config/defaults", a.handleSystemConfigDefaults)
 	r.GET("/api/auth/status", a.handleAuthStatus)
 	r.POST("/api/auth/validateToken", a.handleAuthValidateToken)
@@ -302,10 +317,8 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.GET("/map/reverse-geocode", a.handleMapReverseGeocode)
 		api.GET("/search/suggestions", a.handleSearchSuggestions)
 		api.GET("/server/version-check", a.handleServerVersionCheck)
-		api.GET("/server/media-types", a.handleServerMediaTypes)
 		api.GET("/server/storage", a.handleServerStorage)
 		api.GET("/server/apk-links", a.handleServerApkLinks)
-		api.GET("/server/version-history", a.handleServerVersionHistory)
 		api.GET("/server/license", a.handleServerLicense)
 		api.PUT("/server/license", a.handleServerLicense)
 		api.DELETE("/server/license", a.handleServerLicense)

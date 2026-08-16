@@ -32,6 +32,11 @@ type Config struct {
 	// TrashDays is how long a trashed asset is retained before the automatic
 	// cleanup job permanently deletes it. Mirrors Immich's trashDays setting.
 	TrashDays int
+
+	// PreviewSize is the longest-edge resolution (px) used when generating a
+	// "preview" render on demand from the original. Mirrors Immich's generated
+	// preview image size. Override with IMMICH_PREVIEW_SIZE.
+	PreviewSize int
 }
 
 func getEnv(k, def string) string {
@@ -52,6 +57,17 @@ func trashDaysFromEnv() int {
 	return 30
 }
 
+// previewSizeFromEnv reads IMMICH_PREVIEW_SIZE (defaults to 2560) — the
+// longest-edge resolution of on-demand preview renders.
+func previewSizeFromEnv() int {
+	if v := os.Getenv("IMMICH_PREVIEW_SIZE"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			return n
+		}
+	}
+	return 2560
+}
+
 func LoadConfig() *Config {
 	port, _ := strconv.Atoi(getEnv("IMMICH_PORT", "8081"))
 	cfg := &Config{
@@ -65,6 +81,7 @@ func LoadConfig() *Config {
 		ExternalDomain: getEnv("IMMICH_EXTERNAL_DOMAIN", ""),
 		CompatVersion:  getEnv("IMMICH_COMPAT_VERSION", "3.1.0"),
 		TrashDays:      trashDaysFromEnv(),
+		PreviewSize:    previewSizeFromEnv(),
 	}
 	maj, min, pat := 3, 1, 0
 	if n, err := fmt.Sscanf(cfg.CompatVersion, "%d.%d.%d", &maj, &min, &pat); n >= 1 && err == nil {
