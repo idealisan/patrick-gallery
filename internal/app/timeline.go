@@ -164,6 +164,9 @@ func (a *App) buildTimeBucketAssets(assets []Asset) timeBucketAssetsResponse {
 		r.OwnerID[i] = as.OwnerID
 		r.CreatedAt[i] = as.CreatedAt.UTC().Format(time.RFC3339Nano)
 		r.FileCreatedAt[i] = as.FileCreatedAt.UTC().Format(time.RFC3339Nano)
+		// as.Duration is now stored in milliseconds (see handleAssetUpload /
+		// assetDurationResponse), matching the official AssetResponseDto
+		// contract, so the bucket mirrors it directly.
 		r.Duration[i] = parseDurationInt(as.Duration)
 		r.IsFavorite[i] = as.IsFavorite
 		r.IsImage[i] = as.Type == "IMAGE"

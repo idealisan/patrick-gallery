@@ -7,6 +7,7 @@ import (
 	"image/jpeg"
 	"image/png"
 	"io"
+	"math"
 	"mime"
 	"net/http"
 	"os"
@@ -38,7 +39,7 @@ type AssetResponse struct {
 	FileCreatedAt    time.Time     `json:"fileCreatedAt"`
 	FileModifiedAt   time.Time     `json:"fileModifiedAt"`
 	LocalDateTime    time.Time     `json:"localDateTime"`
-	Duration         int           `json:"duration"`
+	Duration         *int          `json:"duration"`
 	IsFavorite       bool          `json:"isFavorite"`
 	IsArchived       bool          `json:"isArchived"`
 	IsTrashed        bool          `json:"isTrashed"`
@@ -88,7 +89,7 @@ func (a *App) toResponse(asset Asset) AssetResponse {
 		FileCreatedAt:    asset.FileCreatedAt,
 		FileModifiedAt:   asset.FileModifiedAt,
 		LocalDateTime:    asset.LocalDateTime,
-		Duration:         parseDurationInt(asset.Duration),
+		Duration:         assetDurationResponse(asset),
 		IsFavorite:       asset.IsFavorite,
 		IsArchived:       asset.IsArchived,
 		IsTrashed:        asset.IsTrash,
@@ -153,6 +154,51 @@ func parseDurationInt(s string) int {
 	return n
 }
 
+// parseDurationSecondsToMs converts a client-supplied duration value (in
+// seconds; may be a decimal or integer string such as "12.5") into integer
+// milliseconds, matching the official Immich v3.1.0 contract where
+// AssetResponseDto.duration is nullable integer-milliseconds. Returns nil for
+// empty / invalid / non-positive input.
+func parseDurationSecondsToMs(s string) *int {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil
+	}
+	f, err := strconv.ParseFloat(s, 64)
+	if err != nil || f <= 0 {
+		return nil
+	}
+	ms := int(math.Round(f * 1000))
+	return &ms
+}
+
+// assetDurationResponse returns the asset duration in milliseconds per the
+// Immich v3.1.0 contract (AssetResponseDto.duration is nullable int-ms).
+// Only VIDEO assets carry a duration; every other type MUST return null so the
+// web UI's video-duration overlay never renders "NaN".
+func assetDurationResponse(asset Asset) *int {
+	if !strings.EqualFold(asset.Type, "VIDEO") {
+		return nil
+	}
+	s := strings.TrimSpace(asset.Duration)
+	if s == "" {
+		return nil
+	}
+	ms, err := strconv.Atoi(s)
+	if err != nil || ms <= 0 {
+		return nil
+	}
+	return &ms
+}
+
+// msToString serializes a nullable milliseconds value for the duration column.
+func msToString(ms *int) string {
+	if ms == nil {
+		return ""
+	}
+	return strconv.Itoa(*ms)
+}
+
 // mimeByExt derives a MIME type from a filename's extension.
 func mimeByExt(name string) string {
 	if t := mime.TypeByExtension(filepath.Ext(name)); t != "" {
@@ -171,7 +217,7 @@ func (a *App) handleAssetUpload(c *gin.Context) {
 	isFavorite := c.PostForm("isFavorite") == "true"
 	visibility := c.PostForm("visibility")
 	livePhotoVideoID := c.PostForm("livePhotoVideoId")
-	durationSec := parseDurationInt(c.PostForm("duration"))
+	durationMs := parseDurationSecondsToMs(c.PostForm("duration"))
 	deviceAssetId := c.PostForm("deviceAssetId")
 	deviceId := c.PostForm("deviceId")
 
@@ -205,8 +251,8 @@ func (a *App) handleAssetUpload(c *gin.Context) {
 	if !isFavorite && legacy.IsFavorite {
 		isFavorite = true
 	}
-	if durationSec == 0 {
-		durationSec = parseDurationInt(legacy.Duration)
+	if durationMs == nil {
+		durationMs = parseDurationSecondsToMs(legacy.Duration)
 	}
 	if visibility == "" && legacy.IsArchived {
 		visibility = "archive"
@@ -286,10 +332,10 @@ func (a *App) handleAssetUpload(c *gin.Context) {
 		DeviceId:         deviceId,
 		IsFavorite:       isFavorite,
 		IsArchived:       visibility == "archive",
-		Duration:         strconv.Itoa(durationSec),
+		Duration:         msToString(durationMs),
 		LivePhotoVideoID: livePhotoVideoID,
 	}
-	if deviceAssetId != "" || deviceId != "" || isFavorite || visibility == "archive" || durationSec != 0 || livePhotoVideoID != "" {
+	if deviceAssetId != "" || deviceId != "" || isFavorite || visibility == "archive" || durationMs != nil || livePhotoVideoID != "" {
 		a.store.DB.Model(&asset).Updates(patch)
 	}
 
