@@ -1,8 +1,10 @@
 # 原版 Immich 并排对比（Docker side-by-side）
 
 目标：把**原版 Immich v3.1.0** 与本项目 **immich-go** 放在同一台有 Docker 的
-机器上，对两套 API 跑同一份官方 OpenAPI 契约（v3.1.0），逐 endpoint 对比
-一致性，验证 immich-go 的兼容覆盖与 DTO 形状是否与原版对齐。
+机器上，对照**官方客户端与网页版实际代码**（immich 仓库 `server/`、`web/`、
+`packages/sdk/`，v3.1.0）逐 endpoint 对比一致性，验证 immich-go 的兼容覆盖与
+DTO 形状是否与原版对齐；OpenAPI 规范（v3.1.0）仅作路径/方法清单参考，不作为
+"为准"的最终依据。
 
 > ⚠️ 本仓库的开发沙箱**没有 CAP_SYS_ADMIN**，无法启动 `dockerd`，因此下列
 > 步骤需在**具备 Docker 的主机**（或本机）执行；本目录仅提供可复用配置与脚本。
