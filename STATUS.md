@@ -9,7 +9,7 @@
 >
 > **核心媒体闭环已验证可用且契约兼容**（上传/去重/同步事件推送/管理/媒体服务）——详见 `docs/GAP_ANALYSIS.md` §14。2026-08-15 审计实测：`go build`/`go vet`/`go test ./...` 全绿（修复了 2 个过时的 `/map/markers` 单测，其期望旧 `{markers:[...]}` 包裹，而端点已按 v3.1.0 契约返回裸数组）。
 >
-> **逐端点 API 实现清单**：见 [docs/API_STATUS.md](docs/API_STATUS.md)——以官方 v3.1.0 契约 254 个 operation 为基准，三列（原版方法+路径 / Go 版现状 ✅🟡🟠❌ / 与原版差距）逐条核对，统计 ✅76 · 🟡23 · 🟠25 · ❌130。
+> **逐端点 API 实现清单**：见 [docs/API_STATUS.md](docs/API_STATUS.md)——以**官方客户端与网页版实际代码**（v3.1.0，254 个 operation）为权威基准，三列（原版方法+路径 / Go 版现状 ✅🟡🟠❌ / 与原版差距）逐条核对，统计 ✅76 · 🟡23 · 🟠25 · ❌130（OpenAPI 规范仅作回归校验参考）。
 
 > **🚫 禁止 stub（硬规则 AGENTS.md #7）**：本项目不允许任何 stub / 占位 / 空响应端点。所有 🟠 行必须清零——要么真正实现功能，要么改为诚实的 `4xx`/`501`（并加入契约测试豁免）。整改清单与逐项处置见 [docs/NO_STUBS.md](docs/NO_STUBS.md)。
 
@@ -227,7 +227,7 @@
 - 本环境无法运行真实官方 App 做端到端验证；Socket.IO 实现经**线级协议测试**（手写客户端走完整握手 + 事件投递）验证，建议在你自己的设备/App 上以匹配的 `IMMICH_COMPAT_VERSION` 实测确认。
 
 ### H. 兼容性核对：官方客户端 v3.1.0（2026-08-15）
-拉取官方 OpenAPI 规范 `open-api/immich-openapi-specs.json`（release tag **v3.1.0**，254 个 method-path，`info.version=3.1.0`，base `/api`），与 immich-go 路由逐端点 diff：
+以**官方客户端与网页版实际代码**（immich 仓库 `server/`、`web/`、`packages/sdk/`，release tag **v3.1.0**）为权威，对照 `open-api/immich-openapi-specs.json`（254 个 method-path，`info.version=3.1.0`，base `/api`，仅作路径/方法清单参考）与 immich-go 路由逐端点 diff：
 
 - **补齐前**：匹配 70/254，缺失 184。
 - **补齐后（本次）**：匹配 97/254，缺失 157。
@@ -252,8 +252,8 @@
 - 复用进程内视频转码（purego FFmpeg，CGO-free）；无后端时回退原文件。`parseDurationInt(asset.Duration)` 写入 `#EXTINF`。
 - 测试：`internal/app/hls_test.go`（master/variant/segment/playback/delete 全链路，content-type 与报文形状校验）；`go build`/`go vet`/`go test ./...` 全绿。
 
-### J. API 一致性调查（v3.1.0 OpenAPI，2026-08-15）
-以官方 OpenAPI（`open-api/immich-openapi-specs.json`, tag v3.1.0, 254 method-paths）为基准，对 immich-go 做实时一致性测试。检查器：`scripts/api_consistency.py`（stdlib-only，OpenAPI 驱动；行业标准 CLI 为 `schemathesis run <spec> --base-url <url>`，需 pip，本环境未装，故自建等价 harness）。
+### J. API 一致性调查（v3.1.0，2026-08-15）
+以**官方客户端与网页版实际代码**为权威基准，对 immich-go 做实时一致性测试（OpenAPI 规范 `open-api/immich-openapi-specs.json`, tag v3.1.0, 254 method-paths 仅作回归校验参考）。检查器：`scripts/api_consistency.py`（stdlib-only，OpenAPI 驱动的辅助检查器；行业标准 CLI 为 `schemathesis run <spec> --base-url <url>`，需 pip，本环境未装，故自建等价 harness）。
 
 **结果（GET 只读端点自动测试）**：
 - 可自动测 GET：75；其中返回合法 JSON(2xx)：**42**（已实现并响应）；返回正确 404（超出范围，未实现）：33；SPA 兜底误报：0。
