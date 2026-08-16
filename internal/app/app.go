@@ -135,6 +135,9 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.GET("/auth/validate", a.handleValidate)
 		api.POST("/auth/change-password", a.handleChangePassword)
 		api.POST("/auth/logout", a.handleLogout)
+		api.POST("/auth/pin-code", a.handlePinCodeSetup)
+		api.POST("/auth/session/lock", a.handleSessionLock)
+		api.POST("/auth/session/unlock", a.handleSessionUnlock)
 
 		// notifications (list / update / delete — single-user instance has no
 		// generator, so these return the real, usually-empty state)
@@ -147,6 +150,7 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.GET("/api-keys/:id", a.handleApiKeys)
 		api.PUT("/api-keys/:id", a.handleApiKeys)
 		api.DELETE("/api-keys/:id", a.handleApiKeys)
+		api.POST("/sessions", a.handleSessionCreate)
 
 		// users
 		api.GET("/users", a.handleListUsers)
@@ -165,6 +169,8 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.PUT("/users/:id", a.handleUpdateUser)
 		api.DELETE("/users/:id", a.handleDeleteUser)
 		api.GET("/users/:id/thumb", a.handleUserThumb)
+		api.POST("/users/profile-image", a.handleProfileImageCreate)
+		api.GET("/users/:id/profile-image", a.handleProfileImageGet)
 
 		// admin user management
 		api.GET("/admin/users", a.handleAdminListUsers)
@@ -195,6 +201,9 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.GET("/assets/:id", a.handleAssetGet)
 		api.PUT("/assets/:id", a.handleAssetUpdate)
 		api.DELETE("/assets", a.handleAssetBulkDelete)
+		api.GET("/assets/:id/edits", a.handleAssetEditsGet)
+		api.PUT("/assets/:id/edits", a.handleAssetEditsUpdate)
+		api.DELETE("/assets/:id/edits", a.handleAssetEditsDelete)
 		api.GET("/assets/:id/original", a.handleAssetOriginal)
 		api.GET("/assets/:id/original/download", a.handleAssetOriginalDownload)
 		api.GET("/assets/:id/metadata", a.handleAssetMetadata)
@@ -238,6 +247,7 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.DELETE("/libraries/:id", a.handleLibraryDelete)
 		api.GET("/libraries/:id/statistics", a.handleLibraryStats)
 		api.POST("/libraries/:id/scan", a.handleLibraryScan)
+		api.POST("/libraries/:id/validate", a.handleLibraryValidate)
 
 		// timeline
 		api.GET("/timeline/buckets", a.handleTimelineBuckets)
@@ -276,10 +286,12 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.PUT("/tags/:id/assets", a.handleTagAddAssets)
 		api.DELETE("/tags/:id/assets", a.handleTagRemoveAssets)
 		api.DELETE("/tags/:id/assets/:assetId", a.handleTagRemoveAsset)
+		api.PUT("/tags/assets", a.handleTagBulkAssets)
 
 		// partners
 		api.GET("/partners", a.handlePartnerList)
 		api.POST("/partners", a.handlePartnerCreate)
+		api.PUT("/partners/:id", a.handlePartnerUpdate)
 		api.DELETE("/partners/:id", a.handlePartnerDelete)
 
 		// trash
@@ -306,6 +318,11 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.GET("/shared-links/:id", a.handleSharedLinkGet)
 		api.PUT("/shared-links/:id", a.handleSharedLinkUpdate)
 		api.DELETE("/shared-links/:id", a.handleSharedLinkDelete)
+
+		// stacks (manual grouping; no ML)
+		api.POST("/stacks", a.handleStackCreate)
+		api.DELETE("/stacks", a.handleStackDelete)
+		api.GET("/stacks/:id", a.handleStackGet)
 
 		// people (real; ML face detection is deferred)
 		api.GET("/people", a.handlePeopleList)

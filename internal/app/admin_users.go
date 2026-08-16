@@ -203,7 +203,8 @@ func (a *App) handleAdminCreateUser(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	a.recordSession(u.ID)
+	tok, _ := a.issueToken(u.ID)
+	a.recordSession(u.ID, tok)
 	c.JSON(http.StatusCreated, a.toAdminUser(u))
 }
 
@@ -342,16 +343,18 @@ type sessionResponse struct {
 
 // recordSession persists a session row whenever a token is issued, so an admin
 // can list a user's active sessions.
-func (a *App) recordSession(userID string) {
+func (a *App) recordSession(userID, token string) Session {
 	now := time.Now().UTC()
 	s := Session{
 		ID:        newUUID(),
 		UserID:    userID,
+		Token:     hashToken(token),
 		CreatedAt: now,
 		UpdatedAt: now,
 		ExpiresAt: now.Add(60 * 24 * time.Hour),
 	}
 	_ = a.store.DB.Create(&s).Error
+	return s
 }
 
 func (a *App) handleAdminUserSessions(c *gin.Context) {

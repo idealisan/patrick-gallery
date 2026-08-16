@@ -176,6 +176,7 @@ type Library struct {
 type Partner struct {
 	SharedByID   string `gorm:"primaryKey;type:text" json:"sharedById"`
 	SharedWithID string `gorm:"primaryKey;type:text" json:"sharedWithId"`
+	InTimeline   bool   `gorm:"type:bool;default:false" json:"inTimeline,omitempty"`
 }
 
 type Tag struct {
@@ -269,16 +270,24 @@ type SystemConfig struct {
 }
 
 // Session records an issued auth token so an admin can list a user's active
-// sessions via /admin/users/:id/sessions. We don't implement device PIN / lock
-// yet, so device metadata is best-effort.
+// sessions via /admin/users/:id/sessions, and so the mobile client's
+// session-lock / child-session features have real server-side state. The
+// (hashed) request token links a JWT back to its session row; PIN lock state
+// lives in PinExpiresAt.
 type Session struct {
-	ID         string    `gorm:"primaryKey;type:text" json:"id"`
-	UserID     string    `gorm:"index;type:text" json:"userId"`
-	DeviceOS   string    `gorm:"type:text" json:"deviceOS"`
-	DeviceType string    `gorm:"type:text" json:"deviceType"`
-	CreatedAt  time.Time `json:"createdAt"`
-	UpdatedAt  time.Time `json:"updatedAt"`
-	ExpiresAt  time.Time `json:"expiresAt"`
+	ID                string     `gorm:"primaryKey;type:text" json:"id"`
+	UserID            string     `gorm:"index;type:text" json:"userId"`
+	ParentID          string     `gorm:"type:text" json:"parentId,omitempty"`
+	Token             string     `gorm:"type:text" json:"-"` // sha256 of the issued JWT
+	DeviceOS          string     `gorm:"type:text" json:"deviceOS"`
+	DeviceType        string     `gorm:"type:text" json:"deviceType"`
+	AppVersion        string     `gorm:"type:text" json:"appVersion,omitempty"`
+	IsPendingSyncReset bool      `json:"isPendingSyncReset"`
+	PinExpiresAt      *time.Time `json:"pinExpiresAt,omitempty"`
+	Current           bool       `json:"current"`
+	CreatedAt         time.Time  `json:"createdAt"`
+	UpdatedAt         time.Time  `json:"updatedAt"`
+	ExpiresAt         time.Time  `json:"expiresAt"`
 }
 
 // UserPreferences persists a user's UI preferences as a JSON blob (keyed by
@@ -298,6 +307,40 @@ func (Library) TableName() string             { return "libraries" }
 func (Partner) TableName() string             { return "partners" }
 func (Tag) TableName() string                 { return "tags" }
 func (AssetTag) TableName() string            { return "tags_assets" }
+
+// AssetEdit stores a non-destructive edit applied to an asset (crop / rotate /
+// mirror). Only action + parameters are persisted (no metadata fields); the
+// client applies them to the original when rendering. Parameters is a JSON
+// blob whose shape depends on the action.
+type AssetEdit struct {
+	ID        string    `gorm:"primaryKey;type:text" json:"id"`
+	AssetID   string    `gorm:"index;type:text" json:"assetId"`
+	Action    string    `gorm:"type:text" json:"action"` // crop | rotate | mirror
+	Parameters string   `gorm:"type:text" json:"parameters"`
+	Sequence  int       `gorm:"type:int" json:"sequence"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+// Stack groups assets that share the same subject (manual stacking — no ML).
+// The first asset id in the stack is the primary.
+type Stack struct {
+	ID             string    `gorm:"primaryKey;type:text" json:"id"`
+	PrimaryAssetID string    `gorm:"index;type:text" json:"primaryAssetId"`
+	OwnerID        string    `gorm:"index;type:text" json:"ownerId"`
+	CreatedAt      time.Time `json:"createdAt"`
+	UpdatedAt      time.Time `json:"updatedAt"`
+}
+
+// StackAsset is the join table linking assets to a stack, ordered.
+type StackAsset struct {
+	StackID string `gorm:"primaryKey;type:text" json:"stackId"`
+	AssetID string `gorm:"primaryKey;type:text" json:"assetId"`
+	Order   int    `json:"order"`
+}
+
+func (AssetEdit) TableName() string  { return "asset_edit" }
+func (Stack) TableName() string      { return "stacks" }
+func (StackAsset) TableName() string { return "stacks_assets" }
 func (Person) TableName() string              { return "person" }
 func (Activity) TableName() string            { return "activity" }
 func (SharedLink) TableName() string          { return "shared_links" }

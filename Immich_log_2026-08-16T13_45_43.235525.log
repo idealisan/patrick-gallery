@@ -1,4 +1,5 @@
-2026-08-16 13:45:33.253099 | info     | HashService          | Starting hashing of assets |
+
+/2026-08-16 13:45:33.253099 | info     | HashService          | Starting hashing of assets |
 2026-08-16 13:45:33.249363 | severe   | IsolateLogger        | Error in runInIsolateGentle for remote-sync | ApiException 404: Failed to get sync stream: {"error":"not found","statusCode":404} |
 #0      SyncApiRepository.streamChanges (package:immich_mobile/infrastructure/repositories/sync_api.repository.dart:99)
 <asynchronous suspension>

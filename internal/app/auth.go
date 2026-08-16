@@ -1,6 +1,8 @@
 package app
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"net/http"
 	"strings"
@@ -161,9 +163,36 @@ func currentUserID(c *gin.Context) string {
 	return ""
 }
 
+// requestToken extracts the raw auth token from the request using the same
+// precedence as AuthGuard. It is needed by the session endpoints so a JWT can
+// be linked back to its Session row (via the hashed token).
+func requestToken(c *gin.Context) string {
+	if t := c.GetHeader("x-immich-user-token"); t != "" {
+		return t
+	}
+	if t := c.GetHeader("x-immich-session-token"); t != "" {
+		return t
+	}
+	if h := c.GetHeader("Authorization"); strings.HasPrefix(h, "Bearer ") {
+		return strings.TrimPrefix(h, "Bearer ")
+	}
+	if ck, err := c.Cookie(cookieAccessToken); err == nil {
+		return ck
+	}
+	return c.GetHeader("x-api-key")
+}
+
 func hashKey(salt, key string) string {
 	h, _ := bcrypt.GenerateFromPassword([]byte(salt+key), bcrypt.MinCost)
 	return string(h)
+}
+
+// hashToken returns a stable, non-reversible hash of an auth token so a JWT
+// can be linked back to its Session row (for session-lock state) without
+// storing the raw bearer credential.
+func hashToken(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:])
 }
 
 // ---- handlers ----
@@ -197,7 +226,7 @@ func (a *App) handleLogin(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	a.recordSession(u.ID)
+	a.recordSession(u.ID, token)
 	a.setAuthCookies(c, token)
 	c.JSON(http.StatusCreated, gin.H{
 		"accessToken":          token,
@@ -254,7 +283,7 @@ func (a *App) handleSignup(c *gin.Context) {
 		return
 	}
 	token, _ := a.issueToken(u.ID)
-	a.recordSession(u.ID)
+	a.recordSession(u.ID, token)
 	a.setAuthCookies(c, token)
 	c.JSON(http.StatusCreated, gin.H{"accessToken": token, "userId": u.ID, "userEmail": u.Email, "name": u.Name, "isAdmin": true, "isOnboarded": true, "profileImagePath": u.ProfileImagePath, "shouldChangePassword": false})
 }
