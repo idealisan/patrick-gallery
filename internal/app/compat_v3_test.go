@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"path/filepath"
@@ -74,23 +75,29 @@ func TestSyncStreamIsReal(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("sync/stream -> %d: %s", w.Code, w.Body.String())
 	}
-	var deltas []map[string]any
-	if err := json.Unmarshal(w.Body.Bytes(), &deltas); err != nil {
-		t.Fatalf("decode: %v body=%s", err, w.Body.String())
+	// The official server streams `application/jsonlines+json`: one JSON
+	// object per line, each `{type, data, ack}`, terminated by SyncCompleteV1.
+	// The official Flutter client splits on "\n" and jsonDecodes each line,
+	// so we parse it the same way (not as a single JSON array).
+	lines := bytes.Split(bytes.TrimSpace(w.Body.Bytes()), []byte("\n"))
+	if len(lines) < 1 {
+		t.Fatalf("sync/stream produced no lines")
 	}
-	// The stream must contain a real AssetV1 delta for the uploaded asset
-	// (not the old empty []any{} stub).
 	var sawAsset bool
-	for _, d := range deltas {
-		if d["type"] == "AssetV1" {
-			asset, ok := d["asset"].(map[string]any)
+	for _, ln := range lines {
+		var d map[string]any
+		if err := json.Unmarshal(ln, &d); err != nil {
+			t.Fatalf("sync/stream line not json: %v (line=%s)", err, ln)
+		}
+		if d["type"] == "AssetV2" {
+			asset, ok := d["data"].(map[string]any)
 			if ok && asset["id"] == id {
 				sawAsset = true
 			}
 		}
 	}
 	if !sawAsset {
-		t.Errorf("sync/stream did not include the uploaded asset %s; got %d deltas", id, len(deltas))
+		t.Errorf("sync/stream did not include the uploaded asset %s; got %d lines", id, len(lines))
 	}
 	_ = app
 }

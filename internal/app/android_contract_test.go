@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -407,4 +408,187 @@ func TestAndroidClientContract(t *testing.T) {
 			t.Fatalf("stacks DELETE -> %d", w.Code)
 		}
 	})
+}
+
+// TestAndroidClientE2EMediaDownloadLogout replays the FULL Android client
+// lifecycle the task requires: login -> upload image -> upload video ->
+// download (image thumbnail/preview/original + video playback) -> logout.
+// It pins the exact response shapes the official v3.1.0 client parses so any
+// contract regression surfaces as a test failure. See docs/ANDROID_TESTING.md.
+//
+// Run: go test ./internal/app -run TestAndroidClientE2EMediaDownloadLogout -count=1
+func TestAndroidClientE2EMediaDownloadLogout(t *testing.T) {
+	_, r, _ := newTestServer(t)
+
+	// 1) LOGIN exactly like the official Android client (cookie-based).
+	cookie, _ := loginClient(t, r, "admin@immich.app", "password")
+
+	// 2) UPLOAD IMAGE — multipart "assetData" + the exact form fields the
+	//    official mobile client v3.1.0 sends (background_upload.service.dart).
+	imgRaw := genImageJPEG(t, "e2e-img.jpg", 64, 48)
+	imgID := uploadMultipartCK(t, r, cookie, "e2e-img.jpg", imgRaw, "IMAGE",
+		map[string]string{
+			"deviceAssetId": "android-e2e-img",
+			"deviceId":      "android-emulator",
+			"fileCreatedAt": "2024-01-01T00:00:00.000Z",
+			"fileModifiedAt": "2024-01-01T00:00:00.000Z",
+			"isFavorite":    "false",
+			"duration":      "0",
+		})
+	if imgID == "" {
+		t.Fatal("image upload returned empty id")
+	}
+
+	// 3) DOWNLOAD IMAGE — three sizes the client requests.
+	t.Run("DownloadImage", func(t *testing.T) {
+		// thumbnail (grid view)
+		w := ckReq(r, "GET", "/api/assets/"+imgID+"/thumbnail?size=thumbnail", cookie, nil, "")
+		if w.Code != http.StatusOK {
+			t.Fatalf("img thumbnail -> %d: %s", w.Code, w.Body.String())
+		}
+		if ct := w.Header().Get("Content-Type"); !strings.HasPrefix(ct, "image/") {
+			t.Errorf("img thumbnail content-type = %q (want image/*)", ct)
+		}
+		if w.Body.Len() == 0 {
+			t.Error("img thumbnail body empty")
+		}
+
+		// preview (lightbox / full view) — official uses ?size=preview
+		w = ckReq(r, "GET", "/api/assets/"+imgID+"/thumbnail?size=preview", cookie, nil, "")
+		if w.Code != http.StatusOK {
+			t.Fatalf("img preview -> %d: %s", w.Code, w.Body.String())
+		}
+		if ct := w.Header().Get("Content-Type"); !strings.HasPrefix(ct, "image/") {
+			t.Errorf("img preview content-type = %q (want image/*)", ct)
+		}
+
+		// original (download to device)
+		w = ckReq(r, "GET", "/api/assets/"+imgID+"/original", cookie, nil, "")
+		if w.Code != http.StatusOK {
+			t.Fatalf("img original -> %d: %s", w.Code, w.Body.String())
+		}
+		if w.Body.Len() != len(imgRaw) {
+			t.Errorf("img original body len = %d, want %d (uploaded bytes)", w.Body.Len(), len(imgRaw))
+		}
+	})
+
+	// 4) UPLOAD VIDEO — minimal valid mp4 (ftyp box) so type sniffing yields VIDEO.
+	vidRaw := minimalMP4()
+	vidID := uploadMultipartCK(t, r, cookie, "e2e-vid.mp4", vidRaw, "VIDEO",
+		map[string]string{
+			"deviceAssetId": "android-e2e-vid",
+			"deviceId":      "android-emulator",
+			"fileCreatedAt": "2024-01-01T00:00:00.000Z",
+			"fileModifiedAt": "2024-01-01T00:00:00.000Z",
+			"isFavorite":    "false",
+			"duration":      "0",
+		})
+	if vidID == "" {
+		t.Fatal("video upload returned empty id")
+	}
+
+	// 5) DOWNLOAD VIDEO — /video/playback is what the official player opens.
+	t.Run("DownloadVideo", func(t *testing.T) {
+		w := ckReq(r, "GET", "/api/assets/"+vidID+"/video/playback", cookie, nil, "")
+		if w.Code != http.StatusOK {
+			t.Fatalf("video playback -> %d: %s", w.Code, w.Body.String())
+		}
+		if ct := w.Header().Get("Content-Type"); !strings.HasPrefix(ct, "video/") {
+			t.Errorf("video playback content-type = %q (want video/*)", ct)
+		}
+		if w.Body.Len() == 0 {
+			t.Error("video playback body empty")
+		}
+	})
+
+	// 6) LOGOUT — official client POSTs /api/auth/logout and parses the JSON
+	//    response (LogoutResponseDto). An empty body crashes the Flutter SDK
+	//    with "FormatException: Unexpected character" (see logs/).
+	t.Run("Logout", func(t *testing.T) {
+		w := ckReq(r, "POST", "/api/auth/logout", cookie, nil, "")
+		if w.Code != http.StatusOK {
+			t.Fatalf("logout -> %d: %s", w.Code, w.Body.String())
+		}
+		var body map[string]any
+		if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+			t.Fatalf("logout response not JSON (%q): %v", w.Body.String(), err)
+		}
+		if body["successful"] != true {
+			t.Errorf("logout.successful = %v, want true", body["successful"])
+		}
+		if _, ok := body["redirectUri"]; !ok {
+			t.Error("logout.redirectUri missing (required by LogoutResponseDto)")
+		}
+		// auth cookies must be cleared so the session ends on the client
+		for _, c := range w.Result().Cookies() {
+			if c.Name == "immich_access_token" || c.Name == "immich_is_authenticated" {
+				if c.MaxAge > 0 && c.Value != "" {
+					t.Errorf("logout did not clear cookie %s (maxAge=%d value=%q)", c.Name, c.MaxAge, c.Value)
+				}
+			}
+		}
+	})
+}
+
+// uploadMultipartCK mirrors the official mobile upload: a multipart form with a
+// binary "assetData" part plus the scalar fields the client sends. It
+// authenticates with the immich_access_token cookie.
+func uploadMultipartCK(t *testing.T, r *gin.Engine, cookie, fileName string, raw []byte, _ string, fields map[string]string) string {
+	t.Helper()
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	for k, v := range fields {
+		if err := mw.WriteField(k, v); err != nil {
+			t.Fatal(err)
+		}
+	}
+	fw, err := mw.CreateFormFile("assetData", fileName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fw.Write(raw); err != nil {
+		t.Fatal(err)
+	}
+	mw.Close()
+
+	w := ckReq(r, "POST", "/api/assets", cookie, buf.Bytes(), mw.FormDataContentType())
+	if w.Code != http.StatusCreated {
+		t.Fatalf("upload %s -> %d: %s", fileName, w.Code, w.Body.String())
+	}
+	m := decode(t, w)
+	id, _ := m["id"].(string)
+	if id == "" {
+		id, _ = m["assetId"].(string)
+	}
+	return id
+}
+
+// genImageJPEG returns deterministically-generated JPEG bytes for testing.
+func genImageJPEG(t *testing.T, fileName string, w, h int) []byte {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, w, h))
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			img.Set(x, y, color.RGBA{uint8((x * 7) % 256), uint8((y * 11) % 256), 120, 255})
+		}
+	}
+	var out bytes.Buffer
+	if err := jpeg.Encode(&out, img, &jpeg.Options{Quality: 85}); err != nil {
+		t.Fatal(err)
+	}
+	return out.Bytes()
+}
+
+// minimalMP4 returns a minimal well-formed ISO-BMP4 (ftyp) container so the
+// type sniffer classifies the upload as VIDEO and the playback endpoint serves
+// it. It is not a playable clip — only enough structure for the contract test.
+func minimalMP4() []byte {
+	return []byte{
+		0x00, 0x00, 0x00, 0x18, // box size = 24
+		'f', 't', 'y', 'p', // ftyp
+		'i', 's', 'o', 'm', // major brand
+		0x00, 0x00, 0x00, 0x00, // minor version
+		'i', 's', 'o', 'm', // compatible brand
+		0x00, 0x00, 0x00, 0x00,
+	}
 }

@@ -336,10 +336,22 @@ func (a *App) handleChangePassword(c *gin.Context) {
 }
 
 func (a *App) handleLogout(c *gin.Context) {
-	// Stateless JWT: logout is a client-side no-op, but we must clear the
-	// auth cookies the official web UI relies on so the session ends.
+	// Mirror the official server's logout contract (server/src/api/auth/
+	// auth.controller.ts -> logout): delete the server-side session and clear
+	// the auth cookies, then return the LogoutResponseDto the official web &
+	// mobile clients parse. Returning an empty body here crashes the Flutter
+	// SDK with "FormatException: Unexpected character" (see logs/), so the
+	// JSON body is mandatory contract, not optional.
+	if tok := requestToken(c); tok != "" {
+		if a.store != nil {
+			a.store.DB.Where("token = ?", hashToken(tok)).Delete(&Session{})
+		}
+	}
 	a.clearAuthCookies(c)
-	c.Status(http.StatusOK)
+	c.JSON(http.StatusOK, gin.H{
+		"successful":  true,
+		"redirectUri": "/auth/login?autoLaunch=0",
+	})
 }
 
 func (a *App) handleApiKeys(c *gin.Context) {
