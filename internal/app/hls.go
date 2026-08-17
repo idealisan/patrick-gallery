@@ -1,9 +1,13 @@
 package app
 
 import (
+	"bytes"
 	"fmt"
+	"math"
 	"net/http"
 	"os"
+	"path/filepath"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"immich-go/internal/video"
@@ -41,7 +45,28 @@ func (a *App) hlsVideo(c *gin.Context) (*Asset, bool) {
 
 // serveEncodedMP4 transcodes (or falls back to the original) and streams the
 // MP4. Shared with /api/assets/:id/encoded-video and the HLS segment.
+//
+// If the asset already has a cached transcoded file (EncodedVideoPath), it is
+// served directly via http.ServeContent which supports HTTP Range requests for
+// seeking. Otherwise the video is transcoded in-process, saved for reuse, and
+// then served.
 func (a *App) serveEncodedMP4(c *gin.Context, asset *Asset) {
+	// Fast path: serve cached transcoded file if it exists.
+	if asset.EncodedVideoPath != "" {
+		if f, err := os.Open(asset.EncodedVideoPath); err == nil {
+			defer f.Close()
+			info, err := f.Stat()
+			if err == nil && info.Size() > 0 {
+				c.Header("Content-Type", "video/mp4")
+				// http.ServeContent handles Range requests, Last-Modified,
+				// and Content-Length automatically.
+				http.ServeContent(c.Writer, c.Request, info.Name(), info.ModTime(), f)
+				return
+			}
+		}
+	}
+
+	// Slow path: transcode from original.
 	raw, err := os.ReadFile(asset.OriginalPath)
 	if err != nil {
 		c.Status(http.StatusNotFound)
@@ -54,11 +79,25 @@ func (a *App) serveEncodedMP4(c *gin.Context, asset *Asset) {
 		Preset:     "software",
 	})
 	if err != nil || len(out) == 0 {
+		// Fallback: serve original.
 		c.File(asset.OriginalPath)
 		return
 	}
+
+	// Cache the transcoded result for future requests.
+	encDir := filepath.Join(a.cfg.ResourceDir, "encoded-video")
+	_ = os.MkdirAll(encDir, 0o755)
+	dst := filepath.Join(encDir, asset.ID+".mp4")
+	if werr := os.WriteFile(dst, out, 0o644); werr == nil {
+		a.store.DB.Model(&Asset{}).Where("id = ?", asset.ID).Updates(map[string]any{
+			"encoded_video_path": dst,
+		})
+		asset.EncodedVideoPath = dst
+	}
+
 	c.Header("Content-Type", "video/mp4")
-	c.Data(http.StatusOK, "video/mp4", out)
+	// Serve via http.ServeContent for Range request support.
+	http.ServeContent(c.Writer, c.Request, "", time.Time{}, bytes.NewReader(out))
 }
 
 // handleVideoPlayback mirrors GET /api/assets/:id/video/playback: returns the
@@ -107,11 +146,21 @@ func (a *App) handleVideoStreamPlaylist(c *gin.Context) {
 		durSec = 3600 // safe VOD fallback when duration is unknown
 	}
 	c.Header("Content-Type", "application/vnd.apple.mpegurl")
+	// hls.js treats `#EXT-X-TARGETDURATION` as REQUIRED: a VOD playlist without
+	// it fails level parsing with a fatal `levelParsingError` ("Missing Target
+	// Duration"). The official Immich API (getVideoStreamPlaylist /
+	// stream-playlist.gateway.ts) always emits `#EXT-X-TARGETDURATION` >= the
+	// segment duration. Compute it from the asset's real duration (ceil), not
+	// the fallback, so real streams never trip the parser.
+	target := int(math.Ceil(durSec))
+	if target < 1 {
+		target = 1
+	}
 	// One segment referencing our transcoded MP4 (relative path resolves to the
 	// segment route below).
 	c.String(http.StatusOK,
-		"#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-PLAYLIST-TYPE:VOD\n#EXTINF:%.3f,\n%s\n#EXT-X-ENDLIST\n",
-		durSec, "seg-0.mp4")
+		"#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-PLAYLIST-TYPE:VOD\n#EXT-X-TARGETDURATION:%d\n#EXTINF:%.3f,\n%s\n#EXT-X-ENDLIST\n",
+		target, durSec, "seg-0.mp4")
 }
 
 // handleVideoStreamSegment mirrors

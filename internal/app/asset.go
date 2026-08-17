@@ -18,7 +18,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	imgproc "immich-go/internal/image"
-	"immich-go/internal/video"
 )
 
 // AssetResponse is the immich-go representation of Immich's AssetResponseDto.
@@ -154,12 +153,13 @@ func parseDurationInt(s string) int {
 	return n
 }
 
-// parseDurationSecondsToMs converts a client-supplied duration value (in
-// seconds; may be a decimal or integer string such as "12.5") into integer
-// milliseconds, matching the official Immich v3.1.0 contract where
-// AssetResponseDto.duration is nullable integer-milliseconds. Returns nil for
+// parseDurationMs converts a client-supplied duration value (in milliseconds,
+// per the official Immich v3.1.0 contract where AssetMediaCreateDto.duration is
+// z.coerce.number().int() and is described as "Duration in milliseconds (for
+// videos)"; the mobile client sends asset.durationMs verbatim). The official
+// server stores dto.duration as-is (asset-media.service.ts). Returns nil for
 // empty / invalid / non-positive input.
-func parseDurationSecondsToMs(s string) *int {
+func parseDurationMs(s string) *int {
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return nil
@@ -168,7 +168,7 @@ func parseDurationSecondsToMs(s string) *int {
 	if err != nil || f <= 0 {
 		return nil
 	}
-	ms := int(math.Round(f * 1000))
+	ms := int(math.Round(f))
 	return &ms
 }
 
@@ -217,7 +217,7 @@ func (a *App) handleAssetUpload(c *gin.Context) {
 	isFavorite := c.PostForm("isFavorite") == "true"
 	visibility := c.PostForm("visibility")
 	livePhotoVideoID := c.PostForm("livePhotoVideoId")
-	durationMs := parseDurationSecondsToMs(c.PostForm("duration"))
+	durationMs := parseDurationMs(c.PostForm("duration"))
 	deviceAssetId := c.PostForm("deviceAssetId")
 	deviceId := c.PostForm("deviceId")
 
@@ -252,7 +252,7 @@ func (a *App) handleAssetUpload(c *gin.Context) {
 		isFavorite = true
 	}
 	if durationMs == nil {
-		durationMs = parseDurationSecondsToMs(legacy.Duration)
+		durationMs = parseDurationMs(legacy.Duration)
 	}
 	if visibility == "" && legacy.IsArchived {
 		visibility = "archive"
@@ -961,23 +961,8 @@ func (a *App) handleAssetEncodedVideo(c *gin.Context) {
 		c.Status(http.StatusForbidden)
 		return
 	}
-	raw, err := os.ReadFile(asset.OriginalPath)
-	if err != nil {
-		c.Status(http.StatusNotFound)
-		return
-	}
-	out, err := a.video.Transcode(raw, video.TranscodeOptions{
-		Format:     "mp4",
-		VideoCodec: "h264",
-		AudioCodec: "copy",
-		Preset:     "software",
-	})
-	if err != nil || len(out) == 0 {
-		c.File(asset.OriginalPath)
-		return
-	}
-	c.Header("Content-Type", "video/mp4")
-	c.Data(http.StatusOK, "video/mp4", out)
+	// Delegate to serveEncodedMP4 which handles caching + Range requests.
+	a.serveEncodedMP4(c, &asset)
 }
 
 // handleAssetLivePhoto streams the motion (video) component of a Live Photo.

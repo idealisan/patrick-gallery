@@ -89,6 +89,8 @@ func (f *ffmpeg) transcode(in []byte, opts TranscodeOptions) ([]byte, error) {
 	oc := poc
 	defer fn.avformatFreeContext(oc)
 
+	// AVFormatContext.priv_data (offset 24) holds the muxer private context.
+
 	// Mux to a temp file via FFmpeg's own file muxer. This is still fully
 	// in-process (no CLI, no CGO): only the mux output sink is a temp file.
 	// The custom in-memory AVIO output path is ABI-fragile across FFmpeg
