@@ -10,6 +10,7 @@ package video
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"strconv"
 	"unsafe"
@@ -160,12 +161,12 @@ func (f *ffmpeg) transcode(in []byte, opts TranscodeOptions) ([]byte, error) {
 		setI64(c, 16, int64(codec))             // codec
 		setI32(c, 116, int32(dw))               // width
 		setI32(c, 120, int32(dh))               // height
-		setI32(c, 136, avPixFmtYUV420P)         // pix_fmt
-		setAVRational(c, 100, 1, avTimebaseDen) // time_base 1/30000
-		setI32(c, 132, 25)                      // gop_size
-		setI32(c, 160, 0)                       // max_b_frames = 0 (monotonic pts)
+		setI32(c, 140, avPixFmtYUV420P)         // pix_fmt (offsetof @140 on 7.1)
+		setAVRational(c, 84, 1, avTimebaseDen)  // time_base 1/30000 (@84 on 7.1)
+		setI32(c, 332, 25)                      // gop_size (@332 on 7.1)
+		setI32(c, 200, 0)                       // max_b_frames = 0 (monotonic pts) (@200 on 7.1)
 		setI32(c, 56, 0)                        // bit_rate 0 -> crf controls
-		setI32(c, 636, 0)                       // thread_count 0 = auto
+		setI32(c, 656, 0)                       // thread_count 0 = auto (@656 on 7.1)
 
 		var o uintptr
 		if rc := fn.avDictSet(&o, cstr("preset"), cstr("veryfast"), 0); avNeg(rc) {
@@ -176,16 +177,17 @@ func (f *ffmpeg) transcode(in []byte, opts TranscodeOptions) ([]byte, error) {
 			fn.avcodecFreeContext(&c)
 			return 0, errors.New("transcode: opt crf")
 		}
-		if rc := fn.avDictSet(&o, cstr("profile"), cstr(f.profileName), 0); avNeg(rc) {
-			fn.avcodecFreeContext(&c)
-			return 0, errors.New("transcode: opt profile")
-		}
+		// Profile is set via the AVCodecContext.profile field (offset 688 on
+		// 7.1), never via the "profile" dict option: libx264 routes dict values
+		// through its own Eval parser and rejects plain names like "high"
+		// (rc=-22 "Undefined constant or missing '(' in 'high'").
+		setI32(c, avCodecCtxProfile, f.profileValue())
 		if rc := fn.avcodecOpen2(c, codec, &o); avNeg(rc) {
 			if o != 0 {
 				fn.avDictFree(&o)
 			}
 			fn.avcodecFreeContext(&c)
-			return 0, errors.New("transcode: enc open " + name)
+			return 0, fmt.Errorf("transcode: enc open %s (rc=%d)", name, int32(rc))
 		}
 		if o != 0 {
 			fn.avDictFree(&o)
@@ -325,9 +327,10 @@ func (f *ffmpeg) transcode(in []byte, opts TranscodeOptions) ([]byte, error) {
 			}
 		} else {
 			var decTb [2]int32 = vIn.tb
-			pts = fn.avRescaleQ(pts,
-				uintptr(unsafe.Pointer(&decTb[0])),
-				uintptr(unsafe.Pointer(&encTb[0])))
+			// av_rescale_q(a, bq, cq) = a * bq.num * cq.den / (cq.num * bq.den)
+			// Pure Go: avoids purego AVRational-by-value ABI issue (uintptr passes
+			// pointer value instead of struct value on ARM64).
+			pts = pts * int64(decTb[0]) * int64(encTb[1]) / (int64(encTb[0]) * int64(decTb[1]))
 		}
 		setI64(dstFrame, 136, pts) // AVFrame.pts
 
