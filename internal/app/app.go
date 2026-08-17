@@ -113,7 +113,6 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 
 	r.GET("/api/system-config/defaults", a.handleSystemConfigDefaults)
 	r.GET("/api/auth/status", a.handleAuthStatus)
-	r.POST("/api/auth/validateToken", a.handleAuthValidateToken)
 	r.POST("/api/auth/login", a.handleLogin)
 	r.POST("/api/auth/signup", a.handleSignup)
 	r.GET("/api/auth/check", func(c *gin.Context) {
@@ -133,6 +132,7 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 	{
 		// auth
 		api.GET("/auth/validate", a.handleValidate)
+		api.POST("/auth/validateToken", a.handleAuthValidateToken)
 		api.POST("/auth/change-password", a.handleChangePassword)
 		api.POST("/auth/logout", a.handleLogout)
 		api.POST("/auth/pin-code", a.handlePinCodeSetup)

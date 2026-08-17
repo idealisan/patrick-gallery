@@ -34,18 +34,20 @@ func TestAssetDurationResponseContract(t *testing.T) {
 	}
 }
 
-// TestParseDurationSecondsToMs verifies the upload path converts the client's
-// seconds value into integer milliseconds per the v3.1.0 contract.
-func TestParseDurationSecondsToMs(t *testing.T) {
-	if got := parseDurationSecondsToMs("12"); got == nil || *got != 12000 {
-		t.Fatalf("seconds->ms: want 12000, got %v", got)
+// TestParseDurationMs verifies the upload path stores the client's millisecond
+// value as-is, per the v3.1.0 contract (AssetMediaCreateDto.duration is
+// "Duration in milliseconds (for videos)" and the mobile client sends
+// asset.durationMs verbatim; the official server stores dto.duration directly).
+func TestParseDurationMs(t *testing.T) {
+	if got := parseDurationMs("46567"); got == nil || *got != 46567 {
+		t.Fatalf("ms passthrough: want 46567, got %v", got)
 	}
-	if got := parseDurationSecondsToMs("12.5"); got == nil || *got != 12500 {
-		t.Fatalf("decimal seconds->ms: want 12500, got %v", got)
+	if got := parseDurationMs("12000"); got == nil || *got != 12000 {
+		t.Fatalf("ms passthrough: want 12000, got %v", got)
 	}
-	// empty / zero / negative -> nil (null), never NaN.
+	// empty / zero / negative / non-numeric -> nil (null), never NaN.
 	for _, in := range []string{"", "0", "-5", "abc"} {
-		if got := parseDurationSecondsToMs(in); got != nil {
+		if got := parseDurationMs(in); got != nil {
 			t.Fatalf("%q -> want nil, got %v", in, got)
 		}
 	}

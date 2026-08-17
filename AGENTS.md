@@ -36,6 +36,7 @@ Go 方式重建，或显式引入受控的外部组件；水平多租户扩展�
 
 ### Hard rules (must never be violated)
 
+0. **每个命令、动作之前必须date命令打印时间**，从而知道什么时间做了什么，用了多久
 1. **Pure Go, no CGO.** `CGO_ENABLED=0` is mandatory. The binary must stay
    a single static executable (it already cross-compiles for
    linux/darwin/windows × amd64/arm64).

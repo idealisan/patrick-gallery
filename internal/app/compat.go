@@ -27,16 +27,16 @@ func (a *App) handleAuthStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"authStatus": "anonymous"})
 }
 
-// handleAuthValidateToken re-validates a token (POST, body ignored).
+// handleAuthValidateToken re-validates the caller's session. This matches the
+// official v3.1.0 contract exactly: the endpoint is an @Authenticated route
+// (401 when no valid token from any source) and returns HTTP 200 with the
+// ValidateAccessTokenResponseDto body {authStatus:true}. The route is
+// registered inside the authenticated group (see app.go), so the token is
+// already resolved by AuthGuard from the cookie / Bearer / x-api-key sources
+// the official Android client uses (native OkHttp cookie jar sends
+// `immich_access_token`).
 func (a *App) handleAuthValidateToken(c *gin.Context) {
-	h := c.GetHeader("Authorization")
-	if len(h) > 7 && h[:7] == "Bearer " {
-		if _, err := a.parseToken(h[7:]); err == nil {
-			c.Status(http.StatusNoContent)
-			return
-		}
-	}
-	c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized", "statusCode": 401})
+	c.JSON(http.StatusOK, gin.H{"authStatus": true})
 }
 
 // handleServerConfig mirrors GET /api/server/config.
@@ -105,7 +105,16 @@ func (a *App) handleServerFeatures(c *gin.Context) {
 		"oauthAutoLaunch":     false,
 		"ocr":                 false,
 		"passwordLogin":       true,
-		"realtimeTranscoding": true,
+		// realtimeTranscoding:false is HONEST. The official Immich web uses
+		// hls.js when this flag is true and expects the real HLS contract: an
+		// fMP4 segmented stream (init.mp4 + seg_N.m4s, EXT-X-MAP, VERSION 7),
+		// which hls.js demuxes via MSE. Serving a single whole-MP4 as a media
+		// segment makes hls.js allow it to fail (levelParsingError / the
+		// segment is probed as MPEG-TS and aborts playback). Our in-process
+		// transcoder produces one MP4, so we advertise false and let the
+		// official web fall back to GET /api/assets/:id/video/playback, which
+		// streams that real transcoded MP4 natively. See docs/GAP_ANALYSIS.md.
+		"realtimeTranscoding": false,
 		"reverseGeocoding":    true,
 		"search":              true,
 		"sidecar":             false,

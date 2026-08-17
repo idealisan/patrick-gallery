@@ -29,7 +29,7 @@ import (
 // ---- FFmpeg constants ----
 const (
 	avPixFmtYUV420P = 0
-	avPixFmtRGBA    = 26 // verified AV_PIX_FMT_RGBA on ffmpeg 6.1.1
+	avPixFmtRGBA    = 26 // AV_PIX_FMT_RGBA (same enum value on 7.1)
 	avMediaTypeVideo = 0
 	avMediaTypeAudio = 1
 	avOptFlag       = 0
@@ -42,6 +42,14 @@ const (
 	avCodecIDAAC  = 86018
 	avNoPtsValue  = -0x8000000000000000 // AV_NOPTS_VALUE
 	avTimebaseDen = 30000
+
+	// FFmpeg 7.1 ABI: AVCodecContext.profile sits at offset 688 (verified via
+	// offsetof). Set the *field*, not the "profile" dict option: libx264 routes
+	// the dict through its own Eval parser, which rejects plain names such as
+	// "high" (rc=-22, "Undefined constant or missing '(' in 'high'").
+	avCodecCtxProfile = 688
+	ffProfileH264Main = 77
+	ffProfileH264High = 100
 )
 
 // avNeg reports whether an FFmpeg int return code is an error (<0). FFmpeg
@@ -225,12 +233,12 @@ func loadFFmpeg() (*ffmpeg, error) {
 	// libavcodec (version)
 	purego.RegisterLibFunc(&fn.avcodecVersion, loaded["libavcodec"], "avcodec_version")
 
-	// AVStream.codecpar offset. Verified against the installed FFmpeg
-	// headers (6.1.1 / aarch64): AVStream = { AVClass* av_class(0), int
-	// index(8), int id(12), AVCodecParameters* codecpar(16), ... }. The
-	// deprecated AVStream.codec field was removed in 5.0, so for 5.0+
-	// codecpar sits at offset 16. (Older 4.4 kept codec before codecpar,
-	// pushing it much further; we target 5.0+.)
+	// AVStream.codecpar offset. Verified against the pinned FFmpeg 7.1
+	// headers (aarch64): AVStream = { AVClass* av_class(0), int index(8),
+	// int id(12), AVCodecParameters* codecpar(16), ... }. The deprecated
+	// AVStream.codec field was removed in 5.0, so for 5.0+ codecpar sits at
+	// offset 16. (Older 4.4 kept codec before codecpar, pushing it much
+	// further; we target 5.0+.)
 	f.codecparOff = 16
 	return f, nil
 }
@@ -270,6 +278,17 @@ func totalMemGB() int {
 // "high" H.264 profile: >=4 CPU cores AND >=8 GiB RAM. Otherwise "main".
 func (f *ffmpeg) capableMachine() bool {
 	return runtime.NumCPU() >= 4 && totalMemGB() >= 8
+}
+
+// profileValue maps the resolved profile name to the H.264 profile
+// enum (FF_PROFILE_H264_MAIN/HIGH as int). The encoder context's `profile`
+// field must be set directly; the dict option breaks libx264 (see comment on
+// avCodecCtxProfile).
+func (f *ffmpeg) profileValue() int32 {
+	if f.profileName == "high" {
+		return ffProfileH264High
+	}
+	return ffProfileH264Main
 }
 
 // selectEncoder probes hardware H.264 encoders in priority order
@@ -323,9 +342,9 @@ func (f *ffmpeg) probeEncoderByName(name string) bool {
 	setI64(c, 16, int64(codec))     // codec
 	setI32(c, 116, 320)             // width
 	setI32(c, 120, 240)             // height
-	setI32(c, 136, avPixFmtYUV420P) // pix_fmt
+	setI32(c, 140, avPixFmtYUV420P) // pix_fmt (offsetof @140 on 7.1)
+	setI32(c, avCodecCtxProfile, f.profileValue())
 	var opts uintptr
-	fn.avDictSet(&opts, cstr("profile"), cstr(f.profileName), 0)
 	rc := fn.avcodecOpen2(c, codec, &opts)
 	if opts != 0 {
 		fn.avDictFree(&opts)
@@ -334,16 +353,17 @@ func (f *ffmpeg) probeEncoderByName(name string) bool {
 	return !avNeg(rc)
 }
 
-// ---- helpers for struct field access (ffmpeg 4.4–7.x, 64-bit LE) ----
+// ---- helpers for struct field access (ffmpeg 7.1, 64-bit LE) ----
 // AVFrame: data[8] (64 bytes), linesize[8] (32 bytes) -> linesize[0] @64
 func frameData0(frame uintptr) uintptr { return *(*uintptr)(unsafe.Pointer(frame)) }
 func frameStride0(frame uintptr) int32 { return *(*int32)(unsafe.Pointer(frame + 64)) }
 func frameW(frame uintptr) int32       { return *(*int32)(unsafe.Pointer(frame + 104)) }
 func frameH(frame uintptr) int32       { return *(*int32)(unsafe.Pointer(frame + 108)) }
 
-// AVCodecParameters: width @56, height @60 (see loadFFmpeg comment)
-func parW(par uintptr) int32 { return *(*int32)(unsafe.Pointer(par + 56)) }
-func parH(par uintptr) int32 { return *(*int32)(unsafe.Pointer(par + 60)) }
+// AVCodecParameters: width @72, height @76 (FFmpeg 7.1 ABI, verified via
+// offsetof against the pinned headers — see loadFFmpeg comment).
+func parW(par uintptr) int32 { return *(*int32)(unsafe.Pointer(par + 72)) }
+func parH(par uintptr) int32 { return *(*int32)(unsafe.Pointer(par + 76)) }
 
 // ---- generic little-endian field setters (verified offsets, 64-bit LE) ----
 func setI32(p uintptr, off int, v int32) { *(*int32)(unsafe.Pointer(p + uintptr(off))) = v }
@@ -360,7 +380,9 @@ func getAVRational(p uintptr, off int) (num, den int32) {
 	return *(*int32)(unsafe.Pointer(p + uintptr(off))), *(*int32)(unsafe.Pointer(p + uintptr(off+4)))
 }
 
-// AVCodecContext field accessors (offsets verified via offsetof on 6.1.1/aarch64)
+// AVCodecContext field accessors (offsets verified via offsetof on 7.1/aarch64:
+// ctx->time_base @84, framerate @100, gop_size @332, pix_fmt @140,
+// max_b_frames @200, thread_count @656; AVFrame.format @116, AVFrame.pts @136)
 func ctxSetI32(c uintptr, off int, v int32)  { setI32(c, off, v) }
 func ctxFrameFormat(frame uintptr) int32     { return *(*int32)(unsafe.Pointer(frame + 116)) }
 func ctxFramePts(frame uintptr) int64        { return getI64(frame, 136) }

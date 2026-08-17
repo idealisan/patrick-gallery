@@ -201,10 +201,10 @@ func (f *ffmpeg) Thumbnail(in []byte, opts ThumbnailOptions) ([]byte, error) {
 
 var errStopDecode = errors.New("stop")
 
-// streamDurationSec reads AVStream.duration (int64 @48, ffmpeg 6.1.x ABI) and
+// streamDurationSec reads AVStream.duration (int64 @48, ffmpeg 7.1 ABI) and
 // rescales it by the stream time_base (AVRational @32) into seconds. Returns
 // 0 when the stream has no usable duration (e.g. AV_NOPTS_VALUE or a zero
-// time_base). Verified against the pinned FFmpeg 6.1.3 headers.
+// time_base). Verified against the pinned FFmpeg 7.1 headers.
 func (f *ffmpeg) streamDurationSec(ctx uintptr, vidx int) float64 {
 	nb := *(*uint32)(unsafe.Pointer(ctx + 44))          // AVFormatContext.nb_streams
 	streamsPtr := *(*uintptr)(unsafe.Pointer(ctx + 48)) // AVFormatContext.streams
