@@ -118,7 +118,7 @@ func (a *App) handleServerFeatures(c *gin.Context) {
 		"reverseGeocoding":    true,
 		"search":              true,
 		"sidecar":             false,
-		"smartSearch":         false,
+		"smartSearch":         a.ml != nil && len(a.ml.Capabilities()) > 0,
 		"trash":               true,
 	})
 }
@@ -256,6 +256,27 @@ func (a *App) handleAlbumStatistics(c *gin.Context) {
 
 // handleSearchSuggestions mirrors POST /api/search/suggestions.
 func (a *App) handleSearchSuggestions(c *gin.Context) {
+	if c.Request.Method == http.MethodGet {
+		column := map[string]string{"country": "country", "state": "state", "city": "city", "cameraMake": "make", "cameraModel": "model"}[c.Query("type")]
+		if column == "" {
+			c.JSON(http.StatusOK, []string{})
+			return
+		}
+		var values []string
+		query := a.store.DB.Model(&Exif{}).Where(column + " <> ''")
+		if c.Query("type") == "cameraModel" && c.Query("make") != "" {
+			query = query.Where("make = ?", c.Query("make"))
+		}
+		if c.Query("country") != "" {
+			query = query.Where("country = ?", c.Query("country"))
+		}
+		if c.Query("state") != "" {
+			query = query.Where("state = ?", c.Query("state"))
+		}
+		query.Distinct().Order(column+" ASC").Pluck(column, &values)
+		c.JSON(http.StatusOK, values)
+		return
+	}
 	uid := currentUserID(c)
 	var q struct {
 		Q string `json:"q"`

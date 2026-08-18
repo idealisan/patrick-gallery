@@ -15,18 +15,19 @@ import (
 type Capability string
 
 const (
-	CapabilityEmbedding      Capability = "embedding"
-	CapabilitySemanticSearch Capability = "semantic-search"
-	CapabilityFaceDetection Capability = "face-detection"
-	CapabilityFaceEmbedding Capability = "face-embedding"
-	CapabilityObjectDetection Capability = "object-detection"
-	CapabilityClassification Capability = "classification"
+	CapabilityEmbedding        Capability = "embedding"
+	CapabilitySemanticSearch   Capability = "semantic-search"
+	CapabilityImageDescription Capability = "image-description"
+	CapabilityFaceDetection    Capability = "face-detection"
+	CapabilityFaceEmbedding    Capability = "face-embedding"
+	CapabilityObjectDetection  Capability = "object-detection"
+	CapabilityClassification   Capability = "classification"
 )
 
 var (
-	ErrUnavailable = errors.New("ml backend unavailable")
-	ErrUnsupported = errors.New("ml capability unsupported")
-	ErrInvalidResult = errors.New("ml backend returned an invalid result")
+	ErrUnavailable       = errors.New("ml backend unavailable")
+	ErrUnsupported       = errors.New("ml capability unsupported")
+	ErrInvalidResult     = errors.New("ml backend returned an invalid result")
 	ErrAllBackendsFailed = errors.New("all ml backends failed")
 )
 
@@ -45,13 +46,13 @@ type Vector struct {
 }
 
 type Face struct {
-	PersonID   string    `json:"personId,omitempty"`
-	Confidence float32   `json:"confidence,omitempty"`
-	X          int       `json:"x,omitempty"`
-	Y          int       `json:"y,omitempty"`
-	Width      int       `json:"width,omitempty"`
-	Height     int       `json:"height,omitempty"`
-	Embedding  *Vector   `json:"embedding,omitempty"`
+	PersonID   string  `json:"personId,omitempty"`
+	Confidence float32 `json:"confidence,omitempty"`
+	X          int     `json:"x,omitempty"`
+	Y          int     `json:"y,omitempty"`
+	Width      int     `json:"width,omitempty"`
+	Height     int     `json:"height,omitempty"`
+	Embedding  *Vector `json:"embedding,omitempty"`
 }
 
 type Detection struct {
@@ -64,11 +65,12 @@ type Detection struct {
 }
 
 type Result struct {
-	Embedding   *Vector     `json:"embedding,omitempty"`
-	Faces       []Face      `json:"faces,omitempty"`
-	Detections  []Detection `json:"detections,omitempty"`
-	Labels      []string    `json:"labels,omitempty"`
-	Score       float32     `json:"score,omitempty"`
+	Text       string      `json:"text,omitempty"`
+	Embedding  *Vector     `json:"embedding,omitempty"`
+	Faces      []Face      `json:"faces,omitempty"`
+	Detections []Detection `json:"detections,omitempty"`
+	Labels     []string    `json:"labels,omitempty"`
+	Score      float32     `json:"score,omitempty"`
 }
 
 type Backend interface {
@@ -171,10 +173,13 @@ func (c *Chain) Infer(req Request) (Result, error) {
 	return Result{}, fmt.Errorf("%w: %w", ErrAllBackendsFailed, errors.Join(errs...))
 }
 
-type unavailable struct{ name string; capabilities []Capability }
+type unavailable struct {
+	name         string
+	capabilities []Capability
+}
 
-func (b unavailable) Name() string { return b.name }
-func (b unavailable) Capabilities() []Capability { return b.capabilities }
+func (b unavailable) Name() string                  { return b.name }
+func (b unavailable) Capabilities() []Capability    { return b.capabilities }
 func (b unavailable) Infer(Request) (Result, error) { return Result{}, ErrUnavailable }
 
 // Unavailable is the explicit terminal backend. It is allowed only as the

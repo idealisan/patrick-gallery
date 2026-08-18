@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const defaultPrompt = "Transcribe every piece of visible text in this image. Return only the transcription, preserving reading order and line breaks. If there is no visible text, return an empty string."
+const defaultPrompt = "You are an OCR engine. Extract every visible text character from this image. Return only the OCR text, preserving reading order and line breaks. Do not describe, summarize, translate, explain, reason, add Markdown, or add labels. If no text is visible, return an empty response."
 
 // OpenAIConfig is shared by OpenAI and OpenAI-compatible vision services.
 // BaseURL should be the API root, for example https://api.openai.com/v1.

@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"immich-go/internal/app/geo"
+	"immich-go/internal/ml"
 	"immich-go/internal/ocr"
 	"immich-go/internal/video"
 )
@@ -20,6 +21,7 @@ type App struct {
 	store *Store
 	video video.Processor
 	ocr   ocr.Processor
+	ml    ml.Backend
 
 	// videoCache manages the on-disk cache of transcoded video files with LRU
 	// eviction (max 2 GB default). Nil if cache dir creation failed.
@@ -79,7 +81,14 @@ func NewApp(cfg *Config, store *Store) *App {
 	} else if cfg.OCRCommunityPath != "" {
 		log.Printf("[ocr] community backend unavailable: %v", loadErr)
 	}
-	a := &App{cfg: cfg, store: store, video: video.New(), ocr: ocr.NewChain(nativeOCR, networkOCR, communityOCR)}
+	var mlBackend ml.Backend
+	if cfg.OCRProvider == "openai-chat" || cfg.OCRProvider == "chat" || cfg.OCRProvider == "openai-responses" || cfg.OCRProvider == "responses" {
+		responses := cfg.OCRProvider == "openai-responses" || cfg.OCRProvider == "responses"
+		if backend, mlErr := ml.NewOpenAIVision(ml.OpenAIConfig{BaseURL: cfg.OCRBaseURL, APIKey: cfg.OCRAPIKey, Model: cfg.OCRModel, Timeout: time.Duration(cfg.OCRTimeout) * time.Second}, responses); mlErr == nil {
+			mlBackend = backend
+		}
+	}
+	a := &App{cfg: cfg, store: store, video: video.New(), ocr: ocr.NewChain(nativeOCR, networkOCR, communityOCR), ml: ml.NewChain(mlBackend)}
 	// Resolve the effective JWT secret: prefer the per-instance value
 	// persisted in SystemConfig; fall back to the configured secret only if
 	// the row has none (should not happen after ensureJWTSecret).

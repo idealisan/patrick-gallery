@@ -98,8 +98,10 @@ type Exif struct {
 	Longitude        float64 `json:"longitude,omitempty"`
 	City             string  `gorm:"type:text" json:"city,omitempty"`
 	Country          string  `gorm:"type:text" json:"country,omitempty"`
+	State            string  `gorm:"type:text" json:"state,omitempty"`
 	Description      string  `gorm:"type:text" json:"description,omitempty"`
 	Orientation      *int    `json:"orientation,omitempty"`
+	Rating           *int    `json:"rating,omitempty"`
 }
 
 // AssetOcr stores the normalized OCR output for an asset. Words are retained
@@ -111,6 +113,14 @@ type AssetOcr struct {
 	WordsJSON string    `gorm:"type:text" json:"-"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+type AssetML struct {
+	AssetID     string    `gorm:"primaryKey;type:text" json:"assetId"`
+	Description string    `gorm:"type:text" json:"description"`
+	LabelsJSON  string    `gorm:"type:text" json:"-"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
 // NotificationToken stores a mobile push device token registered by a client

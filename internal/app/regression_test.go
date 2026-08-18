@@ -180,6 +180,27 @@ func TestRegression(t *testing.T) {
 		if len(sr.Assets) == 0 {
 			t.Errorf("asset search returned no assets")
 		}
+
+		// Metadata search uses the same endpoint and combines conditions with
+		// AND, matching the official mobile MetadataSearchDto behavior.
+		var asset Asset
+		if err := app.store.DB.First(&asset, "id = ?", assetID).Error; err != nil {
+			t.Fatal(err)
+		}
+		if err := app.store.DB.Model(&Exif{}).Where("asset_id = ?", assetID).Updates(map[string]any{"description": "regression searchable text", "rating": 4, "make": "TestCam"}).Error; err != nil {
+			t.Fatal(err)
+		}
+		w = do(r, "POST", "/api/search/metadata", token, mustJSON(t, map[string]any{"originalFileName": asset.OriginalFileName, "description": "regression searchable text", "type": asset.Type, "rating": 4}), "application/json")
+		if w.Code != 200 {
+			t.Fatalf("metadata search -> %d: %s", w.Code, w.Body.String())
+		}
+		var found searchResponse
+		if err := json.Unmarshal(w.Body.Bytes(), &found); err != nil {
+			t.Fatal(err)
+		}
+		if found.Assets.Total != 1 || found.Assets.Items[0].ID != assetID {
+			t.Fatalf("metadata search result=%+v", found.Assets)
+		}
 	})
 
 	t.Run("albums", func(t *testing.T) {

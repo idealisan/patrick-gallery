@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"immich-go/internal/ml"
 	"immich-go/internal/video"
 )
 
@@ -262,12 +263,36 @@ func (a *App) jobRegistry() map[string]jobSpec {
 				return err == nil, err
 			},
 		},
-		// The following are advertised for client compatibility but require
-		// ML/AI backends this server does not ship. They succeed as no-ops with
-		// a clear unsupported marker so the official apps don't error out.
+		"smartSearch": {
+			supported: a.ml != nil && len(a.ml.Capabilities()) > 0,
+			items: func(a *App) ([]jobItem, error) {
+				var assets []Asset
+				if err := a.store.DB.Where("type = ? AND is_trash = ? AND id NOT IN (SELECT asset_id FROM asset_mls)", "IMAGE", false).Find(&assets).Error; err != nil {
+					return nil, err
+				}
+				out := make([]jobItem, 0, len(assets))
+				for _, asset := range assets {
+					out = append(out, jobItem{ID: asset.ID, Path: asset.OriginalPath, Type: asset.Type})
+				}
+				return out, nil
+			},
+			run: func(a *App, it jobItem) (bool, error) {
+				data, err := os.ReadFile(it.Path)
+				if err != nil {
+					return false, err
+				}
+				result, err := a.ml.Infer(ml.Request{Capability: ml.CapabilityImageDescription, Data: data, MIME: mimeByExt(it.Path), Name: filepath.Base(it.Path), Language: a.cfg.OCRLanguage})
+				if err != nil {
+					return false, err
+				}
+				labels, _ := json.Marshal(result.Labels)
+				now := time.Now().UTC()
+				return true, a.store.DB.Save(&AssetML{AssetID: it.ID, Description: result.Text, LabelsJSON: string(labels), CreatedAt: now, UpdatedAt: now}).Error
+			},
+		},
+		// The following capabilities require separate ML adapters.
 		"objectDetection":          {supported: false},
 		"facialRecognition":        {supported: false},
-		"smartSearch":              {supported: false},
 		"storageTemplateMigration": {supported: false},
 		"tagCopy":                  {supported: false},
 		"tagImage":                 {supported: false},

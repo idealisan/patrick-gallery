@@ -8,18 +8,28 @@ import (
 )
 
 type searchRequest struct {
-	Query            string `json:"query"`
-	OriginalFileName string `json:"originalFileName"`
-	Description      string `json:"description"`
-	OCR              string `json:"ocr"`
-	Type             string `json:"type"`
-	Recent           bool   `json:"recent"`
-	WithExif         bool   `json:"withExif"`
-	Take             int    `json:"take"`
-	City             string `json:"city"`
-	Country          string `json:"country"`
-	Make             string `json:"make"`
-	Model            string `json:"model"`
+	Query            string   `json:"query"`
+	OriginalFileName string   `json:"originalFileName"`
+	Description      string   `json:"description"`
+	OCR              string   `json:"ocr"`
+	Type             string   `json:"type"`
+	Recent           bool     `json:"recent"`
+	WithExif         bool     `json:"withExif"`
+	Take             int      `json:"take"`
+	City             string   `json:"city"`
+	Country          string   `json:"country"`
+	State            string   `json:"state"`
+	Make             string   `json:"make"`
+	Model            string   `json:"model"`
+	AlbumIDs         []string `json:"albumIds"`
+	PersonIDs        []string `json:"personIds"`
+	TagIDs           []string `json:"tagIds"`
+	IsFavorite       *bool    `json:"isFavorite"`
+	IsNotInAlbum     *bool    `json:"isNotInAlbum"`
+	Visibility       string   `json:"visibility"`
+	TakenAfter       string   `json:"takenAfter"`
+	TakenBefore      string   `json:"takenBefore"`
+	Rating           *int     `json:"rating"`
 }
 
 // searchResponse / searchAssetResult / searchAlbumResult mirror Immich's
@@ -80,13 +90,13 @@ func (a *App) handleSearch(c *gin.Context) {
 	// also match exif text
 	if q != "" {
 		like := "%" + q + "%"
-		var exifs []Exif
-		a.store.DB.Where("description LIKE ? OR city LIKE ? OR country LIKE ? OR make LIKE ? OR model LIKE ?", like, like, like, like, like).Find(&exifs)
+		var exif []Exif
+		a.store.DB.Where("description LIKE ? OR city LIKE ? OR country LIKE ? OR make LIKE ? OR model LIKE ?", like, like, like, like, like).Find(&exif)
 		seen := map[string]bool{}
 		for _, as := range assets {
 			seen[as.ID] = true
 		}
-		for _, e := range exifs {
+		for _, e := range exif {
 			if seen[e.AssetID] {
 				continue
 			}
@@ -109,65 +119,74 @@ func (a *App) handleSearchMetadata(c *gin.Context) {
 	uid := currentUserID(c)
 	var req searchRequest
 	_ = c.ShouldBindJSON(&req)
-	if req.OCR != "" {
-		var ocrAssets []Asset
-		a.store.DB.Where("owner_id = ? AND is_trash = ? AND id IN (SELECT asset_id FROM asset_ocrs WHERE text LIKE ?)", uid, false, "%"+req.OCR+"%").Find(&ocrAssets)
-		assets := make([]Asset, 0, len(ocrAssets))
-		assets = append(assets, ocrAssets...)
-		out := make([]AssetResponse, 0, len(assets))
-		for _, as := range assets {
-			out = append(out, a.toResponse(as))
-		}
-		c.JSON(http.StatusOK, emptySearchResponse(out))
-		return
-	}
 	var assets []Asset
-	assetQuery := a.store.DB.Where("owner_id = ? AND is_trash = ?", uid, false)
+	assetQuery := a.store.DB.Where("assets.owner_id = ? AND assets.is_trash = ?", uid, false)
 	if req.OriginalFileName != "" {
-		assetQuery = assetQuery.Where("original_file_name LIKE ?", "%"+req.OriginalFileName+"%")
+		assetQuery = assetQuery.Where("assets.original_file_name LIKE ?", "%"+req.OriginalFileName+"%")
 	}
 	if req.Description != "" {
-		likeDescription := "%" + req.Description + "%"
-		assetQuery = assetQuery.Joins("JOIN exifs ON exifs.asset_id = assets.id").Where("exifs.description LIKE ?", likeDescription)
+		assetQuery = assetQuery.Where("assets.id IN (SELECT asset_id FROM exif WHERE description LIKE ?)", "%"+req.Description+"%")
 	}
-	if req.OriginalFileName != "" || req.Description != "" {
-		assetQuery.Find(&assets)
+	if req.OCR != "" {
+		assetQuery = assetQuery.Where("assets.id IN (SELECT asset_id FROM asset_ocrs WHERE text LIKE ?)", "%"+req.OCR+"%")
 	}
-
-	var exifs []Exif
-	q := a.store.DB.Model(&Exif{})
 	if req.Make != "" {
-		q = q.Where("make LIKE ?", "%"+req.Make+"%")
+		assetQuery = assetQuery.Where("assets.id IN (SELECT asset_id FROM exif WHERE make LIKE ?)", "%"+req.Make+"%")
 	}
 	if req.Model != "" {
-		q = q.Where("model LIKE ?", "%"+req.Model+"%")
+		assetQuery = assetQuery.Where("assets.id IN (SELECT asset_id FROM exif WHERE model LIKE ?)", "%"+req.Model+"%")
 	}
 	if req.City != "" {
-		q = q.Where("city LIKE ?", "%"+req.City+"%")
+		assetQuery = assetQuery.Where("assets.id IN (SELECT asset_id FROM exif WHERE city LIKE ?)", "%"+req.City+"%")
 	}
 	if req.Country != "" {
-		q = q.Where("country LIKE ?", "%"+req.Country+"%")
+		assetQuery = assetQuery.Where("assets.id IN (SELECT asset_id FROM exif WHERE country LIKE ?)", "%"+req.Country+"%")
 	}
-	if req.Make != "" || req.Model != "" || req.City != "" || req.Country != "" {
-		q.Find(&exifs)
+	if req.State != "" {
+		assetQuery = assetQuery.Where("assets.id IN (SELECT asset_id FROM exif WHERE state LIKE ?)", "%"+req.State+"%")
 	}
-	ids := make([]string, 0, len(exifs))
-	for _, e := range exifs {
-		ids = append(ids, e.AssetID)
+	if req.Type != "" {
+		assetQuery = assetQuery.Where("assets.type = ?", normalizeType(req.Type))
 	}
-	if len(ids) > 0 {
-		var exifAssets []Asset
-		a.store.DB.Where("id IN ? AND owner_id = ? AND is_trash = ?", ids, uid, false).Find(&exifAssets)
-		seen := make(map[string]bool, len(assets))
-		for _, asset := range assets {
-			seen[asset.ID] = true
+	if req.IsFavorite != nil {
+		assetQuery = assetQuery.Where("assets.is_favorite = ?", *req.IsFavorite)
+	}
+	if req.Visibility == "archive" {
+		assetQuery = assetQuery.Where("assets.is_archived = ?", true)
+	}
+	if req.Visibility == "timeline" {
+		assetQuery = assetQuery.Where("assets.is_archived = ?", false)
+	}
+	if len(req.PersonIDs) > 0 {
+		assetQuery = assetQuery.Where("assets.person_id IN ?", req.PersonIDs)
+	}
+	if len(req.TagIDs) > 0 {
+		assetQuery = assetQuery.Where("assets.id IN (SELECT asset_id FROM tags_assets WHERE tag_id IN ?)", req.TagIDs)
+	}
+	if len(req.AlbumIDs) > 0 {
+		assetQuery = assetQuery.Where("assets.id IN (SELECT asset_id FROM albums_assets_assets WHERE album_id IN ?)", req.AlbumIDs)
+	}
+	if req.IsNotInAlbum != nil && *req.IsNotInAlbum {
+		assetQuery = assetQuery.Where("NOT EXISTS (SELECT 1 FROM albums_assets_assets aa WHERE aa.asset_id = assets.id)")
+	}
+	if req.TakenAfter != "" {
+		assetQuery = assetQuery.Where("assets.local_date_time >= ?", req.TakenAfter)
+	}
+	if req.TakenBefore != "" {
+		assetQuery = assetQuery.Where("assets.local_date_time <= ?", req.TakenBefore)
+	}
+	if req.Rating != nil {
+		if *req.Rating == 0 {
+			assetQuery = assetQuery.Where("assets.id IN (SELECT asset_id FROM exif WHERE rating IS NULL)")
+		} else {
+			assetQuery = assetQuery.Where("assets.id IN (SELECT asset_id FROM exif WHERE rating = ?)", *req.Rating)
 		}
-		for _, asset := range exifAssets {
-			if !seen[asset.ID] {
-				assets = append(assets, asset)
-			}
-		}
 	}
+	limit := 1000
+	if req.Take > 0 && req.Take < limit {
+		limit = req.Take
+	}
+	assetQuery.Order("assets.local_date_time DESC").Limit(limit).Find(&assets)
 	out := make([]AssetResponse, 0, len(assets))
 	for _, as := range assets {
 		out = append(out, a.toResponse(as))
@@ -307,8 +326,34 @@ func (a *App) handleSearchStatistics(c *gin.Context) {
 // available. This is honest-empty (not a fake success): with no embedding
 // model there is genuinely nothing to match.
 func (a *App) handleSearchSmart(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{
-		"error":      "semantic search is not available without an embedding backend",
-		"statusCode": http.StatusNotImplemented,
-	})
+	uid := currentUserID(c)
+	var req struct {
+		Query string `json:"query"`
+		Page  int    `json:"page"`
+		Size  int    `json:"size"`
+	}
+	_ = c.ShouldBindJSON(&req)
+	if req.Query == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "query is required", "statusCode": 400})
+		return
+	}
+	var analyzed int64
+	if err := a.store.DB.Model(&AssetML{}).Joins("JOIN assets ON assets.id = asset_mls.asset_id").Where("assets.owner_id = ? AND assets.is_trash = ?", uid, false).Count(&analyzed).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if analyzed == 0 {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "semantic search requires completed background ML analysis", "statusCode": 501})
+		return
+	}
+	var assets []Asset
+	if err := a.store.DB.Where("owner_id = ? AND is_trash = ? AND id IN (SELECT asset_id FROM asset_mls WHERE description LIKE ?)", uid, false, "%"+req.Query+"%").Limit(req.Size).Find(&assets).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	out := make([]AssetResponse, 0, len(assets))
+	for _, asset := range assets {
+		out = append(out, a.toResponse(asset))
+	}
+	c.JSON(http.StatusOK, emptySearchResponse(out))
 }
