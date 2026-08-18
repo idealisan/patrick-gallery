@@ -24,6 +24,8 @@ type Metadata struct {
 	AudioCodec string
 	HasVideo   bool
 	HasAudio   bool
+	// Bitrate is the overall bitrate in bits/sec (from format-level bit_rate).
+	Bitrate    int64
 	// Raw is the original file bytes (echoed back for convenience).
 	Raw []byte
 }
@@ -59,10 +61,21 @@ type Processor interface {
 	HardwareAccel() bool
 	// Probe returns container/stream metadata without full decode.
 	Probe(in []byte) (*Metadata, error)
+	// ProbeFile returns metadata by reading only the header of a file on disk.
+	// This is much faster than reading the entire file into memory.
+	ProbeFile(path string) (*Metadata, error)
 	// Thumbnail decodes a frame and returns encoded image bytes (jpeg/png).
 	Thumbnail(in []byte, opts ThumbnailOptions) ([]byte, error)
 	// Transcode re-encodes in to the requested options and returns the bytes.
 	Transcode(in []byte, opts TranscodeOptions) ([]byte, error)
+	// TranscodeToFile re-encodes srcPath and writes the result to dstPath.
+	// This is a streaming file-to-file operation that avoids loading the
+	// entire file into memory. Hardware encoders are tried first (VideoToolbox
+	// -> NVENC -> QSV -> AMF -> software).
+	TranscodeToFile(srcPath, dstPath string, opts TranscodeOptions) error
+	// RemuxFaststart re-muxes srcPath into dstPath with the MP4 faststart
+	// flag (moov at the front). This is a lossless packet-level copy.
+	RemuxFaststart(srcPath, dstPath string) error
 }
 
 // ToImage is a helper for backends that produce a raw *image.Image; it is

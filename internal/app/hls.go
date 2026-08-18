@@ -1,13 +1,11 @@
 package app
 
 import (
-	"bytes"
 	"fmt"
 	"math"
 	"net/http"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"immich-go/internal/video"
@@ -43,61 +41,97 @@ func (a *App) hlsVideo(c *gin.Context) (*Asset, bool) {
 	return &asset, true
 }
 
-// serveEncodedMP4 transcodes (or falls back to the original) and streams the
-// MP4. Shared with /api/assets/:id/encoded-video and the HLS segment.
-//
-// If the asset already has a cached transcoded file (EncodedVideoPath), it is
-// served directly via http.ServeContent which supports HTTP Range requests for
-// seeking. Otherwise the video is transcoded in-process, saved for reuse, and
-// then served.
+// serveEncodedMP4 streams a video with the following decision logic:
+//  1. If a cached transcoded file exists -> serve it (with LRU access update).
+//  2. Probe the original file -> check bitrate threshold for resolution.
+//  3. If within threshold -> serve original directly (no transcode needed).
+//  4. If over threshold -> transcode to file -> faststart -> cache -> serve.
 func (a *App) serveEncodedMP4(c *gin.Context, asset *Asset) {
-	// Fast path: serve cached transcoded file if it exists.
+	// 1. Fast path: serve cached transcoded file if it exists.
 	if asset.EncodedVideoPath != "" {
 		if f, err := os.Open(asset.EncodedVideoPath); err == nil {
 			defer f.Close()
 			info, err := f.Stat()
 			if err == nil && info.Size() > 0 {
+				if a.videoCache != nil {
+					a.videoCache.RecordAccess(filepath.Base(asset.EncodedVideoPath))
+				}
 				c.Header("Content-Type", "video/mp4")
-				// http.ServeContent handles Range requests, Last-Modified,
-				// and Content-Length automatically.
 				http.ServeContent(c.Writer, c.Request, info.Name(), info.ModTime(), f)
 				return
 			}
 		}
 	}
 
-	// Slow path: transcode from original.
-	raw, err := os.ReadFile(asset.OriginalPath)
-	if err != nil {
-		c.Status(http.StatusNotFound)
-		return
-	}
-	out, err := a.video.Transcode(raw, video.TranscodeOptions{
-		Format:     "mp4",
-		VideoCodec: "h264",
-		AudioCodec: "copy",
-		Preset:     "software",
-	})
-	if err != nil || len(out) == 0 {
-		// Fallback: serve original.
-		c.File(asset.OriginalPath)
+	// 2. Probe the original file to get resolution and bitrate.
+	origPath := asset.OriginalPath
+	meta, err := a.video.ProbeFile(origPath)
+	if err != nil || meta == nil {
+		// Probe failed — serve original as fallback.
+		c.File(origPath)
 		return
 	}
 
-	// Cache the transcoded result for future requests.
+	// 3. Check bitrate threshold: if within limit, serve original directly.
+	thresholds := video.DefaultBitrateThresholds()
+	needsTranscode, _ := thresholds.NeedsTranscode(meta.Width, meta.Bitrate)
+	if !needsTranscode {
+		c.File(origPath)
+		return
+	}
+
+	// 4. Transcode: file-to-file with hardware acceleration fallback.
 	encDir := filepath.Join(a.cfg.ResourceDir, "encoded-video")
 	_ = os.MkdirAll(encDir, 0o755)
 	dst := filepath.Join(encDir, asset.ID+".mp4")
-	if werr := os.WriteFile(dst, out, 0o644); werr == nil {
-		a.store.DB.Model(&Asset{}).Where("id = ?", asset.ID).Updates(map[string]any{
-			"encoded_video_path": dst,
-		})
-		asset.EncodedVideoPath = dst
+
+	opts := video.TranscodeOptions{
+		Format:     "mp4",
+		VideoCodec: "h264",
+		AudioCodec: "copy",
+		Preset:     "fast",
+	}
+	if err := a.video.TranscodeToFile(origPath, dst, opts); err != nil {
+		// Transcode failed — serve original as fallback.
+		c.File(origPath)
+		return
 	}
 
-	c.Header("Content-Type", "video/mp4")
-	// Serve via http.ServeContent for Range request support.
-	http.ServeContent(c.Writer, c.Request, "", time.Time{}, bytes.NewReader(out))
+	// Post-process: remux with faststart so moov is at the front for streaming.
+	// If this fails, serve the non-faststart version — it still works via Range
+	// requests, just needs the full download before playback starts.
+	tmpDst := dst + ".faststart.mp4"
+	if err := a.video.RemuxFaststart(dst, tmpDst); err == nil {
+		os.Rename(tmpDst, dst)
+	}
+
+	// Record in cache.
+	if a.videoCache != nil {
+		info, err := os.Stat(dst)
+		if err == nil {
+			a.videoCache.Add(filepath.Base(dst), info.Size())
+			a.videoCache.Evict() // enforce LRU budget
+		}
+	}
+
+	// Update asset in DB.
+	a.store.DB.Model(&Asset{}).Where("id = ?", asset.ID).Updates(map[string]any{
+		"encoded_video_path": dst,
+	})
+	asset.EncodedVideoPath = dst
+
+	// Serve the transcoded file.
+	if f, err := os.Open(dst); err == nil {
+		defer f.Close()
+		info, err := f.Stat()
+		if err == nil {
+			c.Header("Content-Type", "video/mp4")
+			http.ServeContent(c.Writer, c.Request, info.Name(), info.ModTime(), f)
+			return
+		}
+	}
+	// Last resort fallback.
+	c.File(origPath)
 }
 
 // handleVideoPlayback mirrors GET /api/assets/:id/video/playback: returns the

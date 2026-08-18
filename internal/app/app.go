@@ -3,6 +3,8 @@ package app
 import (
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/gin-gonic/gin"
@@ -15,6 +17,10 @@ type App struct {
 	cfg   *Config
 	store *Store
 	video video.Processor
+
+	// videoCache manages the on-disk cache of transcoded video files with LRU
+	// eviction (max 2 GB default). Nil if cache dir creation failed.
+	videoCache *video.CacheManager
 
 	// jwtSecret is the per-instance HMAC key (loaded from SystemConfig). It
 	// overrides cfg.JWTSecret for token signing/verification so a browser
@@ -56,6 +62,11 @@ func NewApp(cfg *Config, store *Store) *App {
 		a.jwtSecret = cfg.JWTSecret
 	}
 	a.bus = newEventBus()
+	// Initialize video cache (2 GB LRU).
+	encDir := filepath.Join(cfg.ResourceDir, "encoded-video")
+	if err := os.MkdirAll(encDir, 0o755); err == nil {
+		a.videoCache = video.NewCacheManager(encDir, 2<<30)
+	}
 	if g, err := geo.Load(); err != nil {
 		log.Printf("[geo] reverse-geocoder unavailable: %v", err)
 	} else {

@@ -78,6 +78,7 @@ type Asset struct {
 	HasThumbnail     bool           `json:"hasThumbnail"`
 	Size             int64          `json:"-"`
 	ExifID           string         `gorm:"type:text" json:"exifId"`
+	LastPlayedAt     *time.Time     `gorm:"type:datetime" json:"-"`
 	CreatedAt        time.Time      `json:"createdAt"`
 	UpdatedAt        time.Time      `json:"updatedAt"`
 	DeletedAt        gorm.DeletedAt `gorm:"index" json:"-"`

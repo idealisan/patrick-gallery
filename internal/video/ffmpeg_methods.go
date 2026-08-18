@@ -147,7 +147,7 @@ func (f *ffmpeg) Thumbnail(in []byte, opts ThumbnailOptions) ([]byte, error) {
 		// frame instead of the real content).
 		srcFmt := int(ctxFrameFormat(frame))
 		sws := f.fn.swsGetContext(uintptr(w), uintptr(h), uintptr(srcFmt), uintptr(dw), uintptr(dh), avPixFmtRGBA,
-			0x10 /*SWS_BILINEAR*/, 0, 0, 0)
+			0x200 /*SWS_LANCZOS*/, 0, 0, 0)
 		if sws == 0 {
 			return errors.New("sws_getContext failed")
 		}

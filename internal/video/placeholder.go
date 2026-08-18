@@ -5,6 +5,7 @@ import (
 	"image"
 	"image/color"
 	"image/jpeg"
+	"os"
 )
 
 // placeholder is the universal fallback backend. It lets the server run and
@@ -50,4 +51,25 @@ func (placeholder) Thumbnail(in []byte, opts ThumbnailOptions) ([]byte, error) {
 // Transcode returns the original untouched (no re-encoding available).
 func (placeholder) Transcode(in []byte, opts TranscodeOptions) ([]byte, error) {
 	return in, nil
+}
+
+func (placeholder) ProbeFile(path string) (*Metadata, error) {
+	return &Metadata{HasVideo: false}, nil
+}
+
+func (placeholder) TranscodeToFile(srcPath, dstPath string, opts TranscodeOptions) error {
+	// Copy the original file as-is (no re-encoding available).
+	in, err := os.ReadFile(srcPath)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(dstPath, in, 0o644)
+}
+
+func (placeholder) RemuxFaststart(srcPath, dstPath string) error {
+	in, err := os.ReadFile(srcPath)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(dstPath, in, 0o644)
 }

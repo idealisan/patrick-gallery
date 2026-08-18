@@ -290,7 +290,7 @@ func (f *ffmpeg) transcode(in []byte, opts TranscodeOptions) ([]byte, error) {
 				fn.swsFreeContext(sws)
 			}
 			sws = fn.swsGetContext(uintptr(srcW), uintptr(srcH), uintptr(srcFmt),
-				uintptr(dw), uintptr(dh), avPixFmtYUV420P, 0x10 /*SWS_BILINEAR*/, 0, 0, 0)
+				uintptr(dw), uintptr(dh), avPixFmtYUV420P, 0x200 /*SWS_LANCZOS*/, 0, 0, 0)
 			if sws == 0 {
 				return errors.New("transcode: sws_getContext")
 			}
