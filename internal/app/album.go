@@ -195,15 +195,28 @@ func (a *App) handleAlbumAddAssets(c *gin.Context) {
 	var b albumAssetsBody
 	_ = c.ShouldBindJSON(&b)
 	now := time.Now().UTC()
+	type addAssetResult struct {
+		ID      string `json:"id"`
+		Success bool   `json:"success"`
+		Error   string `json:"error,omitempty"`
+	}
+	results := make([]addAssetResult, 0, len(b.IDs))
 	var added []string
 	for i, aid := range b.IDs {
+		var asset Asset
+		if err := a.store.DB.First(&asset, "id = ? AND owner_id = ? AND is_trash = ?", aid, uid, false).Error; err != nil {
+			results = append(results, addAssetResult{ID: aid, Error: "asset_not_found"})
+			continue
+		}
 		var cnt int64
 		a.store.DB.Model(&AlbumAsset{}).Where("album_id = ? AND asset_id = ?", id, aid).Count(&cnt)
 		if cnt > 0 {
+			results = append(results, addAssetResult{ID: aid, Error: "duplicate"})
 			continue
 		}
 		a.store.DB.Create(&AlbumAsset{AlbumID: id, AssetID: aid, Order: b.Order + i, CreatedAt: now})
 		added = append(added, aid)
+		results = append(results, addAssetResult{ID: aid, Success: true})
 	}
 	if al.AlbumThumbnailAssetId == "" && len(b.IDs) > 0 {
 		al.AlbumThumbnailAssetId = b.IDs[0]
@@ -213,7 +226,7 @@ func (a *App) handleAlbumAddAssets(c *gin.Context) {
 	if len(added) > 0 {
 		a.emit("album.addAssets", map[string]any{"id": id, "assetIds": added})
 	}
-	c.JSON(http.StatusOK, gin.H{"added": added, "album": a.albumToResponse(al)})
+	c.JSON(http.StatusOK, results)
 }
 
 func (a *App) handleAlbumRemoveAssets(c *gin.Context) {

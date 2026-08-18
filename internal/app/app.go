@@ -241,6 +241,7 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.PUT("/albums/:id", a.handleAlbumUpdate)
 		api.DELETE("/albums/:id", a.handleAlbumDelete)
 		api.POST("/albums/:id/assets", a.handleAlbumAddAssets)
+		api.PUT("/albums/:id/assets", a.handleAlbumAddAssets)
 		api.DELETE("/albums/:id/assets", a.handleAlbumRemoveAssets)
 		api.PATCH("/albums/:id/assets", a.handleAlbumUpdateAssets)
 		api.PUT("/albums/:id/cover", a.handleAlbumSetCover)
@@ -372,7 +373,6 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		// graceful ML/sync stubs). See internal/app/compat_v3.go.
 		api.PATCH("/albums/:id", a.handleAlbumUpdate)
 		api.PATCH("/shared-links/:id", a.handleSharedLinkUpdate)
-		api.PUT("/albums/:id/assets", a.handleAlbumUpdateAssets)
 		api.GET("/map/reverse-geocode", a.handleMapReverseGeocode)
 		api.GET("/search/suggestions", a.handleSearchSuggestions)
 		api.GET("/server/version-check", a.handleServerVersionCheck)
@@ -386,7 +386,7 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.POST("/sync/ack", a.handleSyncAck)
 		api.DELETE("/sync/ack", a.handleSyncAck)
 		api.POST("/sync/stream", a.handleSyncStream)
-	api.GET("/sync/stream", a.handleSyncStream)
+		api.GET("/sync/stream", a.handleSyncStream)
 		api.GET("/people/:id/statistics", a.handlePersonStatistics)
 		// faces: detection/recognition need an ML backend (deferred) -> 501.
 		api.GET("/faces", a.handleFacesList)
