@@ -9,10 +9,16 @@ import (
 
 type AlbumResponse struct {
 	Album
+	AlbumName                  string      `json:"albumName"`
+	Description                string      `json:"description"`
+	AlbumThumbnailAssetID      *string     `json:"albumThumbnailAssetId"`
+	IsActivityEnabled          bool        `json:"isActivityEnabled"`
+	AlbumUsers                 []AlbumUser `json:"albumUsers"`
+	HasSharedLink              bool        `json:"hasSharedLink"`
+	Shared                     bool        `json:"shared"`
+	Order                      string      `json:"order"`
 	AssetCount                 int         `json:"assetCount"`
 	LastModifiedAssetTimestamp *time.Time  `json:"lastModifiedAssetTimestamp,omitempty"`
-	Shared                     bool        `json:"shared,omitempty"`
-	AlbumUsers                 []AlbumUser `json:"albumUsers,omitempty"`
 }
 
 func (a *App) albumToResponse(al Album) AlbumResponse {
@@ -20,7 +26,24 @@ func (a *App) albumToResponse(al Album) AlbumResponse {
 	a.store.DB.Model(&AlbumAsset{}).Where("album_id = ?", al.ID).Count(&cnt)
 	var users []AlbumUser
 	a.store.DB.Where("album_id = ?", al.ID).Find(&users)
-	return AlbumResponse{Album: al, AssetCount: int(cnt), AlbumUsers: users, Shared: len(users) > 0}
+	var sharedLinkCount int64
+	a.store.DB.Model(&SharedLink{}).Where("album_id = ?", al.ID).Count(&sharedLinkCount)
+	var thumbnail *string
+	if al.AlbumThumbnailAssetId != "" {
+		thumbnail = &al.AlbumThumbnailAssetId
+	}
+	return AlbumResponse{
+		Album:                 al,
+		AlbumName:             al.AlbumName,
+		Description:           al.Description,
+		AlbumThumbnailAssetID: thumbnail,
+		IsActivityEnabled:     al.IsActivityEnabled,
+		AlbumUsers:            users,
+		HasSharedLink:         sharedLinkCount > 0,
+		Shared:                len(users) > 0,
+		Order:                 "asc",
+		AssetCount:            int(cnt),
+	}
 }
 
 func (a *App) handleAlbumList(c *gin.Context) {

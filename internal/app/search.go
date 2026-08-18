@@ -8,15 +8,16 @@ import (
 )
 
 type searchRequest struct {
-	Query    string `json:"query"`
-	Type     string `json:"type"`
-	Recent   bool   `json:"recent"`
-	WithExif bool   `json:"withExif"`
-	Take     int    `json:"take"`
-	City     string `json:"city"`
-	Country  string `json:"country"`
-	Make     string `json:"make"`
-	Model    string `json:"model"`
+	Query            string `json:"query"`
+	OriginalFileName string `json:"originalFileName"`
+	Type             string `json:"type"`
+	Recent           bool   `json:"recent"`
+	WithExif         bool   `json:"withExif"`
+	Take             int    `json:"take"`
+	City             string `json:"city"`
+	Country          string `json:"country"`
+	Make             string `json:"make"`
+	Model            string `json:"model"`
 }
 
 // searchResponse / searchAssetResult / searchAlbumResult mirror Immich's
@@ -106,6 +107,15 @@ func (a *App) handleSearchMetadata(c *gin.Context) {
 	uid := currentUserID(c)
 	var req searchRequest
 	_ = c.ShouldBindJSON(&req)
+	var assets []Asset
+	assetQuery := a.store.DB.Where("owner_id = ? AND is_trash = ?", uid, false)
+	if req.OriginalFileName != "" {
+		assetQuery = assetQuery.Where("original_file_name LIKE ?", "%"+req.OriginalFileName+"%")
+	}
+	if req.OriginalFileName != "" {
+		assetQuery.Find(&assets)
+	}
+
 	var exifs []Exif
 	q := a.store.DB.Model(&Exif{})
 	if req.Make != "" {
@@ -120,14 +130,25 @@ func (a *App) handleSearchMetadata(c *gin.Context) {
 	if req.Country != "" {
 		q = q.Where("country LIKE ?", "%"+req.Country+"%")
 	}
-	q.Find(&exifs)
+	if req.Make != "" || req.Model != "" || req.City != "" || req.Country != "" {
+		q.Find(&exifs)
+	}
 	ids := make([]string, 0, len(exifs))
 	for _, e := range exifs {
 		ids = append(ids, e.AssetID)
 	}
-	var assets []Asset
 	if len(ids) > 0 {
-		a.store.DB.Where("id IN ? AND owner_id = ? AND is_trash = ?", ids, uid, false).Find(&assets)
+		var exifAssets []Asset
+		a.store.DB.Where("id IN ? AND owner_id = ? AND is_trash = ?", ids, uid, false).Find(&exifAssets)
+		seen := make(map[string]bool, len(assets))
+		for _, asset := range assets {
+			seen[asset.ID] = true
+		}
+		for _, asset := range exifAssets {
+			if !seen[asset.ID] {
+				assets = append(assets, asset)
+			}
+		}
 	}
 	out := make([]AssetResponse, 0, len(assets))
 	for _, as := range assets {
