@@ -95,16 +95,16 @@ func (a *App) handleServerVersion(c *gin.Context) {
 // are hidden).
 func (a *App) handleServerFeatures(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
-		"configFile":          false,
-		"duplicateDetection":  true,
-		"email":               false,
-		"facialRecognition":   false,
-		"importFaces":         false,
-		"map":                 true,
-		"oauth":               false,
-		"oauthAutoLaunch":     false,
-		"ocr":                 false,
-		"passwordLogin":       true,
+		"configFile":         false,
+		"duplicateDetection": true,
+		"email":              false,
+		"facialRecognition":  false,
+		"importFaces":        false,
+		"map":                true,
+		"oauth":              false,
+		"oauthAutoLaunch":    false,
+		"ocr":                a.ocr != nil && a.ocr.Name() != "ocr-chain(empty)",
+		"passwordLogin":      true,
 		// realtimeTranscoding:false is HONEST. The official Immich web uses
 		// hls.js when this flag is true and expects the real HLS contract: an
 		// fMP4 segmented stream (init.mp4 + seg_N.m4s, EXT-X-MAP, VERSION 7),
@@ -219,14 +219,14 @@ func (a *App) handleServerStatistics(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"photos":       photos,
-		"videos":       videos,
-		"usage":        usage,
-		"usagePhotos":  usagePhotos,
-		"usageVideos":  usageVideos,
-		"usageByUser":  list,
-		"diskSizeRaw":  diskSizeRaw,
-		"diskUseRaw":   diskUseRaw,
+		"photos":      photos,
+		"videos":      videos,
+		"usage":       usage,
+		"usagePhotos": usagePhotos,
+		"usageVideos": usageVideos,
+		"usageByUser": list,
+		"diskSizeRaw": diskSizeRaw,
+		"diskUseRaw":  diskUseRaw,
 	})
 }
 

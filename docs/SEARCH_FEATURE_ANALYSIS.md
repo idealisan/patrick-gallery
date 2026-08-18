@@ -1856,14 +1856,19 @@ macOS native adapter
 - 通用 JSON HTTP adapter。
 - 明确的错误传播和空结果校验。
 
-当前尚未落地：
+当前已落地：
 
 - macOS Vision 原生 adapter。
-- Windows native/community 动态库 adapter。
-- Linux community 动态库 adapter。
-- OCR 结果持久化到资产 OCR 表。
+- Tesseract/Leptonica 社区 C ABI adapter（本机 macOS 已验证）。
+- OCR 结果持久化到 `asset_ocrs` 表。
+- `/api/search/metadata` 的 `ocr` 文本查询。
+- provider 可用时动态报告 `ocr:true`。
 
-上述未落地项不能由空实现伪造成功；实际 adapter 注册后，才可以把对应 feature 报为可用。
+仍待落地：
+
+- Windows native/community 动态库构建与真实测试。
+- Linux community 动态库构建与真实测试。
+- OCR 结果编辑、删除和增量重算任务。
 
 ### 22.5 macOS native/community 实测
 
@@ -1885,6 +1890,13 @@ macOS native adapter
 3. Tesseract 社区 shim 使用相同 C ABI，通过 purego 加载。
 4. 本机 Tesseract 5.5.0 + Leptonica 1.85.0，额外加载 `chi_sim.traineddata`。
 5. `go test ./...` 和 `go build` 全部通过。
+
+6. OCR 全流程真实闭环通过：
+   - 用 Vision backend 上传测试 PNG。
+   - `AssetOcr` 行成功写入 SQLite。
+   - OCR 文本包含 `设计目标`。
+   - `POST /api/search/metadata` 携带 `{"ocr":"设计目标"}` 返回该资产。
+   - `/api/server/features` 在 provider 可用时返回 `ocr:true`。
 
 当前 Mac runtime 顺序：
 

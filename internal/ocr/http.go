@@ -42,10 +42,11 @@ func (p *HTTPProcessor) Recognize(req Request) (Result, error) {
 		req.Context = context.Background()
 	}
 	payload := struct {
-		Name string `json:"name"`
-		MIME string `json:"mime"`
-		Data []byte `json:"data"`
-	}{Name: req.Name, MIME: req.MIME, Data: req.Data}
+		Name     string `json:"name"`
+		MIME     string `json:"mime"`
+		Data     []byte `json:"data"`
+		Language string `json:"language,omitempty"`
+	}{Name: req.Name, MIME: req.MIME, Data: req.Data, Language: req.Language}
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return Result{}, fmt.Errorf("ocr http encode: %w", err)

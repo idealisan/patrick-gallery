@@ -3,7 +3,9 @@ package app
 import (
 	"crypto/sha1"
 	"encoding/hex"
+	"encoding/json"
 	"io"
+	"log"
 	"math"
 	"os"
 	"path/filepath"
@@ -12,6 +14,7 @@ import (
 	"time"
 
 	imgproc "immich-go/internal/image"
+	"immich-go/internal/ocr"
 	"immich-go/internal/video"
 )
 
@@ -67,6 +70,7 @@ type mediaResult struct {
 	height    int     // pixel height
 	duration  float64 // seconds (video from probe); 0 for images / unknown
 	thumbhash string  // base64 ThumbHash placeholder (Immich-compatible)
+	ocr       *ocr.Result
 }
 
 // processMedia reads the file at path, generates a thumbnail and (for images)
@@ -89,6 +93,14 @@ func (a *App) processMedia(path, assetID, ownerID, typ string, fallbackDate time
 	tp := filepath.Join(thumbDir, assetID+".jpg")
 
 	if typ == "IMAGE" {
+		if a.ocr != nil {
+			result, ocrErr := a.ocr.Recognize(ocr.Request{Data: raw, MIME: mimeByExt(path), Name: filepath.Base(path), Language: a.cfg.OCRLanguage})
+			if ocrErr == nil {
+				res.ocr = &result
+			} else {
+				log.Printf("[ocr] %s: %v", filepath.Base(path), ocrErr)
+			}
+		}
 		exif := &Exif{ID: newUUID(), AssetID: assetID}
 		if info, eerr := imgproc.Extract(raw); eerr == nil && info != nil {
 			exif.Make = info.Make
@@ -220,6 +232,13 @@ func (a *App) ingestStoredFile(opts ingestOptions) (*Asset, error) {
 	}
 	if err := a.store.DB.Create(&asset).Error; err != nil {
 		return nil, err
+	}
+	if res.ocr != nil && strings.TrimSpace(res.ocr.Text) != "" {
+		words, _ := json.Marshal(res.ocr.Words)
+		now := time.Now().UTC()
+		if err := a.store.DB.Create(&AssetOcr{AssetID: asset.ID, Text: res.ocr.Text, WordsJSON: string(words), CreatedAt: now, UpdatedAt: now}).Error; err != nil {
+			return nil, err
+		}
 	}
 	return &asset, nil
 }

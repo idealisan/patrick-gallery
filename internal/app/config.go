@@ -44,6 +44,7 @@ type Config struct {
 	OCRModel         string
 	OCRPrompt        string
 	OCRDetail        string
+	OCRLanguage      string
 	OCRTimeout       int
 	OCRNativePath    string
 	OCRCommunityPath string
@@ -98,6 +99,7 @@ func LoadConfig() *Config {
 		OCRModel:         getEnv("IMMICH_OCR_MODEL", "gpt-4.1-mini"),
 		OCRPrompt:        getEnv("IMMICH_OCR_PROMPT", ""),
 		OCRDetail:        getEnv("IMMICH_OCR_DETAIL", "high"),
+		OCRLanguage:      getEnv("IMMICH_OCR_LANGUAGE", "zh-Hans"),
 		OCRTimeout:       envInt("IMMICH_OCR_TIMEOUT_SECONDS", 120),
 		OCRNativePath:    getEnv("IMMICH_OCR_NATIVE_PATH", ""),
 		OCRCommunityPath: getEnv("IMMICH_OCR_COMMUNITY_PATH", ""),

@@ -102,6 +102,17 @@ type Exif struct {
 	Orientation      *int    `json:"orientation,omitempty"`
 }
 
+// AssetOcr stores the normalized OCR output for an asset. Words are retained
+// as JSON so providers can preserve coordinates/confidence without coupling
+// the database schema to one engine.
+type AssetOcr struct {
+	AssetID   string    `gorm:"primaryKey;type:text" json:"assetId"`
+	Text      string    `gorm:"type:text" json:"text"`
+	WordsJSON string    `gorm:"type:text" json:"-"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
 // NotificationToken stores a mobile push device token registered by a client
 // via POST /api/notifications. immich-go has no external push provider in its
 // private-LAN scope, so these are persisted for data-model completeness only;
@@ -276,19 +287,19 @@ type SystemConfig struct {
 // (hashed) request token links a JWT back to its session row; PIN lock state
 // lives in PinExpiresAt.
 type Session struct {
-	ID                string     `gorm:"primaryKey;type:text" json:"id"`
-	UserID            string     `gorm:"index;type:text" json:"userId"`
-	ParentID          string     `gorm:"type:text" json:"parentId,omitempty"`
-	Token             string     `gorm:"type:text" json:"-"` // sha256 of the issued JWT
-	DeviceOS          string     `gorm:"type:text" json:"deviceOS"`
-	DeviceType        string     `gorm:"type:text" json:"deviceType"`
-	AppVersion        string     `gorm:"type:text" json:"appVersion,omitempty"`
-	IsPendingSyncReset bool      `json:"isPendingSyncReset"`
-	PinExpiresAt      *time.Time `json:"pinExpiresAt,omitempty"`
-	Current           bool       `json:"current"`
-	CreatedAt         time.Time  `json:"createdAt"`
-	UpdatedAt         time.Time  `json:"updatedAt"`
-	ExpiresAt         time.Time  `json:"expiresAt"`
+	ID                 string     `gorm:"primaryKey;type:text" json:"id"`
+	UserID             string     `gorm:"index;type:text" json:"userId"`
+	ParentID           string     `gorm:"type:text" json:"parentId,omitempty"`
+	Token              string     `gorm:"type:text" json:"-"` // sha256 of the issued JWT
+	DeviceOS           string     `gorm:"type:text" json:"deviceOS"`
+	DeviceType         string     `gorm:"type:text" json:"deviceType"`
+	AppVersion         string     `gorm:"type:text" json:"appVersion,omitempty"`
+	IsPendingSyncReset bool       `json:"isPendingSyncReset"`
+	PinExpiresAt       *time.Time `json:"pinExpiresAt,omitempty"`
+	Current            bool       `json:"current"`
+	CreatedAt          time.Time  `json:"createdAt"`
+	UpdatedAt          time.Time  `json:"updatedAt"`
+	ExpiresAt          time.Time  `json:"expiresAt"`
 }
 
 // UserPreferences persists a user's UI preferences as a JSON blob (keyed by
@@ -298,28 +309,28 @@ type UserPreferences struct {
 	Data   string `gorm:"type:text" json:"data"`
 }
 
-func (User) TableName() string                { return "users" }
-func (Asset) TableName() string               { return "assets" }
-func (Exif) TableName() string                { return "exif" }
-func (Album) TableName() string               { return "albums" }
-func (AlbumAsset) TableName() string          { return "albums_assets_assets" }
-func (AlbumUser) TableName() string           { return "albums_users_album" }
-func (Library) TableName() string             { return "libraries" }
-func (Partner) TableName() string             { return "partners" }
-func (Tag) TableName() string                 { return "tags" }
-func (AssetTag) TableName() string            { return "tags_assets" }
+func (User) TableName() string       { return "users" }
+func (Asset) TableName() string      { return "assets" }
+func (Exif) TableName() string       { return "exif" }
+func (Album) TableName() string      { return "albums" }
+func (AlbumAsset) TableName() string { return "albums_assets_assets" }
+func (AlbumUser) TableName() string  { return "albums_users_album" }
+func (Library) TableName() string    { return "libraries" }
+func (Partner) TableName() string    { return "partners" }
+func (Tag) TableName() string        { return "tags" }
+func (AssetTag) TableName() string   { return "tags_assets" }
 
 // AssetEdit stores a non-destructive edit applied to an asset (crop / rotate /
 // mirror). Only action + parameters are persisted (no metadata fields); the
 // client applies them to the original when rendering. Parameters is a JSON
 // blob whose shape depends on the action.
 type AssetEdit struct {
-	ID        string    `gorm:"primaryKey;type:text" json:"id"`
-	AssetID   string    `gorm:"index;type:text" json:"assetId"`
-	Action    string    `gorm:"type:text" json:"action"` // crop | rotate | mirror
-	Parameters string   `gorm:"type:text" json:"parameters"`
-	Sequence  int       `gorm:"type:int" json:"sequence"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	ID         string    `gorm:"primaryKey;type:text" json:"id"`
+	AssetID    string    `gorm:"index;type:text" json:"assetId"`
+	Action     string    `gorm:"type:text" json:"action"` // crop | rotate | mirror
+	Parameters string    `gorm:"type:text" json:"parameters"`
+	Sequence   int       `gorm:"type:int" json:"sequence"`
+	UpdatedAt  time.Time `json:"updatedAt"`
 }
 
 // Stack groups assets that share the same subject (manual stacking — no ML).
@@ -339,9 +350,9 @@ type StackAsset struct {
 	Order   int    `json:"order"`
 }
 
-func (AssetEdit) TableName() string  { return "asset_edit" }
-func (Stack) TableName() string      { return "stacks" }
-func (StackAsset) TableName() string { return "stacks_assets" }
+func (AssetEdit) TableName() string           { return "asset_edit" }
+func (Stack) TableName() string               { return "stacks" }
+func (StackAsset) TableName() string          { return "stacks_assets" }
 func (Person) TableName() string              { return "person" }
 func (Activity) TableName() string            { return "activity" }
 func (SharedLink) TableName() string          { return "shared_links" }

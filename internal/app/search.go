@@ -110,10 +110,15 @@ func (a *App) handleSearchMetadata(c *gin.Context) {
 	var req searchRequest
 	_ = c.ShouldBindJSON(&req)
 	if req.OCR != "" {
-		c.JSON(http.StatusNotImplemented, gin.H{
-			"error":      "OCR search is not available without an OCR backend",
-			"statusCode": http.StatusNotImplemented,
-		})
+		var ocrAssets []Asset
+		a.store.DB.Where("owner_id = ? AND is_trash = ? AND id IN (SELECT asset_id FROM asset_ocrs WHERE text LIKE ?)", uid, false, "%"+req.OCR+"%").Find(&ocrAssets)
+		assets := make([]Asset, 0, len(ocrAssets))
+		assets = append(assets, ocrAssets...)
+		out := make([]AssetResponse, 0, len(assets))
+		for _, as := range assets {
+			out = append(out, a.toResponse(as))
+		}
+		c.JSON(http.StatusOK, emptySearchResponse(out))
 		return
 	}
 	var assets []Asset
