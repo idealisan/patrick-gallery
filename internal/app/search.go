@@ -10,6 +10,8 @@ import (
 type searchRequest struct {
 	Query            string `json:"query"`
 	OriginalFileName string `json:"originalFileName"`
+	Description      string `json:"description"`
+	OCR              string `json:"ocr"`
 	Type             string `json:"type"`
 	Recent           bool   `json:"recent"`
 	WithExif         bool   `json:"withExif"`
@@ -107,12 +109,23 @@ func (a *App) handleSearchMetadata(c *gin.Context) {
 	uid := currentUserID(c)
 	var req searchRequest
 	_ = c.ShouldBindJSON(&req)
+	if req.OCR != "" {
+		c.JSON(http.StatusNotImplemented, gin.H{
+			"error":      "OCR search is not available without an OCR backend",
+			"statusCode": http.StatusNotImplemented,
+		})
+		return
+	}
 	var assets []Asset
 	assetQuery := a.store.DB.Where("owner_id = ? AND is_trash = ?", uid, false)
 	if req.OriginalFileName != "" {
 		assetQuery = assetQuery.Where("original_file_name LIKE ?", "%"+req.OriginalFileName+"%")
 	}
-	if req.OriginalFileName != "" {
+	if req.Description != "" {
+		likeDescription := "%" + req.Description + "%"
+		assetQuery = assetQuery.Joins("JOIN exifs ON exifs.asset_id = assets.id").Where("exifs.description LIKE ?", likeDescription)
+	}
+	if req.OriginalFileName != "" || req.Description != "" {
 		assetQuery.Find(&assets)
 	}
 
@@ -289,5 +302,8 @@ func (a *App) handleSearchStatistics(c *gin.Context) {
 // available. This is honest-empty (not a fake success): with no embedding
 // model there is genuinely nothing to match.
 func (a *App) handleSearchSmart(c *gin.Context) {
-	c.JSON(http.StatusOK, emptySearchResponse(nil))
+	c.JSON(http.StatusNotImplemented, gin.H{
+		"error":      "semantic search is not available without an embedding backend",
+		"statusCode": http.StatusNotImplemented,
+	})
 }

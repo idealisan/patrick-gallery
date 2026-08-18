@@ -37,6 +37,14 @@ type Config struct {
 	// "preview" render on demand from the original. Mirrors Immich's generated
 	// preview image size. Override with IMMICH_PREVIEW_SIZE.
 	PreviewSize int
+
+	OCRProvider string
+	OCRBaseURL  string
+	OCRAPIKey   string
+	OCRModel    string
+	OCRPrompt   string
+	OCRDetail   string
+	OCRTimeout  int
 }
 
 func getEnv(k, def string) string {
@@ -82,6 +90,13 @@ func LoadConfig() *Config {
 		CompatVersion:  getEnv("IMMICH_COMPAT_VERSION", "3.1.0"),
 		TrashDays:      trashDaysFromEnv(),
 		PreviewSize:    previewSizeFromEnv(),
+		OCRProvider:    getEnv("IMMICH_OCR_PROVIDER", "none"),
+		OCRBaseURL:     getEnv("IMMICH_OCR_BASE_URL", "https://api.openai.com/v1"),
+		OCRAPIKey:      getEnv("IMMICH_OCR_API_KEY", ""),
+		OCRModel:       getEnv("IMMICH_OCR_MODEL", "gpt-4.1-mini"),
+		OCRPrompt:      getEnv("IMMICH_OCR_PROMPT", ""),
+		OCRDetail:      getEnv("IMMICH_OCR_DETAIL", "high"),
+		OCRTimeout:     envInt("IMMICH_OCR_TIMEOUT_SECONDS", 120),
 	}
 	maj, min, pat := 3, 1, 0
 	if n, err := fmt.Sscanf(cfg.CompatVersion, "%d.%d.%d", &maj, &min, &pat); n >= 1 && err == nil {
@@ -90,4 +105,16 @@ func LoadConfig() *Config {
 		cfg.CompatMajor, cfg.CompatMinor, cfg.CompatPatch = 1, 130, 0
 	}
 	return cfg
+}
+
+func envInt(key string, fallback int) int {
+	value := os.Getenv(key)
+	if value == "" {
+		return fallback
+	}
+	n, err := strconv.Atoi(value)
+	if err != nil || n <= 0 {
+		return fallback
+	}
+	return n
 }

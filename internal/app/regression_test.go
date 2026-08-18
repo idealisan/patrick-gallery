@@ -507,18 +507,12 @@ func TestSearchAggregations(t *testing.T) {
 		t.Errorf("large-assets returned %d, want >=2", len(large))
 	}
 
-	// smart search: no ML backend, so it returns an empty, schema-conformant
-	// SearchResponseDto (honest-empty, not a 501).
+	// Smart search requires an ML embedding backend, which is not available
+	// under the pure-Go baseline. It must fail honestly instead of returning
+	// a fake successful empty result.
 	w = do(r, "POST", "/api/search/smart", token, mustJSON(t, map[string]string{"query": "cat"}), "application/json")
-	if w.Code != http.StatusOK {
-		t.Errorf("smart search -> %d, want 200", w.Code)
-	}
-	var smart searchResponse
-	if err := json.Unmarshal(w.Body.Bytes(), &smart); err != nil {
-		t.Fatalf("smart decode: %v", err)
-	}
-	if smart.Assets.Total != 0 {
-		t.Errorf("smart search expected empty results, got %d", smart.Assets.Total)
+	if w.Code != http.StatusNotImplemented {
+		t.Errorf("smart search -> %d, want 501", w.Code)
 	}
 
 	_ = app

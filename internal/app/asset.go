@@ -72,7 +72,7 @@ type UserResponse struct {
 	Name             string `json:"name"`
 	AvatarColor      string `json:"avatarColor"`
 	ProfileChangedAt string `json:"profileChangedAt,omitempty"`
-	ProfileImagePath string `json:"profileImagePath,omitempty"`
+	ProfileImagePath string `json:"profileImagePath"`
 }
 
 func (a *App) toResponse(asset Asset) AssetResponse {

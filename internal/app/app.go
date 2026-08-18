@@ -6,9 +6,11 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"immich-go/internal/app/geo"
+	"immich-go/internal/ocr"
 	"immich-go/internal/video"
 )
 
@@ -17,6 +19,7 @@ type App struct {
 	cfg   *Config
 	store *Store
 	video video.Processor
+	ocr   ocr.Processor
 
 	// videoCache manages the on-disk cache of transcoded video files with LRU
 	// eviction (max 2 GB default). Nil if cache dir creation failed.
@@ -51,7 +54,18 @@ type App struct {
 }
 
 func NewApp(cfg *Config, store *Store) *App {
-	a := &App{cfg: cfg, store: store, video: video.New()}
+	networkOCR, err := ocr.BuildNetwork(cfg.OCRProvider, ocr.OpenAIConfig{
+		BaseURL: cfg.OCRBaseURL,
+		APIKey:  cfg.OCRAPIKey,
+		Model:   cfg.OCRModel,
+		Prompt:  cfg.OCRPrompt,
+		Detail:  cfg.OCRDetail,
+		Timeout: time.Duration(cfg.OCRTimeout) * time.Second,
+	}, ocr.HTTPConfig{Endpoint: cfg.OCRBaseURL, Token: cfg.OCRAPIKey, Timeout: time.Duration(cfg.OCRTimeout) * time.Second})
+	if err != nil {
+		log.Printf("[ocr] network backend configuration error: %v", err)
+	}
+	a := &App{cfg: cfg, store: store, video: video.New(), ocr: ocr.NewChain(networkOCR)}
 	// Resolve the effective JWT secret: prefer the per-instance value
 	// persisted in SystemConfig; fall back to the configured secret only if
 	// the row has none (should not happen after ensureJWTSecret).
