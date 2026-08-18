@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -30,6 +31,8 @@ type searchRequest struct {
 	TakenAfter       string   `json:"takenAfter"`
 	TakenBefore      string   `json:"takenBefore"`
 	Rating           *int     `json:"rating"`
+	Page             int      `json:"page"`
+	Size             int      `json:"size"`
 }
 
 // searchResponse / searchAssetResult / searchAlbumResult mirror Immich's
@@ -65,6 +68,15 @@ func emptySearchResponse(assets []AssetResponse) searchResponse {
 		Albums: searchAlbumResult{Items: []interface{}{}, Count: 0, Facets: []interface{}{}, Total: 0},
 		Assets: searchAssetResult{Items: items, Count: len(items), Facets: []interface{}{}, NextPage: nil, Total: len(items)},
 	}
+}
+
+func searchResponseForAssets(assets []AssetResponse, page, size int, hasMore bool) searchResponse {
+	response := emptySearchResponse(assets)
+	if hasMore {
+		next := fmt.Sprintf("%d", page+1)
+		response.Assets.NextPage = &next
+	}
+	return response
 }
 
 func (a *App) handleSearch(c *gin.Context) {
@@ -182,16 +194,24 @@ func (a *App) handleSearchMetadata(c *gin.Context) {
 			assetQuery = assetQuery.Where("assets.id IN (SELECT asset_id FROM exif WHERE rating = ?)", *req.Rating)
 		}
 	}
-	limit := 1000
-	if req.Take > 0 && req.Take < limit {
-		limit = req.Take
+	page := req.Page
+	if page < 1 {
+		page = 1
 	}
-	assetQuery.Order("assets.local_date_time DESC").Limit(limit).Find(&assets)
+	size := req.Size
+	if size < 1 || size > 1000 {
+		size = 1000
+	}
+	assetQuery.Order("assets.local_date_time DESC").Offset((page - 1) * size).Limit(size + 1).Find(&assets)
+	hasMore := len(assets) > size
+	if hasMore {
+		assets = assets[:size]
+	}
 	out := make([]AssetResponse, 0, len(assets))
 	for _, as := range assets {
 		out = append(out, a.toResponse(as))
 	}
-	c.JSON(http.StatusOK, emptySearchResponse(out))
+	c.JSON(http.StatusOK, searchResponseForAssets(out, page, size, hasMore))
 }
 
 func (a *App) handleSearchPerson(c *gin.Context) {

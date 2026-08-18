@@ -362,7 +362,17 @@ func (a *App) runJob(id string, spec jobSpec, items []jobItem) {
 		go func(it jobItem) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			ok, err := spec.run(a, it)
+			var ok bool
+			var err error
+			for attempt := 1; attempt <= 3; attempt++ {
+				ok, err = spec.run(a, it)
+				if ok || err == nil {
+					break
+				}
+				if attempt < 3 {
+					time.Sleep(time.Duration(attempt) * 250 * time.Millisecond)
+				}
+			}
 			st.tick(ok, err)
 		}(it)
 	}

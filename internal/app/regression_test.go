@@ -201,6 +201,75 @@ func TestRegression(t *testing.T) {
 		if found.Assets.Total != 1 || found.Assets.Items[0].ID != assetID {
 			t.Fatalf("metadata search result=%+v", found.Assets)
 		}
+		if w := do(r, "GET", "/api/search/suggestions?type=cameraMake", token, nil, ""); w.Code != 200 {
+			t.Fatalf("camera suggestions -> %d", w.Code)
+		} else {
+			var makes []string
+			if err := json.Unmarshal(w.Body.Bytes(), &makes); err != nil {
+				t.Fatal(err)
+			}
+			if len(makes) != 1 || makes[0] != "TestCam" {
+				t.Fatalf("camera suggestions=%v", makes)
+			}
+		}
+		if w := do(r, "GET", "/api/search/suggestions?type=country", token, nil, ""); w.Code != 200 {
+			t.Fatalf("country suggestions -> %d", w.Code)
+		} else {
+			var countries []string
+			if err := json.Unmarshal(w.Body.Bytes(), &countries); err != nil {
+				t.Fatal(err)
+			}
+		}
+		w = do(r, "POST", "/api/search/metadata", token, mustJSON(t, map[string]any{"originalFileName": asset.OriginalFileName, "description": "regression searchable text", "type": asset.Type, "rating": 4, "page": 1, "size": 1}), "application/json")
+		if w.Code != 200 {
+			t.Fatalf("paged metadata search -> %d", w.Code)
+		}
+		if err := json.Unmarshal(w.Body.Bytes(), &found); err != nil {
+			t.Fatal(err)
+		}
+		if found.Assets.Count > 1 {
+			t.Fatalf("page size ignored: %d", found.Assets.Count)
+		}
+		person := Person{ID: newUUID(), Name: "Regression Person"}
+		if err := app.store.DB.Create(&person).Error; err != nil {
+			t.Fatal(err)
+		}
+		if err := app.store.DB.Model(&Asset{}).Where("id = ?", assetID).Update("person_id", person.ID).Error; err != nil {
+			t.Fatal(err)
+		}
+		w = do(r, "POST", "/api/search/metadata", token, mustJSON(t, map[string]any{"personIds": []string{person.ID}, "page": 1, "size": 10}), "application/json")
+		if w.Code != 200 {
+			t.Fatalf("person search -> %d", w.Code)
+		}
+		if err := json.Unmarshal(w.Body.Bytes(), &found); err != nil {
+			t.Fatal(err)
+		}
+		if found.Assets.Total != 1 || found.Assets.Items[0].ID != assetID {
+			t.Fatalf("person search result=%+v", found.Assets)
+		}
+		if err := app.store.DB.Model(&Asset{}).Where("id = ?", assetID).Updates(map[string]any{"is_favorite": true, "is_archived": true, "local_date_time": time.Date(2024, 5, 1, 12, 0, 0, 0, time.UTC)}).Error; err != nil {
+			t.Fatal(err)
+		}
+		w = do(r, "POST", "/api/search/metadata", token, mustJSON(t, map[string]any{"isFavorite": true, "visibility": "archive", "takenAfter": "2024-04-01T00:00:00Z", "takenBefore": "2024-06-01T00:00:00Z", "page": 1, "size": 10}), "application/json")
+		if w.Code != 200 {
+			t.Fatalf("display/date search -> %d", w.Code)
+		}
+		if err := json.Unmarshal(w.Body.Bytes(), &found); err != nil {
+			t.Fatal(err)
+		}
+		if found.Assets.Total != 1 {
+			t.Fatalf("display/date result=%+v", found.Assets)
+		}
+		w = do(r, "POST", "/api/search/metadata", token, mustJSON(t, map[string]any{"isFavorite": false, "visibility": "timeline", "page": 1, "size": 10}), "application/json")
+		if w.Code != 200 {
+			t.Fatalf("timeline/favorite search -> %d", w.Code)
+		}
+		if err := json.Unmarshal(w.Body.Bytes(), &found); err != nil {
+			t.Fatal(err)
+		}
+		if found.Assets.Total != 0 {
+			t.Fatalf("timeline/favorite result=%+v", found.Assets)
+		}
 	})
 
 	t.Run("albums", func(t *testing.T) {
