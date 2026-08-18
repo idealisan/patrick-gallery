@@ -1864,3 +1864,46 @@ macOS native adapter
 - OCR 结果持久化到资产 OCR 表。
 
 上述未落地项不能由空实现伪造成功；实际 adapter 注册后，才可以把对应 feature 报为可用。
+
+### 22.5 macOS native/community 实测
+
+使用测试图片：
+
+```text
+截屏2026-08-18 晚上10.37.31.png
+```
+
+该图片包含中文 OCR 文本。真实测试结果：
+
+1. macOS Vision 动态库真实识别成功，识别到：
+   ```text
+   一、设计目标
+   OCR
+   机器学习
+   ```
+2. 强制 native backend 失败后，Tesseract community dylib 真实 fallback 成功。
+3. Tesseract 社区 shim 使用相同 C ABI，通过 purego 加载。
+4. 本机 Tesseract 5.5.0 + Leptonica 1.85.0，额外加载 `chi_sim.traineddata`。
+5. `go test ./...` 和 `go build` 全部通过。
+
+当前 Mac runtime 顺序：
+
+```text
+macOS Vision dylib
+  -> configured OpenAI/HTTP backend
+  -> configured Tesseract/community C ABI dylib
+  -> ErrAllBackendsFailed
+```
+
+真实测试命令：
+
+```sh
+IMMICH_OCR_NATIVE_PATH=/path/libimmich_ocr_macos.dylib \
+IMMICH_OCR_TEST_IMAGE=/path/screenshot.png \
+go test ./internal/ocr -run TestOCRChainRealImage -v
+
+TESSDATA_PREFIX=/path/tessdata \
+IMMICH_OCR_COMMUNITY_PATH=/path/libimmich_ocr_tesseract.dylib \
+IMMICH_OCR_TEST_IMAGE=/path/screenshot.png \
+go test ./internal/ocr -run TestOCRChainCommunityFallbackRealImage -v
+```

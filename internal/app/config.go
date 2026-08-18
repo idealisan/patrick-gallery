@@ -38,13 +38,15 @@ type Config struct {
 	// preview image size. Override with IMMICH_PREVIEW_SIZE.
 	PreviewSize int
 
-	OCRProvider string
-	OCRBaseURL  string
-	OCRAPIKey   string
-	OCRModel    string
-	OCRPrompt   string
-	OCRDetail   string
-	OCRTimeout  int
+	OCRProvider      string
+	OCRBaseURL       string
+	OCRAPIKey        string
+	OCRModel         string
+	OCRPrompt        string
+	OCRDetail        string
+	OCRTimeout       int
+	OCRNativePath    string
+	OCRCommunityPath string
 }
 
 func getEnv(k, def string) string {
@@ -79,24 +81,26 @@ func previewSizeFromEnv() int {
 func LoadConfig() *Config {
 	port, _ := strconv.Atoi(getEnv("IMMICH_PORT", "8081"))
 	cfg := &Config{
-		Host:           getEnv("IMMICH_HOST", "0.0.0.0"),
-		Port:           port,
-		DBPath:         getEnv("IMMICH_DB", "immich.db"),
-		ResourceDir:    getEnv("IMMICH_RESOURCE", "resources"),
-		JWTSecret:      getEnv("IMMICH_JWT_SECRET", "immich-dev-secret-change-me"),
-		APIKeySalt:     getEnv("IMMICH_API_KEY_SALT", "immich-dev-api-salt"),
-		LoginRequired:  getEnv("IMMICH_LOGIN_REQUIRED", "true") == "true",
-		ExternalDomain: getEnv("IMMICH_EXTERNAL_DOMAIN", ""),
-		CompatVersion:  getEnv("IMMICH_COMPAT_VERSION", "3.1.0"),
-		TrashDays:      trashDaysFromEnv(),
-		PreviewSize:    previewSizeFromEnv(),
-		OCRProvider:    getEnv("IMMICH_OCR_PROVIDER", "none"),
-		OCRBaseURL:     getEnv("IMMICH_OCR_BASE_URL", "https://api.openai.com/v1"),
-		OCRAPIKey:      getEnv("IMMICH_OCR_API_KEY", ""),
-		OCRModel:       getEnv("IMMICH_OCR_MODEL", "gpt-4.1-mini"),
-		OCRPrompt:      getEnv("IMMICH_OCR_PROMPT", ""),
-		OCRDetail:      getEnv("IMMICH_OCR_DETAIL", "high"),
-		OCRTimeout:     envInt("IMMICH_OCR_TIMEOUT_SECONDS", 120),
+		Host:             getEnv("IMMICH_HOST", "0.0.0.0"),
+		Port:             port,
+		DBPath:           getEnv("IMMICH_DB", "immich.db"),
+		ResourceDir:      getEnv("IMMICH_RESOURCE", "resources"),
+		JWTSecret:        getEnv("IMMICH_JWT_SECRET", "immich-dev-secret-change-me"),
+		APIKeySalt:       getEnv("IMMICH_API_KEY_SALT", "immich-dev-api-salt"),
+		LoginRequired:    getEnv("IMMICH_LOGIN_REQUIRED", "true") == "true",
+		ExternalDomain:   getEnv("IMMICH_EXTERNAL_DOMAIN", ""),
+		CompatVersion:    getEnv("IMMICH_COMPAT_VERSION", "3.1.0"),
+		TrashDays:        trashDaysFromEnv(),
+		PreviewSize:      previewSizeFromEnv(),
+		OCRProvider:      getEnv("IMMICH_OCR_PROVIDER", "none"),
+		OCRBaseURL:       getEnv("IMMICH_OCR_BASE_URL", "https://api.openai.com/v1"),
+		OCRAPIKey:        getEnv("IMMICH_OCR_API_KEY", ""),
+		OCRModel:         getEnv("IMMICH_OCR_MODEL", "gpt-4.1-mini"),
+		OCRPrompt:        getEnv("IMMICH_OCR_PROMPT", ""),
+		OCRDetail:        getEnv("IMMICH_OCR_DETAIL", "high"),
+		OCRTimeout:       envInt("IMMICH_OCR_TIMEOUT_SECONDS", 120),
+		OCRNativePath:    getEnv("IMMICH_OCR_NATIVE_PATH", ""),
+		OCRCommunityPath: getEnv("IMMICH_OCR_COMMUNITY_PATH", ""),
 	}
 	maj, min, pat := 3, 1, 0
 	if n, err := fmt.Sscanf(cfg.CompatVersion, "%d.%d.%d", &maj, &min, &pat); n >= 1 && err == nil {

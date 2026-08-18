@@ -21,10 +21,11 @@ var (
 // Request is the backend-neutral OCR input. Data is copied by callers only
 // when needed; backends must not retain it after Recognize returns.
 type Request struct {
-	Context context.Context
-	Data    []byte
-	MIME    string
-	Name    string
+	Context  context.Context
+	Data     []byte
+	MIME     string
+	Name     string
+	Language string
 }
 
 // Word is one recognized text region. Coordinates are optional and expressed

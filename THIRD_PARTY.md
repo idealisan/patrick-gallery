@@ -69,6 +69,51 @@ Used by the software video backend (`internal/video`, purego-loaded). We load
 - Repo: https://github.com/ebitengine/purego
 - License: BSD-3-Clause.
 
+## macOS Vision OCR shim
+
+The macOS OCR backend is a small Objective-C shim compiled as a separate
+runtime library. The CGO-disabled Go binary loads it through purego and calls
+its stable C ABI; it does not link Vision.framework directly.
+
+- Source: `third_party/ocr/macos/immich_ocr_macos.m`
+- Build: `third_party/ocr/macos/build.sh`
+- Frameworks: Apple `Vision.framework`, `Foundation.framework`,
+  `ImageIO.framework`, `CoreGraphics.framework`
+- API: `VNRecognizeTextRequest` with accurate recognition and language
+  correction enabled
+- License: Apple system frameworks; shim source is part of immich-go
+- Artifact: `libimmich_ocr_macos.dylib`, built per macOS architecture
+- Runtime loader: `internal/ocr/mac_vision_darwin.go`
+- Configuration: `IMMICH_OCR_NATIVE_PATH`
+
+Community OCR libraries use the same C ABI (`immich_ocr_recognize` and
+`immich_ocr_free`) and are loaded after the configured network backend:
+
+- Configuration: `IMMICH_OCR_COMMUNITY_PATH`
+- Platform artifacts must be built separately as `.dylib`, `.so`, or `.dll`.
+- The exact upstream library, model artifacts, URL, checksum, and license must
+  be recorded here before shipping a concrete community backend.
+
+### Local macOS validation backend
+
+The local development machine has a real Tesseract community adapter:
+
+- Source: `third_party/ocr/tesseract/immich_ocr_tesseract.c`
+- Build: `third_party/ocr/tesseract/build-macos.sh`
+- Upstream: https://github.com/tesseract-ocr/tesseract
+- Leptonica: https://github.com/DanBloomberg/leptonica
+- Local validation versions: Tesseract 5.5.0, Leptonica 1.85.0
+- License: Apache-2.0 (Tesseract), BSD-2-Clause (Leptonica)
+- Model data: `chi_sim.traineddata` from
+  https://github.com/tesseract-ocr/tessdata_fast
+
+This is a development/runtime adapter, not yet a bundled release dependency;
+the exact platform artifacts and model checksums must be pinned before release.
+
+This adapter requires macOS and the separately built dylib. If it is absent,
+the OCR chain continues to the configured network backend; it does not return
+fake OCR text.
+
 ## GeoNames offline reverse-geocoding dataset (bundled runtime data)
 
 Used by the offline reverse geocoder (`internal/app/geo`, embedded via

@@ -65,7 +65,21 @@ func NewApp(cfg *Config, store *Store) *App {
 	if err != nil {
 		log.Printf("[ocr] network backend configuration error: %v", err)
 	}
-	a := &App{cfg: cfg, store: store, video: video.New(), ocr: ocr.NewChain(networkOCR)}
+	var nativeOCR ocr.Processor
+	if provider, loadErr := ocr.NewMacVision(cfg.OCRNativePath); loadErr == nil {
+		nativeOCR = provider
+		log.Printf("[ocr] using macOS native Vision backend")
+	} else if cfg.OCRNativePath != "" {
+		log.Printf("[ocr] native backend unavailable: %v", loadErr)
+	}
+	var communityOCR ocr.Processor
+	if provider, loadErr := ocr.NewCommunity(ocr.CommunityConfig{Path: cfg.OCRCommunityPath}); loadErr == nil {
+		communityOCR = provider
+		log.Printf("[ocr] using community backend: %s", provider.Name())
+	} else if cfg.OCRCommunityPath != "" {
+		log.Printf("[ocr] community backend unavailable: %v", loadErr)
+	}
+	a := &App{cfg: cfg, store: store, video: video.New(), ocr: ocr.NewChain(nativeOCR, networkOCR, communityOCR)}
 	// Resolve the effective JWT secret: prefer the per-instance value
 	// persisted in SystemConfig; fall back to the configured secret only if
 	// the row has none (should not happen after ensureJWTSecret).
