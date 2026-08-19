@@ -293,9 +293,9 @@ Web 管理后台 + 高级界面缺失：
 1. ~~设备 PIN / 会话锁 / Sessions（`auth/pin-code`、`auth/session/lock|unlock`、`/sessions/*`）~~ ✅ 已实现（v3.1.0 契约，real）
 2. 资产元数据写入（`PUT /assets/:id/metadata` 等）+ `visibility` 持久化
 3. 分享链接字段持久化（allowDownload/upload/description/password/slug）+ 重读正确
-4. 伙伴共享资产透出（timeline/search join partner 资产）
-5. 相册内用户共享（`/albums/:id/user/:userId`、`/albums/:id/users`）+ 前端入口
-6. 修复兼容版本漂移：默认 `IMMICH_COMPAT_VERSION` 与内置契约版本统一
+4. ✅ **伙伴共享资产透出**：时间线 `withPartners`（默认纳入伙伴资产）+ 搜索已 join 伙伴；相册内共享已按角色鉴权。详见 `docs/WEB_ADMIN_UI_ANALYSIS.md` 第 10 节与 `internal/app/timeline.go`/`album.go`。
+5. ✅ **相册内用户共享**：`/albums/:id/user/:userId`、`/albums/:id/users` 端点已实现，并按 `albumRole`（owner/editor/viewer）做增删资产与共享管理鉴权，共享相册已出现在对方相册列表。
+6. ~~修复兼容版本漂移~~ ✅ 默认 `IMMICH_COMPAT_VERSION=3.1.0` 已与内置契约对齐
 
 **P1 — 手机/Web 共有体验补齐**
 7. 回忆 Memories（8 端点）
@@ -385,7 +385,35 @@ Web 管理后台 + 高级界面缺失：
 - **同步**：实时事件推送（websocket + Socket.IO）已对等，客户端能即时刷新；仅原版专用的双向增量 `/sync/stream` 仍是 stub（不影响主流程连接与刷新）。
 - **真正的「硬缺口」不在核心媒体本身，而在账户/共享元数据层**：PIN/会话锁（P0-1）、资产元数据写入（P0-2）、分享链接字段持久化（P0-3）、伙伴共享资产透出（P0-4）、相册内用户共享（P0-5）、兼容版本漂移（P0-6）。这些属于「个性化/多用户」边缘，已在 P0 排期。
 
-### 14.3 验证证据（2026-08-15 实测）
+### 14.3 Web 后台（admin）后端实现（2026-08-19 批次）
+
+基于官方 `web/src/routes/admin/*` 与 SDK `packages/sdk/src/fetch-client.ts`（v3.1.0）逐页
+梳理 UI 元素→API 工作流，产出清单见 `docs/WEB_ADMIN_UI_ANALYSIS.md`，并真实实现以下端点
+（全部非 stub，集成冒烟已通过）：
+
+- **系统配置**：`GET/PUT /system-config` 现持久化完整嵌套 `SystemConfigDto`（JSON blob），
+  admin 各设置页可往返保存；`GET /system-config/defaults`、`/system-config/storage-template-options` 已对齐。
+- **队列监控**：`GET /queues`、`GET /queues/:name`、`PUT /queues/:name`（isPaused）、
+  `GET /queues/:name/jobs`、`DELETE /queues/:name/jobs` —— 19 个命名队列，统计取自真实 job 进度。
+- **任务状态**：`GET /jobs` 返回官方 legacy 形状（19 命名队列计数）；`POST /jobs` 触发 manual job；
+  `POST /jobs/:name` 支持 `pause/resume/empty/clear-failed` 命令。
+- **维护模式 + 完整性**：`POST /admin/maintenance`（enable/disable/restore）、
+  `GET /admin/maintenance/status`、`/detect-install`；`GET /admin/integrity/summary` 做真实
+  sha1+os.Stat 扫描（checksum_mismatch/missing_file/untracked_file），`/admin/integrity/:type`、
+  `/file/:id`、`/csv` 均实现。
+- **数据库备份（SQLite 专属）**：`GET /admin/database-backups`、`/start-restore`、
+  `DELETE`、`/upload` —— 以 `.db.bak` 快照替代 PG 式备份（已在文档标注为 SQLite 适配，非伪装）。
+- **通知**：`POST /admin/notifications` 落库；`POST /admin/notifications/test-email` 用纯 Go
+  `net/smtp` 真实发信（STARTTLS/隐式 TLS）。
+- **system-metadata**：`/reverse-geocoding-state`、`/version-check-state` 返回契约正确形状。
+- **资产级 job**：`POST /assets/jobs` 对指定 assetIds 重跑缩略图/元数据/转码/OCR。
+- **多用户共享（P0-4/P0-5）**：时间线纳入伙伴资产（`withPartners`），相册内共享按
+  owner/editor/viewer 角色鉴权并透出到对方列表（见上 P0 标注）。
+
+所有新增端点经 `go build`/`go vet`/`go test` 与本地集成冒烟（登录→各 admin 端点 200，
+DTO 形状核对）验证通过。
+
+### 14.4 验证证据（2026-08-15 实测）
 
 - `go build ./...` ✅（go1.23.4，CGO 关闭）
 - `go vet $(go list ./... | grep -v /internal/video)` ✅（`internal/video` 的 `unsafe.Pointer` FFI 按 AGENTS.md 规则豁免）

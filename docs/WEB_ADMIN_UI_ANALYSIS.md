@@ -9,6 +9,13 @@
 > 的（如 ML、OAuth 外部 IdP、SMTP 发信）返回诚实 4xx/501 并登记到 `docs/GAP_ANALYSIS.md` /
 > `scripts/schemathesis-allowlist.txt`。
 
+> **实现进度（2026-08-19）**：第 1–11 批次已全部落地并通过集成冒烟，对应代码：
+> `internal/app/misc.go`（system-config 持久化）、`internal/app/queues.go`（队列）、
+> `internal/app/jobs.go`（legacy /jobs + 资产级 jobs）、`internal/app/maintenance.go`
+> （维护/完整性/备份）、`internal/app/notifications_admin.go`（管理端通知+SMTP）、
+> `internal/app/timeline.go` + `internal/app/album.go`（伙伴/相册共享）。详见
+> `docs/GAP_ANALYSIS.md` §14.3。
+
 ---
 
 ## 0. 后台整体结构（路由树）
