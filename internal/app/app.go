@@ -368,6 +368,30 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.POST("/notifications", a.handleNotificationRegister)
 		api.DELETE("/notifications", a.handleNotificationRemove)
 		api.GET("/oauth/config", a.handleOAuthConfig)
+		// OAuth SSO flows require an external IdP — deferred under immich-go
+		// hard rules. Return honest 501 so the real client knows it is unsupported.
+		api.GET("/oauth/authorize", a.handleNotImplemented)
+		api.GET("/oauth/callback", a.handleNotImplemented)
+		api.POST("/oauth/link", a.handleNotImplemented)
+		api.POST("/oauth/unlink", a.handleNotImplemented)
+		api.POST("/oauth/backchannel-logout", a.handleNotImplemented)
+		api.GET("/oauth/mobile-redirect", a.handleNotImplemented)
+
+		// Plugins and workflows subsystems are deferred (out of scope for the
+		// pure-Go SQLite single-instance build).
+		api.GET("/plugins", a.handleNotImplemented)
+		api.GET("/plugins/:name", a.handleNotImplemented)
+		api.GET("/plugins/:name/settings", a.handleNotImplemented)
+		api.PUT("/plugins/:name/settings", a.handleNotImplemented)
+		api.POST("/plugins/:name/enable", a.handleNotImplemented)
+		api.POST("/plugins/:name/disable", a.handleNotImplemented)
+		api.GET("/workflows", a.handleNotImplemented)
+		api.POST("/workflows", a.handleNotImplemented)
+		api.GET("/workflows/:id", a.handleNotImplemented)
+		api.PUT("/workflows/:id", a.handleNotImplemented)
+		api.DELETE("/workflows/:id", a.handleNotImplemented)
+		api.POST("/workflows/:id/execute", a.handleNotImplemented)
+		api.POST("/admin/auth/unlink-all", a.handleNotImplemented)
 
 		// tags
 		api.GET("/tags", a.handleTagList)

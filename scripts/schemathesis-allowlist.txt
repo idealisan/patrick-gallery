@@ -1,30 +1,29 @@
-# Known status_code_conformance gaps (unimplemented endpoints / benign edges).
-# These return 404/400/204/401 where the spec documents 2xx, but the DTO SHAPE
-# is correct. The regression gate (scripts/schemathesis_check.py) FAILS only if a
-# status_code_conformance failure appears on an operation NOT listed here,
-# i.e. when a previously-working endpoint regresses.
-# When you implement one of these endpoints, remove its line and re-run.
-DELETE /auth/pin-code
-GET /memories
-GET /memories/statistics
-GET /users/me/calendar-heatmap
-PATCH /shared-links/{id}
-POST /admin/users
-GET /admin/users/{id}/calendar-heatmap
-PUT /admin/users/{id}
-POST /assets
-POST /auth/admin-sign-up
-POST /auth/change-password
-POST /auth/login
-POST /auth/pin-code
-POST /auth/session/unlock
-POST /memories
-POST /search/statistics
-POST /shared-links/login
-PUT /auth/pin-code
-PUT /memories/{id}
-PUT /notifications
-PUT /notifications/{id}
+# Known status_code_conformance gaps. The regression gate
+# (scripts/schemathesis_check.py) FAILS only if a status_code_conformance
+# failure appears on an operation NOT listed here, i.e. when a previously
+# working endpoint regresses. When an endpoint is implemented, remove its line.
+#
+# Deferred capabilities (honest 501 — NOT stubs). These require an external IdP
+# or a subsystem out of scope for the pure-Go SQLite single-instance build:
+GET /oauth/authorize
+GET /oauth/callback
+POST /oauth/link
+POST /oauth/unlink
+POST /oauth/backchannel-logout
+GET /oauth/mobile-redirect
+GET /plugins
+GET /plugins/{name}
+GET /plugins/{name}/settings
+PUT /plugins/{name}/settings
+POST /plugins/{name}/enable
+POST /plugins/{name}/disable
+GET /workflows
+POST /workflows
+GET /workflows/{id}
+PUT /workflows/{id}
+DELETE /workflows/{id}
+POST /workflows/{id}/execute
+POST /admin/auth/unlink-all
 # Face detection/recognition requires an ML backend (deferred) -> honest 501.
 GET /faces
 GET /faces/{id}
