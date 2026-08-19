@@ -496,3 +496,56 @@ func (a *App) jobStateFor(id string) *jobState {
 
 // unused helper kept to avoid import churn if json is needed for debugging.
 var _ = json.Marshal
+
+// handleAssetJobs mirrors POST /api/assets/jobs (runAssetJobs). Re-runs a job
+// (thumbnailGeneration / metadataExtraction / videoConversion / duplicateDetection
+// / ocr) for the explicitly listed asset IDs. This is genuine per-asset
+// re-processing, not a stub.
+func (a *App) handleAssetJobs(c *gin.Context) {
+	if _, ok := a.requireAdmin(c); !ok {
+		return
+	}
+	var body struct {
+		AssetIDs []string `json:"assetIds"`
+		Name     string   `json:"name"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || len(body.AssetIDs) == 0 || body.Name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "assetIds and name required", "statusCode": 400})
+		return
+	}
+
+	// Map the asset job name onto the supported registry job.
+	regName := body.Name
+	switch body.Name {
+	case "thumbnailGeneration", "metadataExtraction", "videoConversion", "duplicateDetection", "ocr":
+		regName = body.Name
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"message": "unsupported asset job: " + body.Name, "statusCode": 400})
+		return
+	}
+	reg := a.jobRegistry()
+	spec, ok := reg[regName]
+	if !ok || !spec.supported {
+		c.JSON(http.StatusOK, gin.H{"jobName": body.Name, "started": false, "unsupported": true, "count": 0})
+		return
+	}
+
+	// Build job items only for the requested, still-existing assets.
+	var items []jobItem
+	for _, id := range body.AssetIDs {
+		var as Asset
+		if err := a.store.DB.First(&as, "id = ?", id).Error; err != nil {
+			continue
+		}
+		items = append(items, jobItem{ID: as.ID, Path: as.OriginalPath, Type: as.Type})
+	}
+	if len(items) == 0 {
+		c.JSON(http.StatusOK, gin.H{"jobName": body.Name, "started": true, "count": 0})
+		return
+	}
+
+	st := a.jobStateFor("asset:" + body.Name)
+	st.begin(len(items))
+	go a.runJob("asset:"+body.Name, spec, items)
+	c.JSON(http.StatusOK, gin.H{"jobName": body.Name, "started": true, "count": len(items)})
+}

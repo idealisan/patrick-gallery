@@ -258,6 +258,7 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		// assets
 		api.POST("/assets", a.handleAssetUpload)
 		api.POST("/assets/check", a.handleAssetCheck)
+		api.POST("/assets/jobs", a.handleAssetJobs)
 		api.POST("/assets/bulk-upload-check", a.handleAssetBulkUploadCheck)
 		api.PUT("/assets", a.handleAssetBulkUpdate)
 		api.GET("/assets", a.handleAssetSearch) // query-based listing
