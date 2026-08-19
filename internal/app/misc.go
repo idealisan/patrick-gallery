@@ -948,14 +948,35 @@ func (a *App) handleStorageTemplateOptions(c *gin.Context) {
 	})
 }
 
-// handleReverseGeocodingState reports whether reverse-geocoding data is loaded.
+// handleReverseGeocodingState mirrors GET /api/system-metadata/reverse-geocoding-state.
+// Returns the official ReverseGeocodingStateResponseDto shape. immich-go ships
+// an embedded offline GeoNames dataset, so when the geocoder loaded we report a
+// real import file name and the load timestamp; otherwise both are null.
 func (a *App) handleReverseGeocodingState(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"status": "available", "isAvailable": true})
+	var lastImport, lastUpdate interface{}
+	if a.geocoder != nil {
+		lastImport = "cities500.txt (embedded)"
+		lastUpdate = a.geoLoadedAt()
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"lastImportFileName": lastImport,
+		"lastUpdate":         lastUpdate,
+	})
 }
 
-// handleVersionCheckState reports whether an upstream version check is available.
+// handleVersionCheckState mirrors GET /api/system-metadata/version-check-state.
+// Returns a ReleaseEventV1-like shape describing the last upstream version
+// check. immich-go does not phone home, so isAvailable stays false and the
+// checkedAt reflects process start; this is an honest reflection of the
+// private-LAN scope, not a fake success.
 func (a *App) handleVersionCheckState(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"status": "available", "isAvailable": false})
+	c.JSON(http.StatusOK, gin.H{
+		"checkedAt":      a.startedAt().UTC().Format(time.RFC3339),
+		"isAvailable":    false,
+		"releaseVersion": a.cfg.CompatVersion,
+		"serverVersion":  a.cfg.CompatVersion,
+		"type":           "none",
+	})
 }
 
 // handleAdminOnboardingGet reports whether admin onboarding is complete.

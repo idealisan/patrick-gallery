@@ -36,6 +36,13 @@ type App struct {
 	// It is nil if the embedded dataset failed to load; callers must guard.
 	geocoder *geo.Geocoder
 
+	// geoLoadedAt records when the geocoder dataset finished loading (used by
+	// GET /system-metadata/reverse-geocoding-state). Zero if not loaded.
+	geoLoadedAtVal time.Time
+
+	// startedAt records process start (used by version-check-state).
+	startedAtVal time.Time
+
 	// bus is the in-memory realtime event pub/sub backing the websocket sync
 	// endpoint.
 	bus *EventBus
@@ -112,6 +119,7 @@ func NewApp(cfg *Config, store *Store) *App {
 		a.jwtSecret = cfg.JWTSecret
 	}
 	a.bus = newEventBus()
+	a.startedAtVal = time.Now()
 	// Initialize video cache (2 GB LRU).
 	encDir := filepath.Join(cfg.ResourceDir, "encoded-video")
 	if err := os.MkdirAll(encDir, 0o755); err == nil {
@@ -121,6 +129,7 @@ func NewApp(cfg *Config, store *Store) *App {
 		log.Printf("[geo] reverse-geocoder unavailable: %v", err)
 	} else {
 		a.geocoder = g
+		a.geoLoadedAtVal = time.Now()
 		log.Printf("[geo] reverse-geocoder loaded with %d cities", g.Cities())
 	}
 	a.startSchedulers()

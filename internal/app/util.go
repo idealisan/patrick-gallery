@@ -43,3 +43,10 @@ func newUUID() string {
 func nowISO() string {
 	return time.Now().UTC().Format(time.RFC3339)
 }
+
+// geoLoadedAt returns the geocoder dataset load timestamp, or the zero time if
+// the geocoder is not loaded.
+func (a *App) geoLoadedAt() time.Time { return a.geoLoadedAtVal }
+
+// startedAt returns the process start time.
+func (a *App) startedAt() time.Time { return a.startedAtVal }
