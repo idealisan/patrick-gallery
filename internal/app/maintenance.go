@@ -310,6 +310,22 @@ func (a *App) handleIntegrityReportDelete(c *gin.Context) {
 	c.Status(http.StatusOK)
 }
 
+// handleIntegrityReportFileOrCsv serves either a single reported asset's
+// original (…/report/:id/file) or the per-type CSV export (…/report/:type/csv).
+// Both share one route because Gin forbids two wildcard siblings.
+func (a *App) handleIntegrityReportFileOrCsv(c *gin.Context) {
+	if _, ok := a.requireAdmin(c); !ok {
+		return
+	}
+	sub := c.Param("sub")
+	if sub == "csv" {
+		c.Params = append(c.Params, gin.Param{Key: "type", Value: c.Param("id")})
+		a.handleIntegrityReportCsv(c)
+		return
+	}
+	a.handleIntegrityReportFile(c)
+}
+
 // handleIntegrityReportFile streams a single reported asset's original.
 func (a *App) handleIntegrityReportFile(c *gin.Context) {
 	if _, ok := a.requireAdmin(c); !ok {

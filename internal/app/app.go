@@ -186,6 +186,23 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 	r.POST("/api/auth/login", a.handleLogin)
 	r.POST("/api/auth/signup", a.handleSignup)
 	r.POST("/api/auth/admin-sign-up", a.handleAdminSignUp)
+	// Deferred capabilities (honest 501, no external IdP / subsystem in scope):
+	// these are public in Immich and must not require auth.
+	r.GET("/api/oauth/authorize", a.handleNotImplemented)
+	r.GET("/api/oauth/callback", a.handleNotImplemented)
+	r.GET("/api/oauth/mobile-redirect", a.handleNotImplemented)
+	r.GET("/api/plugins", a.handleNotImplemented)
+	r.GET("/api/plugins/:name", a.handleNotImplemented)
+	r.GET("/api/plugins/:name/settings", a.handleNotImplemented)
+	r.PUT("/api/plugins/:name/settings", a.handleNotImplemented)
+	r.POST("/api/plugins/:name/enable", a.handleNotImplemented)
+	r.POST("/api/plugins/:name/disable", a.handleNotImplemented)
+	r.GET("/api/workflows", a.handleNotImplemented)
+	r.POST("/api/workflows", a.handleNotImplemented)
+	r.GET("/api/workflows/:id", a.handleNotImplemented)
+	r.PUT("/api/workflows/:id", a.handleNotImplemented)
+	r.DELETE("/api/workflows/:id", a.handleNotImplemented)
+	r.POST("/api/workflows/:id/execute", a.handleNotImplemented)
 	r.GET("/api/auth/check", func(c *gin.Context) {
 		var cfg SystemConfig
 		a.store.DB.First(&cfg, "id = ?", "singleton")
@@ -368,29 +385,11 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.POST("/notifications", a.handleNotificationRegister)
 		api.DELETE("/notifications", a.handleNotificationRemove)
 		api.GET("/oauth/config", a.handleOAuthConfig)
-		// OAuth SSO flows require an external IdP — deferred under immich-go
-		// hard rules. Return honest 501 so the real client knows it is unsupported.
-		api.GET("/oauth/authorize", a.handleNotImplemented)
-		api.GET("/oauth/callback", a.handleNotImplemented)
+		// OAuth SSO flows that require authentication (link/unlink/backchannel)
+		// are deferred under immich-go hard rules — honest 501.
 		api.POST("/oauth/link", a.handleNotImplemented)
 		api.POST("/oauth/unlink", a.handleNotImplemented)
 		api.POST("/oauth/backchannel-logout", a.handleNotImplemented)
-		api.GET("/oauth/mobile-redirect", a.handleNotImplemented)
-
-		// Plugins and workflows subsystems are deferred (out of scope for the
-		// pure-Go SQLite single-instance build).
-		api.GET("/plugins", a.handleNotImplemented)
-		api.GET("/plugins/:name", a.handleNotImplemented)
-		api.GET("/plugins/:name/settings", a.handleNotImplemented)
-		api.PUT("/plugins/:name/settings", a.handleNotImplemented)
-		api.POST("/plugins/:name/enable", a.handleNotImplemented)
-		api.POST("/plugins/:name/disable", a.handleNotImplemented)
-		api.GET("/workflows", a.handleNotImplemented)
-		api.POST("/workflows", a.handleNotImplemented)
-		api.GET("/workflows/:id", a.handleNotImplemented)
-		api.PUT("/workflows/:id", a.handleNotImplemented)
-		api.DELETE("/workflows/:id", a.handleNotImplemented)
-		api.POST("/workflows/:id/execute", a.handleNotImplemented)
 		api.POST("/admin/auth/unlink-all", a.handleNotImplemented)
 
 		// tags
@@ -442,11 +441,6 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.PUT("/shared-links/:id/assets/:assetId", a.handleSharedLinkAssetRemove)
 		api.DELETE("/shared-links/:id/assets/:assetId", a.handleSharedLinkAssetRemove)
 
-		// stacks (manual grouping; no ML)
-		api.POST("/stacks", a.handleStackCreate)
-		api.DELETE("/stacks", a.handleStackDelete)
-		api.GET("/stacks/:id", a.handleStackGet)
-
 		// people (real; ML face detection is deferred)
 		api.GET("/people", a.handlePeopleList)
 		api.GET("/people/:id", a.handlePersonGet)
@@ -486,8 +480,10 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.POST("/admin/integrity/report", a.handleIntegrityReport)
 		api.GET("/admin/integrity/report", a.handleIntegrityReport)
 		api.DELETE("/admin/integrity/report/:id", a.handleIntegrityReportDelete)
-		api.GET("/admin/integrity/report/:id/file", a.handleIntegrityReportFile)
-		api.GET("/admin/integrity/report/:type/csv", a.handleIntegrityReportCsv)
+		// Gin forbids two wildcard siblings (/:id/file vs /:type/csv), so the
+		// file-stream and per-type CSV share one parameterized route and the
+		// handler dispatches on the trailing segment.
+		api.GET("/admin/integrity/report/:id/:sub", a.handleIntegrityReportFileOrCsv)
 		api.GET("/admin/integrity/csv", a.handleIntegrityReportCsv)
 		api.GET("/admin/database-backups", a.handleDatabaseBackupsList)
 		api.POST("/admin/database-backups/start-restore", a.handleDatabaseBackupRestore)
