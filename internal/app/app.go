@@ -209,6 +209,23 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.POST("/auth/session/lock", a.handleSessionLock)
 		api.POST("/auth/session/unlock", a.handleSessionUnlock)
 
+		// sessions (list / update / lock / delete)
+		api.GET("/sessions", a.handleSessionsList)
+		api.DELETE("/sessions", a.handleSessionsDeleteAll)
+		api.GET("/sessions/:id", a.handleSessionGet)
+		api.PUT("/sessions/:id", a.handleSessionUpdate)
+		api.DELETE("/sessions/:id", a.handleSessionDelete)
+		api.POST("/sessions/:id/lock", a.handleSessionLockByID)
+
+		// stacks
+		api.GET("/stacks", a.handleStacksList)
+		api.GET("/stacks/:id", a.handleStackGet)
+		api.PUT("/stacks/:id", a.handleStackUpdate)
+		api.DELETE("/stacks/:id", a.handleStackDelete)
+		api.GET("/stacks/:id/assets/:assetId", a.handleStackAssetGet)
+		api.PUT("/stacks/:id/assets/:assetId", a.handleStackAssetUpdate)
+		api.DELETE("/stacks/:id/assets/:assetId", a.handleStackAssetDelete)
+
 		// notifications (list / update / delete — single-user instance has no
 		// generator, so these return the real, usually-empty state)
 		api.GET("/notifications", a.handleListNotifications)

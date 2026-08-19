@@ -128,6 +128,13 @@ func (a *App) AuthGuard() gin.HandlerFunc {
 		if token != "" {
 			if claims, err := a.parseToken(token); err == nil {
 				uid = claims.UserID
+				// Resolve the session id from the hashed bearer token so
+				// session-scoped endpoints (GET /sessions "current" flag, lock)
+				// can identify the caller's session.
+				var sess Session
+				if err := a.store.DB.Where("token = ?", hashToken(token)).First(&sess).Error; err == nil {
+					c.Set("sessionID", sess.ID)
+				}
 			} else if key := c.GetHeader("x-api-key"); key != "" {
 				// Real API key (bcrypt lookup) sent via x-api-key.
 				var ak ApiKey
