@@ -7,11 +7,23 @@ import (
 	"io"
 	"strconv"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 func itoa(i int) string { return strconv.Itoa(i) }
 
 func jsonUnmarshal(b []byte, v interface{}) error { return json.Unmarshal(b, v) }
+
+func jsonMarshal(v interface{}) ([]byte, error) { return json.Marshal(v) }
+
+func jsonUnmarshalString(s string) interface{} {
+	var v interface{}
+	if err := json.Unmarshal([]byte(s), &v); err != nil {
+		return gin.H{}
+	}
+	return v
+}
 
 func ioCopy(dst io.Writer, src io.Reader) (int64, error) { return io.Copy(dst, src) }
 

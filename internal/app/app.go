@@ -429,6 +429,8 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.POST("/admin/database-backups/start-restore", a.handleDatabaseBackupRestore)
 		api.DELETE("/admin/database-backups", a.handleDatabaseBackupDelete)
 		api.POST("/admin/database-backups/upload", a.handleDatabaseBackupUpload)
+		api.POST("/admin/notifications", a.handleAdminNotificationCreate)
+		api.POST("/admin/notifications/test-email", a.handleAdminTestEmail)
 
 		// realtime sync (websocket)
 		api.GET("/events", a.handleEventsWS)
