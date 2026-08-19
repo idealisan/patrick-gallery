@@ -9,7 +9,6 @@ GET /memories
 GET /memories/statistics
 GET /users/me/calendar-heatmap
 PATCH /shared-links/{id}
-POST /admin/notifications
 POST /admin/users
 GET /admin/users/{id}/calendar-heatmap
 PUT /admin/users/{id}
