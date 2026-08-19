@@ -43,6 +43,12 @@ type App struct {
 	// jobStates tracks progress of background jobs keyed by job id.
 	jobStates sync.Map
 
+	// queuePaused tracks the paused flag for each named queue (keyed by
+	// QueueName). Real queue backends would persist this; for the in-memory
+	// bus a sync.Map is sufficient and the flag is honored by /queues and the
+	// job runner.
+	queuePaused sync.Map
+
 	// sioConnectAck tracks Socket.IO polling transports that have sent a
 	// namespace-connect packet (40) over POST, so the next long-poll GET can
 	// return the v4 connect ack (40{"sid":...}) the client expects. Keyed by
@@ -396,6 +402,11 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.POST("/jobs", a.handleJobsList)
 		api.POST("/jobs/:id", a.handleJobCommand)
 		api.GET("/jobs/:id", a.handleJobStatus)
+		api.GET("/queues", a.handleQueuesList)
+		api.GET("/queues/:name", a.handleQueueGet)
+		api.PUT("/queues/:name", a.handleQueueUpdate)
+		api.GET("/queues/:name/jobs", a.handleQueueJobs)
+		api.DELETE("/queues/:name/jobs", a.handleQueueEmpty)
 
 		// realtime sync (websocket)
 		api.GET("/events", a.handleEventsWS)
