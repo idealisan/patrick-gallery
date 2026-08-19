@@ -283,16 +283,22 @@ func (a *App) handleSearchRandom(c *gin.Context) {
 func (a *App) handleSearchLargeAssets(c *gin.Context) {
 	uid := currentUserID(c)
 	var req struct {
-		Size int64 `json:"size"`
-		Take int   `json:"take"`
+		Size        int64 `json:"size"`
+		MinFileSize int64 `json:"minFileSize"`
+		Take        int   `json:"take"`
 	}
 	_ = c.ShouldBindJSON(&req)
 	if req.Take <= 0 {
 		req.Take = 100
 	}
+	// The official web sends minFileSize; honor both it and the legacy size key.
+	minSize := req.MinFileSize
+	if minSize == 0 {
+		minSize = req.Size
+	}
 	q := a.store.DB.Where("owner_id = ? AND is_trash = ?", uid, false)
-	if req.Size > 0 {
-		q = q.Where("size >= ?", req.Size)
+	if minSize > 0 {
+		q = q.Where("size >= ?", minSize)
 	}
 	var assets []Asset
 	q.Order("size DESC").Limit(req.Take).Find(&assets)
