@@ -46,6 +46,25 @@ func (a *App) albumToResponse(al Album) AlbumResponse {
 	}
 }
 
+// albumRole returns the current user's access role for an album: "owner" when
+// they own it, "editor"/"viewer" when it was shared with them via an
+// AlbumUser row, or "" when they have no access. This enforces in-album sharing
+// permissions (P0-5) consistently across album endpoints.
+func (a *App) albumRole(uid, albumID string) string {
+	var al Album
+	if err := a.store.DB.First(&al, "id = ?", albumID).Error; err == nil && al.OwnerID == uid {
+		return "owner"
+	}
+	if a.isAdmin(uid) {
+		return "owner"
+	}
+	var au AlbumUser
+	if err := a.store.DB.First(&au, "album_id = ? AND user_id = ?", albumID, uid).Error; err == nil {
+		return au.Role
+	}
+	return ""
+}
+
 func (a *App) handleAlbumList(c *gin.Context) {
 	uid := currentUserID(c)
 	var albums []Album
@@ -109,8 +128,8 @@ func (a *App) handleAlbumCreate(c *gin.Context) {
 func (a *App) handleAlbumAssets(c *gin.Context) {
 	uid := currentUserID(c)
 	id := c.Param("id")
-	var al Album
-	if err := a.store.DB.First(&al, "id = ? AND owner_id = ?", id, uid).Error; err != nil {
+	role := a.albumRole(uid, id)
+	if role == "" {
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
 	}
@@ -123,7 +142,7 @@ func (a *App) handleAlbumAssets(c *gin.Context) {
 	byID := map[string]Asset{}
 	if len(ids) > 0 {
 		var assets []Asset
-		a.store.DB.Where("id IN ? AND owner_id = ?", ids, uid).Find(&assets)
+		a.store.DB.Where("id IN ?", ids).Find(&assets)
 		for _, as := range assets {
 			byID[as.ID] = as
 		}
@@ -140,11 +159,13 @@ func (a *App) handleAlbumAssets(c *gin.Context) {
 func (a *App) handleAlbumGet(c *gin.Context) {
 	uid := currentUserID(c)
 	id := c.Param("id")
-	var al Album
-	if err := a.store.DB.First(&al, "id = ? AND owner_id = ?", id, uid).Error; err != nil {
+	role := a.albumRole(uid, id)
+	if role == "" {
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
 	}
+	var al Album
+	a.store.DB.First(&al, "id = ?", id)
 	c.JSON(http.StatusOK, a.albumToResponse(al))
 }
 
@@ -187,11 +208,13 @@ type albumAssetsBody struct {
 func (a *App) handleAlbumAddAssets(c *gin.Context) {
 	uid := currentUserID(c)
 	id := c.Param("id")
-	var al Album
-	if err := a.store.DB.First(&al, "id = ? AND owner_id = ?", id, uid).Error; err != nil {
+	role := a.albumRole(uid, id)
+	if role != "owner" && role != "editor" {
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
 	}
+	var al Album
+	a.store.DB.First(&al, "id = ?", id)
 	var b albumAssetsBody
 	_ = c.ShouldBindJSON(&b)
 	now := time.Now().UTC()
@@ -232,11 +255,13 @@ func (a *App) handleAlbumAddAssets(c *gin.Context) {
 func (a *App) handleAlbumRemoveAssets(c *gin.Context) {
 	uid := currentUserID(c)
 	id := c.Param("id")
-	var al Album
-	if err := a.store.DB.First(&al, "id = ? AND owner_id = ?", id, uid).Error; err != nil {
+	role := a.albumRole(uid, id)
+	if role != "owner" && role != "editor" {
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
 	}
+	var al Album
+	a.store.DB.First(&al, "id = ?", id)
 	var b albumAssetsBody
 	_ = c.ShouldBindJSON(&b)
 	a.store.DB.Where("album_id = ? AND asset_id IN ?", id, b.IDs).Delete(&AlbumAsset{})
@@ -320,11 +345,12 @@ func (a *App) handleAlbumMapMarkers(c *gin.Context) {
 func (a *App) handleAlbumSetUsers(c *gin.Context) {
 	uid := currentUserID(c)
 	id := c.Param("id")
-	var al Album
-	if err := a.store.DB.First(&al, "id = ? AND owner_id = ?", id, uid).Error; err != nil {
+	if a.albumRole(uid, id) != "owner" {
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
 	}
+	var al Album
+	a.store.DB.First(&al, "id = ?", id)
 	var b struct {
 		Users []struct {
 			UserID string `json:"userId"`
@@ -348,11 +374,12 @@ func (a *App) handleAlbumAddUser(c *gin.Context) {
 	uid := currentUserID(c)
 	id := c.Param("id")
 	userId := c.Param("userId")
-	var al Album
-	if err := a.store.DB.First(&al, "id = ? AND owner_id = ?", id, uid).Error; err != nil {
+	if a.albumRole(uid, id) != "owner" {
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
 	}
+	var al Album
+	a.store.DB.First(&al, "id = ?", id)
 	var b struct {
 		Role string `json:"role"`
 	}
@@ -370,11 +397,12 @@ func (a *App) handleAlbumRemoveUser(c *gin.Context) {
 	uid := currentUserID(c)
 	id := c.Param("id")
 	userId := c.Param("userId")
-	var al Album
-	if err := a.store.DB.First(&al, "id = ? AND owner_id = ?", id, uid).Error; err != nil {
+	if a.albumRole(uid, id) != "owner" {
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
 	}
+	var al Album
+	a.store.DB.First(&al, "id = ?", id)
 	a.store.DB.Where("album_id = ? AND user_id = ?", id, userId).Delete(&AlbumUser{})
 	c.JSON(http.StatusOK, a.albumToResponse(al))
 }

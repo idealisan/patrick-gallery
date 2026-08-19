@@ -9,6 +9,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// timelineOwners returns the owner IDs whose assets should appear in the
+// current user's timeline. By default Immich surfaces partner-shared assets in
+// the timeline; we honor the `withPartners` query (default true) and fall back
+// to the viewer's own assets only when explicitly disabled.
+func (a *App) timelineOwners(c *gin.Context, uid string) []string {
+	if c.Query("withPartners") == "false" {
+		return []string{uid}
+	}
+	return a.sharedOwnerIDs(uid)
+}
+
 func (a *App) handleTimelineBuckets(c *gin.Context) {
 	uid := currentUserID(c)
 	size := c.Query("size")
@@ -16,7 +27,8 @@ func (a *App) handleTimelineBuckets(c *gin.Context) {
 		size = "MONTH"
 	}
 	var assets []Asset
-	a.store.DB.Where("owner_id = ? AND is_trash = ?", uid, false).Find(&assets)
+	owners := a.timelineOwners(c, uid)
+	a.store.DB.Where("owner_id IN ? AND is_trash = ?", owners, false).Find(&assets)
 
 	counts := map[string]int{}
 	for _, as := range assets {
@@ -69,7 +81,8 @@ func (a *App) handleTimelineBucketAssets(c *gin.Context) {
 	}
 
 	var assets []Asset
-	a.store.DB.Where("owner_id = ? AND is_trash = ?", uid, false).Order("local_date_time DESC").Find(&assets)
+	owners := a.timelineOwners(c, uid)
+	a.store.DB.Where("owner_id IN ? AND is_trash = ?", owners, false).Order("local_date_time DESC").Find(&assets)
 	matched := make([]Asset, 0, len(assets))
 	for _, as := range assets {
 		if as.LocalDateTime.Format("2006-01") == ym {
