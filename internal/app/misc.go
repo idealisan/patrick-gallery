@@ -2,6 +2,7 @@ package app
 
 import (
 	"archive/zip"
+	"encoding/json"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -601,17 +602,18 @@ func (a *App) handleSystemConfigGet(c *gin.Context) {
 	c.JSON(http.StatusOK, a.buildSystemConfig(&cfg))
 }
 
-// buildSystemConfig assembles the full nested SystemConfigDto from the
-// persisted flat SystemConfig row. Blocks immich-go does not yet persist are
-// returned with the official server's default values so every admin
-// system-settings sub-page (image/ffmpeg/map/library/oauth/job/theme/...) has
-// the nested shape it reads from the client contract.
+// buildSystemConfig assembles the full nested SystemConfigDto. It starts from
+// the official default shape, then layers the persisted ConfigJSON blob on top
+// (so every admin system-settings sub-page round-trips what an admin edited),
+// and finally overrides the few fields immich-go also mirrors into flat columns
+// (LoginRequired / ExternalDomain / IsPublic / TrashDays / Onboarded) so they
+// stay authoritative regardless of what the blob carries.
 func (a *App) buildSystemConfig(cfg *SystemConfig) gin.H {
 	trashDays := cfg.TrashDays
 	if trashDays == 0 {
 		trashDays = 30
 	}
-	return gin.H{
+	defaults := gin.H{
 		"id":             cfg.ID,
 		"repository":     "immich-go",
 		"releaseChannel": "nightly",
@@ -844,6 +846,43 @@ func (a *App) buildSystemConfig(cfg *SystemConfig) gin.H {
 			},
 		},
 	}
+
+	// Layer the persisted blob over the defaults so admin edits round-trip.
+	if cfg.ConfigJSON != "" {
+		var stored map[string]interface{}
+		if err := json.Unmarshal([]byte(cfg.ConfigJSON), &stored); err == nil {
+			mergeConfig(defaults, stored)
+		}
+	}
+
+	// Flat columns stay authoritative over whatever the blob carried.
+	if pl, ok := defaults["passwordLogin"].(map[string]interface{}); ok {
+		pl["enabled"] = cfg.LoginRequired
+	}
+	if srv, ok := defaults["server"].(map[string]interface{}); ok {
+		srv["externalDomain"] = cfg.ExternalDomain
+		srv["publicUsers"] = cfg.IsPublic
+	}
+	if tr, ok := defaults["trash"].(map[string]interface{}); ok {
+		tr["days"] = trashDays
+	}
+	defaults["onboarded"] = cfg.Onboarded
+
+	return defaults
+}
+
+// mergeConfig deep-merges src into dst (src wins). Both are JSON-decoded
+// generic maps; nested maps are merged recursively, everything else replaced.
+func mergeConfig(dst, src map[string]interface{}) {
+	for k, v := range src {
+		if vm, ok := v.(map[string]interface{}); ok {
+			if dm, ok := dst[k].(map[string]interface{}); ok {
+				mergeConfig(dm, vm)
+				continue
+			}
+		}
+		dst[k] = v
+	}
 }
 
 func (a *App) handleSystemConfigUpdate(c *gin.Context) {
@@ -874,6 +913,14 @@ func (a *App) handleSystemConfigUpdate(c *gin.Context) {
 	}
 	if v, ok := b["onboarded"].(bool); ok {
 		cfg.Onboarded = v
+	}
+
+	// Persist the entire nested config body verbatim so every admin
+	// system-settings block round-trips (ffmpeg/image/job/oauth/...). The flat
+	// columns above stay authoritative and are merged back over this blob at
+	// read time (buildSystemConfig).
+	if raw, err := json.Marshal(b); err == nil {
+		cfg.ConfigJSON = string(raw)
 	}
 
 	a.store.DB.Save(&cfg)

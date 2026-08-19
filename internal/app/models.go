@@ -289,6 +289,15 @@ type SystemConfig struct {
 	// stored in a browser from a previous deployment is rejected, so the
 	// login screen is shown instead of silently resuming a stale session.
 	JWTSecret string `gorm:"type:text" json:"-"`
+
+	// ConfigJSON stores the full nested SystemConfigDto (the body of
+	// PUT /system-config) as a JSON blob. This makes the admin system-settings
+	// pages round-trip: every block (ffmpeg/image/job/oauth/...) the web edits
+	// is persisted verbatim and echoed back on GET, instead of resetting to
+	// compile-time defaults on every update. Fields immich-go also mirrors into
+	// flat columns (LoginRequired/ExternalDomain/...) stay authoritative and
+	// are merged over the blob at read time.
+	ConfigJSON string `gorm:"type:text" json:"-"`
 }
 
 // Session records an issued auth token so an admin can list a user's active
