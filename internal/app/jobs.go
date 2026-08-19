@@ -302,10 +302,58 @@ func (a *App) jobRegistry() map[string]jobSpec {
 // jobWorkers bounds concurrent media processing across all jobs.
 const jobWorkers = 4
 
-// handleJobCommand starts (or force-starts) a job. Immich's body may carry
-// {force:true}; we always (re)start if not already running.
+// handleJobCommand mirrors POST /api/jobs/:name. It accepts either a manual
+// trigger (no body / {force:true}) or a QueueCommandDto{command} to
+// pause/resume/empty/clear-failed the queue.
 func (a *App) handleJobCommand(c *gin.Context) {
 	id := c.Param("id")
+	if _, ok := a.requireAdmin(c); !ok {
+		return
+	}
+	var cmd struct {
+		Command string `json:"command"`
+	}
+	_ = c.ShouldBindJSON(&cmd)
+	if cmd.Command != "" {
+		switch cmd.Command {
+		case "pause":
+			a.queuePaused.Store(id, true)
+			c.JSON(http.StatusOK, gin.H{"jobId": id, "paused": true})
+			return
+		case "resume":
+			a.queuePaused.Store(id, false)
+			c.JSON(http.StatusOK, gin.H{"jobId": id, "paused": false})
+			return
+		case "empty", "clear-failed":
+			if st, ok := a.jobStates.Load(id); ok {
+				s := st.(*jobState)
+				s.mu.Lock()
+				if cmd.Command == "clear-failed" {
+					s.failed = 0
+				}
+				s.completed = 0
+				s.active = 0
+				s.total = 0
+				s.running = false
+				s.lastError = ""
+				s.mu.Unlock()
+			}
+			a.queuePaused.Store(id, false)
+			c.JSON(http.StatusOK, gin.H{"jobId": id, "cleared": true})
+			return
+		case "start":
+			// fall through to dispatch below
+		default:
+			c.JSON(http.StatusBadRequest, gin.H{"message": "unknown command: " + cmd.Command, "statusCode": 400})
+			return
+		}
+	}
+	a.dispatchJob(c, id)
+}
+
+// dispatchJob starts (or force-starts) a job by id. Immich's body may carry
+// {force:true}; we always (re)start if not already running.
+func (a *App) dispatchJob(c *gin.Context, id string) {
 	reg := a.jobRegistry()
 	spec, ok := reg[id]
 	if !ok {
@@ -391,18 +439,53 @@ func (a *App) handleJobStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, st.(*jobState).snapshot())
 }
 
-// handleJobsList returns the queue status for every known job id.
+// handleJobsList mirrors GET /api/jobs (legacy). Returns the fixed
+// QueuesResponseLegacyDto shape: one block per named queue, each carrying
+// {active, completed, failed, delayed, paused}. Paused is taken from the
+// queue pause map; the rest from the live job progress snapshot.
 func (a *App) handleJobsList(c *gin.Context) {
-	reg := a.jobRegistry()
 	out := gin.H{}
-	for id := range reg {
-		if st, ok := a.jobStates.Load(id); ok {
-			out[id] = st.(*jobState).snapshot()
-		} else {
-			out[id] = gin.H{"active": 0, "completed": 0, "total": 0, "running": false}
+	for _, name := range queueNames {
+		paused := false
+		if v, ok := a.queuePaused.Load(name); ok {
+			paused = v.(bool)
 		}
+		st := gin.H{
+			"active":    0,
+			"completed": 0,
+			"failed":    0,
+			"delayed":   0,
+			"paused":    0,
+		}
+		if v, ok := a.jobStates.Load(name); ok {
+			snap := v.(*jobState).snapshot()
+			st["active"] = snap["active"]
+			st["completed"] = snap["completed"]
+			st["failed"] = snap["failed"]
+			st["delayed"] = snap["delayed"]
+		}
+		if paused {
+			st["paused"] = 1
+		}
+		out[name] = st
 	}
 	c.JSON(http.StatusOK, out)
+}
+
+// handleJobCreate mirrors POST /api/jobs (createJob). Triggers a manual job by
+// name (JobCreateDto{name}). It reuses the same dispatcher as /jobs/:id.
+func (a *App) handleJobCreate(c *gin.Context) {
+	if _, ok := a.requireAdmin(c); !ok {
+		return
+	}
+	var body struct {
+		Name string `json:"name"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.Name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "job name required", "statusCode": 400})
+		return
+	}
+	a.dispatchJob(c, body.Name)
 }
 
 // ensure jobStateFor returns (creating if needed) the per-job state.

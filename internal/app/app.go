@@ -399,7 +399,7 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.POST("/system-metadata/admin-onboarding", a.handleAdminOnboardingPost)
 		api.GET("/server/statistics", a.handleServerStatistics)
 		api.GET("/jobs", a.handleJobsList)
-		api.POST("/jobs", a.handleJobsList)
+		api.POST("/jobs", a.handleJobCreate)
 		api.POST("/jobs/:id", a.handleJobCommand)
 		api.GET("/jobs/:id", a.handleJobStatus)
 		api.GET("/queues", a.handleQueuesList)
