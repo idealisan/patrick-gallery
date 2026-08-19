@@ -231,13 +231,17 @@ func isSystemDir(rel string) bool {
 	return false
 }
 
-// handleIntegrityReport mirrors GET /api/admin/integrity/:type. Lists the
-// individual discrepancies of a given type as paginated report items.
+// handleIntegrityReport mirrors GET/POST /api/admin/integrity/report. Lists the
+// individual discrepancies of a given type (query `type`) as paginated report
+// items. POST (create report) performs the same real scan.
 func (a *App) handleIntegrityReport(c *gin.Context) {
 	if _, ok := a.requireAdmin(c); !ok {
 		return
 	}
-	typ := c.Param("type")
+	typ := c.Query("type")
+	if typ == "" {
+		typ = "missing_file"
+	}
 	limit := 100
 	if l := c.Query("limit"); l != "" {
 		if n, err := fmt.Sscanf(l, "%d", new(int)); err == nil {
@@ -329,14 +333,20 @@ func (a *App) handleIntegrityReportCsv(c *gin.Context) {
 	c.Header("Content-Disposition", "attachment; filename=\"integrity-report.csv\"")
 	w := csv.NewWriter(c.Writer)
 	_ = w.Write([]string{"type", "path", "assetId"})
-	for _, it := range a.integrityItems("missing_file", 100000) {
-		_ = w.Write([]string{"missing_file", it["path"].(string), fmtS(it["assetId"])})
+	// Support both the per-type route (/admin/integrity/report/:type/csv) and
+	// the legacy all-types route (/admin/integrity/csv).
+	typ := c.Param("type")
+	if typ == "" {
+		typ = c.Query("type")
 	}
-	for _, it := range a.integrityItems("checksum_mismatch", 100000) {
-		_ = w.Write([]string{"checksum_mismatch", it["path"].(string), fmtS(it["assetId"])})
+	types := []string{"missing_file", "checksum_mismatch", "untracked_file"}
+	if typ != "" {
+		types = []string{typ}
 	}
-	for _, it := range a.integrityItems("untracked_file", 100000) {
-		_ = w.Write([]string{"untracked_file", it["path"].(string), ""})
+	for _, t := range types {
+		for _, it := range a.integrityItems(t, 100000) {
+			_ = w.Write([]string{t, it["path"].(string), fmtS(it["assetId"])})
+		}
 	}
 	w.Flush()
 }
