@@ -49,6 +49,13 @@ type App struct {
 	// job runner.
 	queuePaused sync.Map
 
+	// maintenance holds the global maintenance-mode state (set via
+	// POST /admin/maintenance). While active, mutating endpoints reject writes
+	// with 503 so operators can safely restore/inspect the instance.
+	maintenanceMu   sync.Mutex
+	maintenanceMode bool
+	maintenanceTask string
+
 	// sioConnectAck tracks Socket.IO polling transports that have sent a
 	// namespace-connect packet (40) over POST, so the next long-poll GET can
 	// return the v4 connect ack (40{"sid":...}) the client expects. Keyed by
@@ -407,6 +414,21 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.PUT("/queues/:name", a.handleQueueUpdate)
 		api.GET("/queues/:name/jobs", a.handleQueueJobs)
 		api.DELETE("/queues/:name/jobs", a.handleQueueEmpty)
+
+		// maintenance + integrity (admin)
+		api.POST("/admin/maintenance", a.handleMaintenanceSet)
+		api.GET("/admin/maintenance/status", a.handleMaintenanceStatus)
+		api.POST("/admin/maintenance/login", a.handleMaintenanceLogin)
+		api.GET("/admin/maintenance/detect-install", a.handleMaintenanceDetectInstall)
+		api.GET("/admin/integrity/summary", a.handleIntegritySummary)
+		api.GET("/admin/integrity/:type", a.handleIntegrityReport)
+		api.DELETE("/admin/integrity/:id", a.handleIntegrityReportDelete)
+		api.GET("/admin/integrity/file/:id", a.handleIntegrityReportFile)
+		api.GET("/admin/integrity/csv", a.handleIntegrityReportCsv)
+		api.GET("/admin/database-backups", a.handleDatabaseBackupsList)
+		api.POST("/admin/database-backups/start-restore", a.handleDatabaseBackupRestore)
+		api.DELETE("/admin/database-backups", a.handleDatabaseBackupDelete)
+		api.POST("/admin/database-backups/upload", a.handleDatabaseBackupUpload)
 
 		// realtime sync (websocket)
 		api.GET("/events", a.handleEventsWS)
