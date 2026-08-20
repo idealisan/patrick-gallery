@@ -66,6 +66,7 @@ type Asset struct {
 	Duration         string         `gorm:"type:text" json:"duration"`
 	IsFavorite       bool           `json:"isFavorite"`
 	IsArchived       bool           `json:"isArchived"`
+	Visibility       string         `gorm:"type:text;default:timeline" json:"visibility,omitempty"`
 	IsTrash          bool           `json:"isTrash"`
 	TrashedAt        *time.Time     `gorm:"type:datetime" json:"-"`
 	IsExternal       bool           `json:"isExternal"`

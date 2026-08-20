@@ -267,10 +267,8 @@ func (a *App) handleSyncStream(c *gin.Context) {
 	var assets []Asset
 	a.store.DB.Where("owner_id = ? AND is_trash = ?", uid, false).Find(&assets)
 	for _, as := range assets {
-		visibility := "timeline"
-		if as.IsArchived {
-			visibility = "archive"
-		}
+		visibility := visibilityOf(as)
+		_, isEdited, stackID := a.assetExtras(as.ID)
 		emit("AssetV2", gin.H{
 			"checksum":         as.Checksum,
 			"createdAt":        rfc(as.CreatedAt),
@@ -280,14 +278,14 @@ func (a *App) handleSyncStream(c *gin.Context) {
 			"fileModifiedAt":   rfc(as.FileModifiedAt),
 			"height":           as.Height,
 			"id":               as.ID,
-			"isEdited":         false,
+			"isEdited":         isEdited,
 			"isFavorite":       as.IsFavorite,
 			"libraryId":        nilStr(as.LibraryId),
 			"livePhotoVideoId": nilStr(as.LivePhotoVideoID),
 			"localDateTime":    rfc(as.LocalDateTime),
 			"originalFileName": as.OriginalFileName,
 			"ownerId":          as.OwnerID,
-			"stackId":          nil,
+			"stackId":          nilStr(stackID),
 			"thumbhash":        nilStr(as.Thumbhash),
 			"type":             as.Type, // IMAGE | VIDEO | AUDIO | OTHER
 			"visibility":       visibility,

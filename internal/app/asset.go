@@ -48,6 +48,7 @@ type AssetResponse struct {
 	Resized          bool          `json:"resized"`
 	HasMetadata      bool          `json:"hasMetadata"`
 	Visibility       string        `json:"visibility,omitempty"`
+	StackID          string        `json:"stackId,omitempty"`
 	Thumbhash        string        `json:"thumbhash,omitempty"`
 	Width            int           `json:"width,omitempty"`
 	Height           int           `json:"height,omitempty"`
@@ -97,9 +98,7 @@ func (a *App) toResponse(asset Asset) AssetResponse {
 		HasThumbnail:     asset.HasThumbnail,
 		Resized:          asset.HasThumbnail,
 		HasMetadata:      asset.ExifID != "",
-		Visibility:       visibilityOf(asset.IsArchived),
-		IsEdited:         false,
-		IsOffline:        false,
+		Visibility:       visibilityOf(asset),
 		LivePhotoVideoID: asset.LivePhotoVideoID,
 		Width:            asset.Width,
 		Height:           asset.Height,
@@ -110,6 +109,12 @@ func (a *App) toResponse(asset Asset) AssetResponse {
 		Tags:             []any{},
 		OriginalMimeType: mimeByExt(asset.OriginalFileName),
 	}
+	// Real per-asset extras (not placeholders): duplicate group, edit flag, stack.
+	dupID, isEdited, stackID := a.assetExtras(asset.ID)
+	r.DuplicateID = dupID
+	r.IsEdited = isEdited
+	r.IsOffline = false // immich-go has no offline asset concept
+	r.StackID = stackID
 	if asset.OwnerID != "" {
 		var owner User
 		if a.store.DB.First(&owner, "id = ?", asset.OwnerID).Error == nil {
@@ -132,12 +137,50 @@ func (a *App) toResponse(asset Asset) AssetResponse {
 	return r
 }
 
-// visibilityOf maps the boolean archive flag to Immich's AssetVisibility enum.
-func visibilityOf(isArchived bool) string {
+// visibilityString resolves the effective visibility from a stored value with
+// an isArchived fallback. Used by both the Asset DTO and timeline responses.
+func visibilityString(stored string, isArchived bool) string {
+	if stored != "" {
+		return stored
+	}
 	if isArchived {
 		return "archive"
 	}
 	return "timeline"
+}
+
+// visibilityOf returns the stored visibility for an asset, defaulting to
+// "timeline". The stored value already encodes archive/hidden/locked; the
+// boolean IsArchived is kept in sync for the search/index path.
+func visibilityOf(asset Asset) string {
+	return visibilityString(asset.Visibility, asset.IsArchived)
+}
+
+// assetExtras computes the per-asset fields that are not stored directly on the
+// Asset row: the duplicate-group id, whether the asset has been edited, and the
+// stack it belongs to. These are real queries (not placeholders) so the DTO
+// reflects persisted state.
+func (a *App) assetExtras(id string) (duplicateID string, isEdited bool, stackID string) {
+	var dr DuplicateResolution
+	if err := a.store.DB.Where("asset_id = ?", id).First(&dr).Error; err == nil {
+		duplicateID = dr.DuplicateID
+	}
+	var edit AssetEdit
+	if err := a.store.DB.Where("asset_id = ?", id).Limit(1).First(&edit).Error; err == nil {
+		isEdited = true
+	}
+	if !isEdited {
+		// A user-edited description is also an edit in Immich's sense.
+		var exif Exif
+		if err := a.store.DB.Where("asset_id = ?", id).First(&exif).Error; err == nil && exif.Description != "" {
+			isEdited = true
+		}
+	}
+	var sa StackAsset
+	if err := a.store.DB.Where("asset_id = ?", id).Limit(1).First(&sa).Error; err == nil {
+		stackID = sa.StackID
+	}
+	return
 }
 
 // parseDurationInt converts the stored duration (seconds, possibly empty or a
@@ -725,6 +768,9 @@ func (a *App) handleAssetMetadataUpdate(c *gin.Context) {
 func (a *App) applyAssetMetadata(id string, b assetMetadataInput) {
 	patch := map[string]any{}
 	if b.Visibility != "" {
+		// Persist the canonical visibility value and keep is_archived in sync
+		// so both the API DTO and the search/index path agree.
+		patch["visibility"] = b.Visibility
 		patch["is_archived"] = b.Visibility == "archive"
 	}
 	if b.Favorite != nil {

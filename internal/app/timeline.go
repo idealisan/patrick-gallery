@@ -20,6 +20,12 @@ func (a *App) timelineOwners(c *gin.Context, uid string) []string {
 	return a.sharedOwnerIDs(uid)
 }
 
+// timelineTrash returns whether the timeline query should include trashed
+// assets. The web's trash gallery sets isTrashed:true (sent as isTrash=true).
+func (a *App) timelineTrash(c *gin.Context) bool {
+	return c.Query("isTrash") == "true"
+}
+
 func (a *App) handleTimelineBuckets(c *gin.Context) {
 	uid := currentUserID(c)
 	size := c.Query("size")
@@ -28,7 +34,7 @@ func (a *App) handleTimelineBuckets(c *gin.Context) {
 	}
 	var assets []Asset
 	owners := a.timelineOwners(c, uid)
-	a.store.DB.Where("owner_id IN ? AND is_trash = ?", owners, false).Find(&assets)
+	a.store.DB.Where("owner_id IN ? AND is_trash = ?", owners, a.timelineTrash(c)).Find(&assets)
 
 	counts := map[string]int{}
 	for _, as := range assets {
@@ -82,7 +88,7 @@ func (a *App) handleTimelineBucketAssets(c *gin.Context) {
 
 	var assets []Asset
 	owners := a.timelineOwners(c, uid)
-	a.store.DB.Where("owner_id IN ? AND is_trash = ?", owners, false).Order("local_date_time DESC").Find(&assets)
+	a.store.DB.Where("owner_id IN ? AND is_trash = ?", owners, a.timelineTrash(c)).Order("local_date_time DESC").Find(&assets)
 	matched := make([]Asset, 0, len(assets))
 	for _, as := range assets {
 		if as.LocalDateTime.Format("2006-01") == ym {
@@ -187,7 +193,7 @@ func (a *App) buildTimeBucketAssets(assets []Asset) timeBucketAssetsResponse {
 		r.LivePhotoVideoID[i] = as.LivePhotoVideoID
 		r.ProjectionType[i] = "" // no 360°/equirectangular support yet
 		r.Thumbhash[i] = as.Thumbhash
-		r.Visibility[i] = visibilityOf(as.IsArchived)
+		r.Visibility[i] = visibilityString(as.Visibility, as.IsArchived)
 		if as.Width > 0 && as.Height > 0 {
 			r.Ratio[i] = float64(as.Width) / float64(as.Height)
 		}
