@@ -27,6 +27,7 @@ type searchRequest struct {
 	TagIDs           []string `json:"tagIds"`
 	IsFavorite       *bool    `json:"isFavorite"`
 	IsNotInAlbum     *bool    `json:"isNotInAlbum"`
+	IsTrash          *bool    `json:"isTrash"`
 	Visibility       string   `json:"visibility"`
 	TakenAfter       string   `json:"takenAfter"`
 	TakenBefore      string   `json:"takenBefore"`
@@ -88,8 +89,15 @@ func (a *App) handleSearch(c *gin.Context) {
 	}
 	q := strings.TrimSpace(req.Query)
 
+	// Honor the isTrash flag (the trash gallery queries with isTrashed:true).
+	// Default to non-trashed when the flag is absent.
+	trash := false
+	if req.IsTrash != nil {
+		trash = *req.IsTrash
+	}
+
 	var assets []Asset
-	base := a.store.DB.Where("owner_id = ? AND is_trash = ?", uid, false)
+	base := a.store.DB.Where("owner_id = ? AND is_trash = ?", uid, trash)
 	if q != "" {
 		like := "%" + q + "%"
 		base = base.Where("original_file_name LIKE ? OR original_path LIKE ?", like, like)
@@ -113,7 +121,7 @@ func (a *App) handleSearch(c *gin.Context) {
 				continue
 			}
 			var as Asset
-			if err := a.store.DB.First(&as, "id = ? AND owner_id = ? AND is_trash = ?", e.AssetID, uid, false).Error; err == nil {
+			if err := a.store.DB.First(&as, "id = ? AND owner_id = ? AND is_trash = ?", e.AssetID, uid, trash).Error; err == nil {
 				assets = append(assets, as)
 				seen[e.AssetID] = true
 			}
@@ -131,8 +139,12 @@ func (a *App) handleSearchMetadata(c *gin.Context) {
 	uid := currentUserID(c)
 	var req searchRequest
 	_ = c.ShouldBindJSON(&req)
+	trash := false
+	if req.IsTrash != nil {
+		trash = *req.IsTrash
+	}
 	var assets []Asset
-	assetQuery := a.store.DB.Where("assets.owner_id = ? AND assets.is_trash = ?", uid, false)
+	assetQuery := a.store.DB.Where("assets.owner_id = ? AND assets.is_trash = ?", uid, trash)
 	if req.OriginalFileName != "" {
 		assetQuery = assetQuery.Where("assets.original_file_name LIKE ?", "%"+req.OriginalFileName+"%")
 	}
@@ -346,11 +358,13 @@ func (a *App) handleSearchStatistics(c *gin.Context) {
 	})
 }
 
-// handleSearchSmart is CLIP semantic search. Immich-go has no ML embedding
-// backend (deferred per AGENTS.md), so it returns an empty, schema-conformant
-// SearchResponseDto — the truthful state when no semantic matches are
-// available. This is honest-empty (not a fake success): with no embedding
-// model there is genuinely nothing to match.
+// handleSearchSmart performs "thing" search. Images are described in the
+// background by the configured LLM (POST /api/jobs smartSearch), and the query
+// is matched as a substring against that description, the asset filename, and
+// the OCR text. When no LLM descriptions have been generated yet (or smart
+// search is disabled) this degrades gracefully to a plain text search over
+// filename + OCR text, so the Web UI "things" facet always returns real results
+// instead of a hard 501.
 func (a *App) handleSearchSmart(c *gin.Context) {
 	uid := currentUserID(c)
 	var req struct {
@@ -363,17 +377,24 @@ func (a *App) handleSearchSmart(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "query is required", "statusCode": 400})
 		return
 	}
-	var analyzed int64
-	if err := a.store.DB.Model(&AssetML{}).Joins("JOIN assets ON assets.id = asset_mls.asset_id").Where("assets.owner_id = ? AND assets.is_trash = ?", uid, false).Count(&analyzed).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+	if req.Size <= 0 {
+		req.Size = 100
 	}
-	if analyzed == 0 {
-		c.JSON(http.StatusNotImplemented, gin.H{"error": "semantic search requires completed background ML analysis", "statusCode": 501})
-		return
-	}
+	like := "%" + req.Query + "%"
 	var assets []Asset
-	if err := a.store.DB.Where("owner_id = ? AND is_trash = ? AND id IN (SELECT asset_id FROM asset_mls WHERE description LIKE ?)", uid, false, "%"+req.Query+"%").Limit(req.Size).Find(&assets).Error; err != nil {
+	err := a.store.DB.
+		Where("assets.owner_id = ? AND assets.is_trash = ?", uid, false).
+		Where(`assets.id IN (
+			SELECT asset_id FROM asset_mls WHERE description LIKE ? OR labels_json LIKE ?
+			UNION
+			SELECT id FROM assets WHERE original_file_name LIKE ?
+			UNION
+			SELECT asset_id FROM asset_ocrs WHERE text LIKE ?
+		)`, like, like, like, like).
+		Order("assets.local_date_time DESC").
+		Limit(req.Size).
+		Find(&assets).Error
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

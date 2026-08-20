@@ -92,7 +92,7 @@ immich-go 目前只覆盖了原版的**单人核心闭环**。要对等原版的
 | 人物 / 人脸 | 「人物」Tab，自动聚类、可改名、合并、隐藏 | `GET /people` 返回空；人脸写操作全缺；`facialRecognition:false` | **完全缺失（ML）** |
 | 回忆 Memories | 「On this day」时间线 | 8 个端点全缺 | **完全缺失** |
 | 堆叠 Stacks | 连拍/相似自动堆叠、可展开 | ✅ 手动堆叠已实现（`POST /stacks`、`GET /stacks/:id`、`DELETE /stacks`，真实建表 + 资产顺序透出）；缺列表/合并与 ML 自动聚类 | ⚠️ 手动堆叠可用，自动堆叠缺（ML） |
-| 语义搜索 | 「人物/地点/事物」facets（CLIP 向量） | `smartSearch:false`；`/search/smart` 缺 | **完全缺失（ML）** |
+| 语义搜索 | 「人物/地点/事物」facets（CLIP 向量） | `smartSearch` 已用 OpenAI 兼容 Chat Completions 视觉接口为 image 生成文本描述（`POST /jobs smartSearch` 后台异步写入 `asset_mls.description`/`labels_json`）；`/search/smart` 以子串匹配 描述+文件名+OCR 文本 返回真实结果，未配 LLM 时降级为纯文件名/OCR 文本搜索（不再 501）。 | ✅ 已实现（LLM 文本描述路线，非 CLIP 向量；需 `IMMICH_LLM_*` 配置） |
 | 搜索人物 | `/search/person` | 仅 GET stub 返回 0 | **缺失（依赖 ML）** |
 | 设备锁 / PIN | `auth/pin-code`、`auth/session/lock|unlock`、`/sessions/*` | ✅ 已实现（real：PIN 用 bcrypt 存储并校验、`/sessions` 创建子会话带 token、lock 清 `pin_expires_at`、unlock 校验 PIN/密码后置 `pin_expires_at+15min`） | ✅ 已实现（手机必备，v3.1.0 契约） |
 | 通知 | 站内通知、`/notifications/*` | 全缺 | **缺失** |
@@ -272,7 +272,7 @@ Web 管理后台 + 高级界面缺失：
 | 设备 PIN/会话锁/Sessions | ✅ 纯 Go + SQLite | 工作量中；手机必备 |
 | 通知 Notifications（站内） | ✅ 纯 Go + SQLite | email 通知需外部 SMTP（突破纯本地约束） |
 | 人脸聚类 / 人物 | ❌ 难（ML 推理） | 纯 Go 无成熟人脸/聚类模型；需外接推理或纯 Go 移植，工程量巨大 |
-| CLIP 语义搜索 | ❌ 难（向量嵌入） | 同上；需向量存储（pgvecto-rs 等价物或纯 Go 向量索引） |
+| CLIP 语义搜索 | ⚠️ 已用 LLM 文本描述路线实现 | 用 OpenAI 兼容视觉接口生成描述 + 子串匹配，无需向量库；CLIP 向量语义召回为更高阶目标（可选） |
 | OCR | ❌ 难 | 纯 Go OCR 弱；需模型或外部服务 |
 | 多用户管理后台 / 维护 / 备份 / 完整性 | ⚠️ 部分可行 | SQLite 可做用户管理/维护；PG 式备份恢复不适用，需 SQLite 专属方案 |
 | OAuth/SSO | ⚠️ 需外部 IdP | 协议纯 Go 可做，但依赖外部身份提供方 |
@@ -338,7 +338,7 @@ Web 管理后台 + 高级界面缺失：
 
 **P3 — AI/ML 与架构扩展（受约束，需决策）**
 21. 人脸聚类 / 人物（`/people`、`/faces` 写操作）——需纯 Go 推理或外部 AI
-22. CLIP 语义搜索（`/search/smart`）——需向量嵌入 + 向量索引
+22. CLIP 向量语义搜索（`/search/smart` 的高阶召回）——已用 LLM 文本描述 + 子串匹配实现基础版；CLIP 向量语义召回为可选增强
 23. OCR（`/assets/:id/ocr`）
 24. OAuth/SSO 配置 UI（`/oauth/*` + admin）
 25. 插件 / 工作流（`/plugins/*`、`/workflows/*`）

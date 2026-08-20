@@ -48,6 +48,19 @@ type Config struct {
 	OCRTimeout       int
 	OCRNativePath    string
 	OCRCommunityPath string
+
+	// LLM configuration for smart (semantic) search. The same OpenAI-compatible
+	// Chat Completions vision endpoint is used to generate a textual description
+	// for each image; search then matches the query as a substring across the
+	// stored description, plus filename and OCR text. Base URL / key / model
+	// fall back to the OCR values so a single provider config drives both.
+	LLMEnabled  bool
+	LLMProvider string
+	LLMBaseURL  string
+	LLMAPIKey   string
+	LLMModel    string
+	LLMPrompt   string
+	LLMTimeout  int
 }
 
 func getEnv(k, def string) string {
@@ -103,6 +116,14 @@ func LoadConfig() *Config {
 		OCRTimeout:       envInt("IMMICH_OCR_TIMEOUT_SECONDS", 120),
 		OCRNativePath:    getEnv("IMMICH_OCR_NATIVE_PATH", ""),
 		OCRCommunityPath: getEnv("IMMICH_OCR_COMMUNITY_PATH", ""),
+
+		LLMEnabled:  getEnv("IMMICH_LLM_ENABLED", "") == "true",
+		LLMProvider: getEnv("IMMICH_LLM_PROVIDER", "openai-chat"),
+		LLMBaseURL:  getEnv("IMMICH_LLM_BASE_URL", getEnv("IMMICH_OCR_BASE_URL", "https://api.openai.com/v1")),
+		LLMAPIKey:   getEnv("IMMICH_LLM_API_KEY", getEnv("IMMICH_OCR_API_KEY", "")),
+		LLMModel:    getEnv("IMMICH_LLM_MODEL", getEnv("IMMICH_OCR_MODEL", "gpt-4o-mini")),
+		LLMPrompt:   getEnv("IMMICH_LLM_PROMPT", ""),
+		LLMTimeout:  envInt("IMMICH_LLM_TIMEOUT_SECONDS", 120),
 	}
 	maj, min, pat := 3, 1, 0
 	if n, err := fmt.Sscanf(cfg.CompatVersion, "%d.%d.%d", &maj, &min, &pat); n >= 1 && err == nil {

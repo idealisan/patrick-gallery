@@ -101,11 +101,19 @@ func NewApp(cfg *Config, store *Store) *App {
 	} else if cfg.OCRCommunityPath != "" {
 		log.Printf("[ocr] community backend unavailable: %v", loadErr)
 	}
+	// The vision/ML backend powers smart (semantic) search. It is configured
+	// independently via the LLM_* env vars (which default to the OCR values),
+	// so a single OpenAI-compatible provider can drive both, or smart search
+	// can be enabled on its own. It is only constructed when explicitly enabled
+	// or when usable credentials are present.
 	var mlBackend ml.Backend
-	if cfg.OCRProvider == "openai-chat" || cfg.OCRProvider == "chat" || cfg.OCRProvider == "openai-responses" || cfg.OCRProvider == "responses" {
-		responses := cfg.OCRProvider == "openai-responses" || cfg.OCRProvider == "responses"
-		if backend, mlErr := ml.NewOpenAIVision(ml.OpenAIConfig{BaseURL: cfg.OCRBaseURL, APIKey: cfg.OCRAPIKey, Model: cfg.OCRModel, Timeout: time.Duration(cfg.OCRTimeout) * time.Second}, responses); mlErr == nil {
+	if cfg.LLMEnabled || (cfg.LLMAPIKey != "" && cfg.LLMBaseURL != "" && cfg.LLMModel != "") {
+		responses := cfg.LLMProvider == "openai-responses" || cfg.LLMProvider == "responses"
+		if backend, mlErr := ml.NewOpenAIVision(ml.OpenAIConfig{BaseURL: cfg.LLMBaseURL, APIKey: cfg.LLMAPIKey, Model: cfg.LLMModel, Timeout: time.Duration(cfg.LLMTimeout) * time.Second}, responses); mlErr == nil {
 			mlBackend = backend
+			log.Printf("[ml] vision backend ready: %s", backend.Name())
+		} else {
+			log.Printf("[ml] vision backend unavailable: %v", mlErr)
 		}
 	}
 	a := &App{cfg: cfg, store: store, video: video.New(), ocr: ocr.NewChain(nativeOCR, networkOCR, communityOCR), ml: ml.NewChain(mlBackend)}
