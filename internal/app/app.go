@@ -232,6 +232,8 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.POST("/auth/change-password", a.handleChangePassword)
 		api.POST("/auth/logout", a.handleLogout)
 		api.POST("/auth/pin-code", a.handlePinCodeSetup)
+		api.PUT("/auth/pin-code", a.handlePinCodeChange)
+		api.DELETE("/auth/pin-code", a.handlePinCodeClear)
 		api.POST("/auth/session/lock", a.handleSessionLock)
 		api.POST("/auth/session/unlock", a.handleSessionUnlock)
 
@@ -280,12 +282,16 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.GET("/users/me/onboarding", a.handleUserOnboardingGet)
 		api.PUT("/users/me/onboarding", a.handleUserOnboardingPost)
 		api.GET("/users/me/license", a.handleUserLicenseGet)
+		api.PUT("/users/me/license", a.handleUserLicenseSet)
+		api.DELETE("/users/me/license", a.handleUserLicenseDelete)
 		api.GET("/users/me/calendar-heatmap", a.handleMeCalendarHeatmap)
 		api.GET("/users/:id", a.handleGetUser)
 		api.PUT("/users/:id", a.handleUpdateUser)
 		api.DELETE("/users/:id", a.handleDeleteUser)
 		api.GET("/users/:id/thumb", a.handleUserThumb)
 		api.POST("/users/profile-image", a.handleProfileImageCreate)
+		api.DELETE("/users/me/profile-image", a.handleProfileImageDelete)
+		api.DELETE("/users/:id/profile-image", a.handleProfileImageDelete)
 		api.GET("/users/:id/profile-image", a.handleProfileImageGet)
 
 		// admin user management
@@ -388,8 +394,15 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.POST("/search/statistics", a.handleSearchStatistics)
 		api.POST("/search/smart", a.handleSearchSmart)
 
-		// memories (on-this-day) + notifications + oauth config
+		// memories (on-this-day + curated) + notifications + oauth config
 		api.GET("/memories", a.handleMemories)
+		api.POST("/memories", a.handleMemoryCreate)
+		api.GET("/memories/statistics", a.handleMemoryStatistics)
+		api.GET("/memories/:id", a.handleMemoryGet)
+		api.PUT("/memories/:id", a.handleMemoryUpdate)
+		api.DELETE("/memories/:id", a.handleMemoryDelete)
+		api.PUT("/memories/:id/assets", a.handleMemoryAssetsAdd)
+		api.DELETE("/memories/:id/assets", a.handleMemoryAssetsRemove)
 		api.POST("/notifications", a.handleNotificationRegister)
 		api.DELETE("/notifications", a.handleNotificationRemove)
 		api.GET("/oauth/config", a.handleOAuthConfig)

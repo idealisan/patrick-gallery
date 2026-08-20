@@ -369,9 +369,37 @@ type StackAsset struct {
 	Order   int    `json:"order"`
 }
 
+// Memory is a user-curated memory collection (Immich's "Memories" feature).
+// Only the curated memories are modeled here; the read-only "On this day"
+// view is served separately from asset dates (see handleMemories).
+type Memory struct {
+	ID        string    `gorm:"primaryKey;type:text" json:"id"`
+	OwnerID   string    `gorm:"index;type:text" json:"ownerId"`
+	Type      string    `gorm:"type:text" json:"type"` // on_this_day
+	MemoryAt  time.Time `json:"memoryAt"`
+	ShowAt    *time.Time `json:"showAt,omitempty"`
+	HideAt    *time.Time `json:"hideAt,omitempty"`
+	SeenAt    *time.Time `json:"seenAt,omitempty"`
+	IsSaved   bool      `json:"isSaved"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+	// Data carries the OnThisDayDto {year}.
+	DataJSON  string `gorm:"type:text" json:"-"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+// MemoryAsset is the join table linking assets to a memory, ordered.
+type MemoryAsset struct {
+	MemoryID string `gorm:"primaryKey;type:text" json:"memoryId"`
+	AssetID  string `gorm:"primaryKey;type:text" json:"assetId"`
+	Order    int    `json:"order"`
+}
+
 func (AssetEdit) TableName() string           { return "asset_edit" }
 func (Stack) TableName() string               { return "stacks" }
 func (StackAsset) TableName() string          { return "stacks_assets" }
+func (Memory) TableName() string              { return "memories" }
+func (MemoryAsset) TableName() string         { return "memories_assets" }
 func (Person) TableName() string              { return "person" }
 func (Activity) TableName() string            { return "activity" }
 func (SharedLink) TableName() string          { return "shared_links" }

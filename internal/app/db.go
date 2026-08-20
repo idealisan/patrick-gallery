@@ -63,6 +63,7 @@ func OpenDB(dbPath, resourceDir string) (*Store, error) {
 		&Activity{}, &SharedLink{}, &ApiKey{}, &SystemConfig{},
 		&DuplicateResolution{}, &SyncState{}, &Session{}, &UserPreferences{},
 		&NotificationToken{}, &Notification{}, &AssetEdit{}, &Stack{}, &StackAsset{}, &AssetOcr{}, &AssetML{},
+		&Memory{}, &MemoryAsset{},
 	}
 	if err := db.AutoMigrate(models...); err != nil {
 		return nil, err

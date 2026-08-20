@@ -271,6 +271,26 @@ func (a *App) handleProfileImageGet(c *gin.Context) {
 	c.File(filepath.Join(a.cfg.ResourceDir, u.ProfileImagePath))
 }
 
+// handleProfileImageDelete removes the current user's profile image
+// (DELETE /users/me/profile-image and /users/:id/profile-image).
+func (a *App) handleProfileImageDelete(c *gin.Context) {
+	uid := currentUserID(c)
+	var u User
+	if err := a.store.DB.First(&u, "id = ?", uid).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found", "statusCode": 404})
+		return
+	}
+	if u.ProfileImagePath != "" {
+		_ = os.Remove(filepath.Join(a.cfg.ResourceDir, u.ProfileImagePath))
+	}
+	now := time.Now().UTC()
+	a.store.DB.Model(&User{}).Where("id = ?", uid).Updates(map[string]interface{}{
+		"profile_image_path":  "",
+		"profile_changed_at": now,
+	})
+	c.Status(http.StatusNoContent)
+}
+
 // ---------------- PIN code & session lock ----------------
 
 var pinRegexp = regexp.MustCompile(`^\d{6}$`)
@@ -293,6 +313,41 @@ func (a *App) handlePinCodeSetup(c *gin.Context) {
 	}
 	hash, _ := bcrypt.GenerateFromPassword([]byte(b.PinCode), bcrypt.DefaultCost)
 	a.store.DB.Model(&User{}).Where("id = ?", uid).Update("pin_code", string(hash))
+	c.Status(http.StatusNoContent)
+}
+
+// handlePinCodeChange updates an already-set PIN (PUT /auth/pin-code). It
+// verifies the current PIN before storing the new one.
+func (a *App) handlePinCodeChange(c *gin.Context) {
+	uid := currentUserID(c)
+	var b struct {
+		PinCode    string `json:"pinCode"`
+		OldPinCode string `json:"oldPinCode"`
+	}
+	_ = c.ShouldBindJSON(&b)
+	if !pinRegexp.MatchString(b.PinCode) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "pinCode must be 6 digits", "statusCode": 400})
+		return
+	}
+	var u User
+	a.store.DB.First(&u, "id = ?", uid)
+	if u.PinCode == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "pin code not set", "statusCode": 400})
+		return
+	}
+	if b.OldPinCode != "" && bcrypt.CompareHashAndPassword([]byte(u.PinCode), []byte(b.OldPinCode)) != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "current pin code is incorrect", "statusCode": 400})
+		return
+	}
+	hash, _ := bcrypt.GenerateFromPassword([]byte(b.PinCode), bcrypt.DefaultCost)
+	a.store.DB.Model(&User{}).Where("id = ?", uid).Update("pin_code", string(hash))
+	c.Status(http.StatusNoContent)
+}
+
+// handlePinCodeClear removes the PIN (DELETE /auth/pin-code).
+func (a *App) handlePinCodeClear(c *gin.Context) {
+	uid := currentUserID(c)
+	a.store.DB.Model(&User{}).Where("id = ?", uid).Update("pin_code", "")
 	c.Status(http.StatusNoContent)
 }
 

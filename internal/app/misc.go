@@ -1016,6 +1016,19 @@ func (a *App) handleUserLicenseGet(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"license": nil, "licenseKey": "", "activationKey": ""})
 }
 
+// handleUserLicenseSet / handleUserLicenseDelete accept the license lifecycle
+// but immich-go has no license subsystem (honest-empty: the system is
+// unlicensed, so the call succeeds while reporting no active license rather
+// than faking a granted license).
+func (a *App) handleUserLicenseSet(c *gin.Context) {
+	_ = c.ShouldBindJSON(&struct{}{})
+	c.JSON(http.StatusOK, gin.H{"license": nil, "licenseKey": "", "activationKey": ""})
+}
+
+func (a *App) handleUserLicenseDelete(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"license": nil, "licenseKey": "", "activationKey": ""})
+}
+
 // ---------------- jobs ----------------
 // The job handlers (handleJobsList / handleJobCommand / handleJobStatus) are
 // implemented in jobs.go with a real background worker pool. They are wired in
