@@ -34,7 +34,7 @@ func (a *App) handleTimelineBuckets(c *gin.Context) {
 	}
 	var assets []Asset
 	owners := a.timelineOwners(c, uid)
-	a.store.DB.Where("owner_id IN ? AND is_trash = ?", owners, a.timelineTrash(c)).Find(&assets)
+	a.store.DB.Where("owner_id IN ? AND is_trash = ? AND (visibility IS NULL OR visibility = '' OR visibility != 'hidden')", owners, a.timelineTrash(c)).Find(&assets)
 
 	counts := map[string]int{}
 	for _, as := range assets {
@@ -88,7 +88,7 @@ func (a *App) handleTimelineBucketAssets(c *gin.Context) {
 
 	var assets []Asset
 	owners := a.timelineOwners(c, uid)
-	a.store.DB.Where("owner_id IN ? AND is_trash = ?", owners, a.timelineTrash(c)).Order("local_date_time DESC").Find(&assets)
+	a.store.DB.Where("owner_id IN ? AND is_trash = ? AND (visibility IS NULL OR visibility = '' OR visibility != 'hidden')", owners, a.timelineTrash(c)).Order("local_date_time DESC").Find(&assets)
 	matched := make([]Asset, 0, len(assets))
 	for _, as := range assets {
 		if as.LocalDateTime.Format("2006-01") == ym {

@@ -97,7 +97,7 @@ func (a *App) handleSearch(c *gin.Context) {
 	}
 
 	var assets []Asset
-	base := a.store.DB.Where("owner_id = ? AND is_trash = ?", uid, trash)
+	base := a.store.DB.Where("owner_id = ? AND is_trash = ? AND (visibility IS NULL OR visibility = '' OR visibility != 'hidden')", uid, trash)
 	if q != "" {
 		like := "%" + q + "%"
 		base = base.Where("original_file_name LIKE ? OR original_path LIKE ?", like, like)
@@ -144,7 +144,7 @@ func (a *App) handleSearchMetadata(c *gin.Context) {
 		trash = *req.IsTrash
 	}
 	var assets []Asset
-	assetQuery := a.store.DB.Where("assets.owner_id = ? AND assets.is_trash = ?", uid, trash)
+	assetQuery := a.store.DB.Where("assets.owner_id = ? AND assets.is_trash = ? AND (assets.visibility IS NULL OR assets.visibility = '' OR assets.visibility != 'hidden')", uid, trash)
 	if req.OriginalFileName != "" {
 		assetQuery = assetQuery.Where("assets.original_file_name LIKE ?", "%"+req.OriginalFileName+"%")
 	}

@@ -381,9 +381,31 @@ func (a *App) handleAssetUpload(c *gin.Context) {
 	if deviceAssetId != "" || deviceId != "" || isFavorite || visibility == "archive" || durationMs != nil || livePhotoVideoID != "" {
 		a.store.DB.Model(&asset).Updates(patch)
 	}
+	if livePhotoVideoID != "" {
+		a.hideMotionAsset(uid, livePhotoVideoID)
+	}
 
 	a.emitAsset("asset.create", asset.ID)
 	c.JSON(http.StatusCreated, gin.H{"id": asset.ID, "status": "created"})
+}
+
+// hideMotionAsset marks the motion-part video of a Live Photo as hidden and
+// removes it from every album, mirroring the official server's linkLivePhotos
+// (metadata.service.ts): the motion asset keeps existing (it backs
+// /assets/:id/live-photo playback) but never appears as a timeline item.
+func (a *App) hideMotionAsset(uid, motionID string) {
+	var motion Asset
+	if err := a.store.DB.First(&motion, "id = ?", motionID).Error; err != nil {
+		return
+	}
+	if motion.OwnerID != uid {
+		return
+	}
+	a.store.DB.Model(&Asset{}).Where("id = ?", motionID).Updates(map[string]any{
+		"visibility":  "hidden",
+		"is_archived": false,
+	})
+	a.store.DB.Exec("DELETE FROM albums_assets_assets WHERE asset_id = ?", motionID)
 }
 
 // sniffType resolves an asset type from the extension, falling back to magic
@@ -1067,7 +1089,7 @@ func (a *App) handleAssetRandom(c *gin.Context) {
 		b.Count = 1
 	}
 	var assets []Asset
-	a.store.DB.Where("owner_id = ? AND is_trash = ? AND type = ?", uid, false, "IMAGE").
+	a.store.DB.Where("owner_id = ? AND is_trash = ? AND type = ? AND (visibility IS NULL OR visibility = '' OR visibility != 'hidden')", uid, false, "IMAGE").
 		Order("RANDOM()").Limit(b.Count).Find(&assets)
 	out := make([]AssetResponse, 0, len(assets))
 	for _, ast := range assets {
@@ -1079,9 +1101,10 @@ func (a *App) handleAssetRandom(c *gin.Context) {
 func (a *App) handleAssetCount(c *gin.Context) {
 	uid := currentUserID(c)
 	var photos, videos, total int64
-	a.store.DB.Model(&Asset{}).Where("owner_id = ? AND is_trash = ?", uid, false).Count(&total)
-	a.store.DB.Model(&Asset{}).Where("owner_id = ? AND is_trash = ? AND type = ?", uid, false, "IMAGE").Count(&photos)
-	a.store.DB.Model(&Asset{}).Where("owner_id = ? AND is_trash = ? AND type = ?", uid, false, "VIDEO").Count(&videos)
+	visible := "owner_id = ? AND is_trash = ? AND (visibility IS NULL OR visibility = '' OR visibility != 'hidden')"
+	a.store.DB.Model(&Asset{}).Where(visible, uid, false).Count(&total)
+	a.store.DB.Model(&Asset{}).Where(visible+" AND type = ?", uid, false, "IMAGE").Count(&photos)
+	a.store.DB.Model(&Asset{}).Where(visible+" AND type = ?", uid, false, "VIDEO").Count(&videos)
 	c.JSON(http.StatusOK, gin.H{"photos": photos, "videos": videos, "total": total, "usage": gin.H{"photos": photos, "videos": videos, "total": total}})
 }
 
