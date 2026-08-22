@@ -160,6 +160,13 @@ func (a *App) jobRegistry() map[string]jobSpec {
 				if err != nil {
 					return false, err
 				}
+				// Backfill pixel dimensions/thumbhash now that decoding may
+				// have gained new format support (e.g. HEIC).
+				if res.width > 0 && res.height > 0 {
+					a.store.DB.Model(&Asset{}).Where("id = ?", it.ID).Updates(map[string]any{
+						"width": res.width, "height": res.height, "thumbhash": res.thumbhash, "updated_at": time.Now().UTC(),
+					})
+				}
 				if res.exif == nil {
 					return true, nil
 				}
