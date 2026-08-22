@@ -16,6 +16,7 @@ import (
 
 	"golang.org/x/image/draw"
 	"golang.org/x/image/webp"
+	"github.com/gen2brain/heic"
 	"github.com/rwcarlsen/goexif/exif"
 
 	// Side-effect imports registering the standard-library decoders with
@@ -50,19 +51,28 @@ type Info struct {
 // Extract reads EXIF from raw image bytes. For formats without EXIF (or
 // unsupported), it returns a zero Info and a nil error (it does not fail).
 //
-// Only JPEG and TIFF carry EXIF readable by goexif; for any other format a
-// zero Info is returned. Pixel dimensions are sourced from the parsed EXIF
-// when present and otherwise fall back to actually decoding the bytes.
+// JPEG and TIFF carry EXIF readable by goexif directly; HEIC/HEIF containers
+// embed the TIFF block as an 'Exif' meta item which we slice out first.
 func Extract(raw []byte) (*Info, error) {
 	info := &Info{}
 
-	// EXIF only meaningfully exists in JPEG/TIFF containers.
+	// EXIF only meaningfully exists in JPEG/TIFF containers — or inside a
+	// HEIC/HEIF 'Exif' item, which we unwrap into a plain TIFF block.
+	exifBytes := raw
 	format, _ := peekFormat(raw)
 	if format != "jpeg" && format != "tiff" {
-		return info, nil
+		if HasHEICBrand(raw) {
+			payload := heicExtractEXIF(raw)
+			if payload == nil {
+				return info, nil
+			}
+			exifBytes = payload
+		} else {
+			return info, nil
+		}
 	}
 
-	x, err := exif.Decode(bytes.NewReader(raw))
+	x, err := exif.Decode(bytes.NewReader(exifBytes))
 	if err != nil {
 		// No (parseable) EXIF block; fall back to decoded dimensions only.
 		fillDimsFromDecode(info, raw)
@@ -138,10 +148,13 @@ func peekFormat(raw []byte) (string, int) {
 }
 
 // Dimensions returns the pixel width/height of raw image bytes for any
-// decodable raster format (JPEG/PNG/GIF/WebP/...). Returns 0,0 if the bytes
-// cannot be decoded. Used to populate asset dimensions for the response
+// decodable raster format (JPEG/PNG/GIF/WebP/HEIC/...). Returns 0,0 if the
+// bytes cannot be decoded. Used to populate asset dimensions for the response
 // regardless of container (Extract only resolves dimensions for JPEG/TIFF).
 func Dimensions(raw []byte) (int, int) {
+	if w, h := heicDimensions(raw); w > 0 {
+		return w, h
+	}
 	cfg, _, err := stdimage.DecodeConfig(bytes.NewReader(raw))
 	if err != nil {
 		return 0, 0
@@ -149,10 +162,29 @@ func Dimensions(raw []byte) (int, int) {
 	return cfg.Width, cfg.Height
 }
 
+// heicDimensions reads the pixel size of a HEIC/HEIF container without a full
+// pixel decode (heic.DecodeConfig is cheap; falls back to 0,0 when not HEIC).
+func heicDimensions(raw []byte) (int, int) {
+	if len(raw) < 12 || !bytes.Equal(raw[4:8], []byte("ftyp")) ||
+		(!bytes.Contains(raw[8:12], []byte("heic")) &&
+			!bytes.Contains(raw[8:12], []byte("heix")) &&
+			!bytes.Contains(raw[8:12], []byte("hevc")) &&
+			!bytes.Contains(raw[8:12], []byte("heif")) &&
+			!bytes.Contains(raw[8:12], []byte("mif1"))) {
+		return 0, 0
+	}
+	cfg, err := heic.DecodeConfig(bytes.NewReader(raw))
+	if err != nil || cfg.Width <= 0 {
+		return 0, 0
+	}
+	return cfg.Width, cfg.Height
+}
+
 // Decode decodes raw bytes into an stdimage.Image, trying the standard library
 // decoders first (jpeg/png/gif, and tiff/bmp when the toolchain provides them)
-// and then WebP. It returns the image and a format string: "jpeg" | "png" |
-// "gif" | "webp" | "tiff" | "bmp" | "unknown".
+// and then WebP and HEIC (via gen2brain/heic: purego libheif when installed,
+// embedded WASM fallback — CGO-free). It returns the image and a format
+// string: "jpeg" | "png" | "gif" | "webp" | "heic" | "tiff" | "bmp" | "unknown".
 func Decode(raw []byte) (stdimage.Image, string, error) {
 	if img, format, err := stdimage.Decode(bytes.NewReader(raw)); err == nil {
 		return img, format, nil
@@ -160,6 +192,10 @@ func Decode(raw []byte) (stdimage.Image, string, error) {
 	// Fall back to WebP (pure Go, no CGO).
 	if img, err := webp.Decode(bytes.NewReader(raw)); err == nil {
 		return img, "webp", nil
+	}
+	// Fall back to HEIC/HEIF (iPhone stills). heic.Decode is CGO-free.
+	if img, err := heic.Decode(bytes.NewReader(raw)); err == nil {
+		return img, "heic", nil
 	}
 	return nil, "unknown", errUnsupported
 }
