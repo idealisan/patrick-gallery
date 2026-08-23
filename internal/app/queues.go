@@ -35,25 +35,54 @@ var queueNames = []string{
 
 // queueStats assembles the QueueStatisticsDto for one queue name. It reuses
 // the live job progress tracked in jobStates and overlays the paused flag.
+// All six fields are required by the official DTO — omitting `waiting` made
+// the admin jobs page render NaN (it computes waiting+paused+delayed).
 func (a *App) queueStats(name string) gin.H {
+	paused := false
+	if v, ok := a.queuePaused.Load(name); ok && v.(bool) {
+		paused = true
+	}
+	running := a.queueRunning(name)
 	st := gin.H{
 		"active":    0,
 		"completed": 0,
 		"failed":    0,
 		"delayed":   0,
 		"paused":    0,
+		"waiting":   0,
 	}
+	var wait int
 	if v, ok := a.jobStates.Load(name); ok {
 		snap := v.(*jobState).snapshot()
-		st["active"] = snap["active"]
-		st["completed"] = snap["completed"]
-		st["failed"] = snap["failed"]
+		active, _ := snap["active"].(int)
+		completed, _ := snap["completed"].(int)
+		failed, _ := snap["failed"].(int)
+		wait = active
+		st["active"] = active
+		st["completed"] = completed
+		st["failed"] = failed
 		st["delayed"] = snap["delayed"]
 	}
-	if paused, ok := a.queuePaused.Load(name); ok && paused.(bool) {
+	if !running {
+		wait = 0
+	}
+	st["waiting"] = wait
+	if paused {
 		st["paused"] = 1
 	}
 	return st
+}
+
+// queueRunning reports whether the named queue has work in flight.
+func (a *App) queueRunning(name string) bool {
+	v, ok := a.jobStates.Load(name)
+	if !ok {
+		return false
+	}
+	s := v.(*jobState)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.running
 }
 
 // handleQueuesList mirrors GET /api/queues. Returns the full list of queues

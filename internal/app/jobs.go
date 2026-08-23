@@ -672,10 +672,10 @@ func (a *App) handleJobStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, st.(*jobState).snapshot())
 }
 
-// handleJobsList mirrors GET /api/jobs (legacy). Returns the fixed
-// QueuesResponseLegacyDto shape: one block per named queue, each carrying
-// {active, completed, failed, delayed, paused}. Paused is taken from the
-// queue pause map; the rest from the live job progress snapshot.
+// handleJobsList mirrors GET /api/jobs (legacy QueuesResponseLegacyDto): one
+// block per named queue, each carrying {jobCounts, queueStatus:{isActive,
+// isPaused}}. The maintenance page polls this endpoint every 2s and reads
+// `integrityCheck.queueStatus.isActive` — the flat shape broke it.
 func (a *App) handleJobsList(c *gin.Context) {
 	out := gin.H{}
 	for _, name := range queueNames {
@@ -683,24 +683,10 @@ func (a *App) handleJobsList(c *gin.Context) {
 		if v, ok := a.queuePaused.Load(name); ok {
 			paused = v.(bool)
 		}
-		st := gin.H{
-			"active":    0,
-			"completed": 0,
-			"failed":    0,
-			"delayed":   0,
-			"paused":    0,
+		out[name] = gin.H{
+			"jobCounts":   a.queueStats(name),
+			"queueStatus": gin.H{"isActive": a.queueRunning(name), "isPaused": paused},
 		}
-		if v, ok := a.jobStates.Load(name); ok {
-			snap := v.(*jobState).snapshot()
-			st["active"] = snap["active"]
-			st["completed"] = snap["completed"]
-			st["failed"] = snap["failed"]
-			st["delayed"] = snap["delayed"]
-		}
-		if paused {
-			st["paused"] = 1
-		}
-		out[name] = st
 	}
 	c.JSON(http.StatusOK, out)
 }
