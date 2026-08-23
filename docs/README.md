@@ -60,3 +60,5 @@
 
 - [maintenance-self-healing.md](epics/maintenance-self-healing.md) — 维护与自愈体系：
   force 全量重建、backupDatabase、启动 repairPass、缓存版本化失效
+- [webui-maintenance-parity.md](epics/webui-maintenance-parity.md) — Web UI 维护页对齐：
+  GET /jobs legacy 形状、9 个 integrity-* 手动任务、报告 UUID/溯源/下载、维护模式契约
