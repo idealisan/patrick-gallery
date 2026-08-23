@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"image"
+	"image/color"
 	"image/jpeg"
 	"image/png"
 	"io"
@@ -14,6 +15,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -930,6 +932,11 @@ func (a *App) handleAssetThumbnail(c *gin.Context) {
 
 	switch c.Query("size") {
 	case "original":
+		if data, ok := a.serveImageOrPlaceholder(&asset); ok {
+			c.Header("Content-Type", "image/jpeg")
+			c.Data(http.StatusOK, "image/jpeg", data)
+			return
+		}
 		c.File(asset.OriginalPath)
 		return
 	case "preview", "fullsize":
@@ -937,11 +944,53 @@ func (a *App) handleAssetThumbnail(c *gin.Context) {
 		return
 	default: // "thumbnail" or empty -> small stored thumbnail
 		if asset.ResizePath == "" {
-			c.Status(http.StatusNotFound)
+			// No stored thumbnail (undecodable original / pending job):
+			// return a neutral placeholder instead of a bare 404 so the web
+			// grid never shows broken-image tiles.
+			c.Header("Content-Type", "image/jpeg")
+			c.Data(http.StatusOK, "image/jpeg", placeholderJPEG())
 			return
 		}
 		c.File(asset.ResizePath)
 	}
+}
+
+// placeholderJPEG returns a cached 4:3 neutral-gray JPEG placeholder used when
+// no real representation of an asset can be served.
+func placeholderJPEG() []byte {
+	placeholderOnce.Do(func() {
+		img := image.NewRGBA(image.Rect(0, 0, 640, 480))
+		g := color.Gray{Y: 210}
+		for y := 0; y < 480; y++ {
+			for x := 0; x < 640; x++ {
+				img.Set(x, y, g)
+			}
+		}
+		var buf bytes.Buffer
+		if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: 80}); err == nil {
+			placeholderBytes = buf.Bytes()
+		}
+	})
+	return placeholderBytes
+}
+
+var (
+	placeholderOnce  sync.Once
+	placeholderBytes []byte
+)
+
+// serveImageOrPlaceholder renders the best JPEG representation of an image
+// asset, falling back to the placeholder when nothing decodable exists.
+func (a *App) serveImageOrPlaceholder(asset *Asset) ([]byte, bool) {
+	raw, err := os.ReadFile(asset.OriginalPath)
+	if err != nil {
+		return nil, false
+	}
+	if out, terr := imgproc.Preview(raw, a.cfg.PreviewSize, 0); terr == nil && len(out) > 0 {
+		return out, true
+	}
+	out := placeholderJPEG()
+	return out, len(out) > 0
 }
 
 // previewCachePath derives an on-disk cache location for a generated preview,
@@ -954,8 +1003,9 @@ func previewCachePath(originalPath, id string) string {
 
 // servePreview generates (and caches) a high-quality preview render of an image
 // asset on the fly from its original, scaled to cfg.PreviewSize. It falls back
-// to the stored thumbnail and then to the original when the source cannot be
-// decoded (e.g. HEIC/AVIF, which have no pure-Go decoder in this build).
+// to the stored thumbnail, then to a neutral placeholder when the source cannot
+// be decoded (e.g. HEIC/AVIF without a working decoder) so the viewer always
+// receives a displayable JPEG.
 func (a *App) servePreview(c *gin.Context, asset *Asset) {
 	raw, err := os.ReadFile(asset.OriginalPath)
 	if err != nil || len(raw) == 0 {
@@ -963,7 +1013,8 @@ func (a *App) servePreview(c *gin.Context, asset *Asset) {
 			c.File(asset.ResizePath)
 			return
 		}
-		c.Status(http.StatusNotFound)
+		c.Header("Content-Type", "image/jpeg")
+		c.Data(http.StatusOK, "image/jpeg", placeholderJPEG())
 		return
 	}
 
@@ -982,7 +1033,8 @@ func (a *App) servePreview(c *gin.Context, asset *Asset) {
 			c.File(asset.ResizePath)
 			return
 		}
-		c.File(asset.OriginalPath)
+		c.Header("Content-Type", "image/jpeg")
+		c.Data(http.StatusOK, "image/jpeg", placeholderJPEG())
 		return
 	}
 	// Best-effort cache; serving still succeeds if the write fails.

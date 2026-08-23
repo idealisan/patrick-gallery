@@ -196,6 +196,11 @@ func (a *App) buildTimeBucketAssets(assets []Asset) timeBucketAssetsResponse {
 		r.Visibility[i] = visibilityString(as.Visibility, as.IsArchived)
 		if as.Width > 0 && as.Height > 0 {
 			r.Ratio[i] = float64(as.Width) / float64(as.Height)
+		} else {
+			// Missing dimensions must never yield ratio 0/NaN: the web grid
+			// divides by it and collapses the tile into a sliver. Default to
+			// 4:3 landscape (the dominant still-photo shape).
+			r.Ratio[i] = 4.0 / 3.0
 		}
 		// local offset (hours) between the photo's local time and its UTC stamp
 		r.LocalOffsetHours[i] = as.LocalDateTime.Sub(as.FileCreatedAt).Hours()
