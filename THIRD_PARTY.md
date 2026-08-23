@@ -62,6 +62,32 @@ Used by the software video backend (`internal/video`, purego-loaded). We load
 > records it and the package falls back to the placeholder video backend
 > (server still runs; video just has no thumbnail/transcode).
 
+## libheif / libde265 (shared libraries, HEIC decode)
+
+Used by `internal/image` (via `github.com/gen2brain/heic` purego dynamic
+loader) to decode iPhone HEIC stills. The library's embedded WASM fallback
+mis-decodes iPhone **grid** HEICs (green-tinted output), so a real native
+libheif must be present — bundled by `scripts/bundle-deps.sh` into every
+release package.
+
+- **Pinned version: libheif v1.23.0** — https://github.com/strukturag/libheif
+- **Pinned version: libde265 v1.1.1** — https://github.com/strukturag/libde265
+  (HEVC decoder plugin libheif loads for iPhone photos)
+- macOS: Homebrew `brew install libheif` (pulls libde265); dylibs copied from
+  `$(brew --prefix libheif)/lib`, `$(brew --prefix libde265)/lib`.
+- Linux: distro packages `libheif1`, `libde265-0` (apt download in bundle script).
+- Licenses: libheif LGPL-3.1-or-later; libde265 LGPL-3.0-or-later.
+- Without these, the server still runs and falls back to the embedded WASM
+  decoder; iPhone grid HEICs may render incorrectly in that degraded mode.
+
+## gen2brain/heic (Go library wrapping the above)
+
+- Module: `github.com/gen2brain/heic v0.5.0`
+- Repo: https://github.com/gen2brain/heic (tag v0.5.0)
+- License: MIT (wrapper). The embedded fallback WASM is built from the
+  libheif/libde265 versions listed above.
+- go.mod requires Go 1.23 (compatible with our toolchain).
+
 ## purego (Go library, not a native lib)
 
 - Module: `github.com/ebitengine/purego` (loaded at compile time, no native

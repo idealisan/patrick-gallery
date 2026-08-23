@@ -60,6 +60,12 @@ fetch_linux() {
     ( cd "$tmpd" && apt-get download libavformat-dev libavcodec-dev libavutil-dev libswscale-dev libswresample-dev libavfilter-dev 2>/dev/null ) || true
     for d in "$tmpd"/*.deb; do [ -e "$d" ] || continue; dpkg-deb -x "$d" "$tmpd/extract" 2>/dev/null || true; done
     find "$tmpd/extract" \( -name 'libav*.so*' -o -name 'libsw*.so*' \) 2>/dev/null -exec cp -t "$libsdir" {} + 2>/dev/null || true
+    # HEIC decode: real libheif (+libde265) is REQUIRED — the embedded WASM
+    # fallback in gen2brain/heic v0.5.0 mis-decodes iPhone grid HEICs.
+    local tmpd2="$WORK/apt-heif-${arch}"; mkdir -p "$tmpd2"
+    ( cd "$tmpd2" && apt-get download libheif1 libde265-0 2>/dev/null ) || true
+    for d in "$tmpd2"/*.deb; do [ -e "$d" ] || continue; dpkg-deb -x "$d" "$tmpd2/extract" 2>/dev/null || true; done
+    find "$tmpd2/extract" \( -name 'libheif.so*' -o -name 'libde265.so*' \) 2>/dev/null -exec cp -t "$libsdir" {} + 2>/dev/null || true
   fi
   if [ -z "$(ls -A "$libsdir" 2>/dev/null)" ]; then
     echo "[bundle-deps] WARNING: linux/${arch}: no shared libs obtained (install ffmpeg-dev or set them manually)" >&2
@@ -77,10 +83,26 @@ fetch_darwin() {
     if [ -n "$prefix" ]; then
       find "$prefix/lib" \( -name 'libav*.dylib' -o -name 'libsw*.dylib' \) 2>/dev/null -exec cp -t "$libsdir" {} + 2>/dev/null || true
       echo "[bundle-deps]   copied $(ls -1 "$libsdir" | wc -l) dylibs from $prefix"
+    fi
+    # HEIC decode: bundle native libheif + libde265 (purego dynamic path).
+    # Without it the embedded WASM fallback mis-renders iPhone grid HEICs.
+    local heif_prefix; heif_prefix="$(brew --prefix libheif 2>/dev/null || true)"
+    if [ -n "$heif_prefix" ]; then
+      cp "$heif_prefix/lib"/libheif*.dylib "$libsdir"/ 2>/dev/null || true
+      local de265_prefix; de265_prefix="$(brew --prefix libde265 2>/dev/null || true)"
+      [ -n "$de265_prefix" ] && cp "$de265_prefix/lib"/libde265*.dylib "$libsdir"/ 2>/dev/null || true
+      # aom/dav1d may be needed by libheif for AVIF; copy if present
+      local aom_prefix; aom_prefix="$(brew --prefix aom 2>/dev/null || true)"
+      [ -n "$aom_prefix" ] && cp "$aom_prefix/lib"/libaom*.dylib "$libsdir"/ 2>/dev/null || true
+      echo "[bundle-deps]   copied libheif dylibs from $heif_prefix"
+    else
+      echo "[bundle-deps] WARNING: darwin: brew libheif not found; HEIC thumbnails fall back to WASM decoder (may mis-render iPhone grid HEICs)" >&2
+    fi
+    if [ -n "$(ls -A "$libsdir" 2>/dev/null)" ]; then
       return
     fi
   fi
-  echo "[bundle-deps] WARNING: darwin/${arch}: Homebrew ffmpeg not found; package falls back to placeholder video backend" >&2
+  echo "[bundle-deps] WARNING: darwin/${arch}: Homebrew ffmpeg/libheif not found; package falls back to placeholder video backend and WASM HEIC decoder" >&2
 }
 
 # Assemble a -deps archive for one binary.

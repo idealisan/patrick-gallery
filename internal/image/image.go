@@ -182,9 +182,9 @@ func heicDimensions(raw []byte) (int, int) {
 
 // Decode decodes raw bytes into an stdimage.Image, trying the standard library
 // decoders first (jpeg/png/gif, and tiff/bmp when the toolchain provides them)
-// and then WebP and HEIC (via gen2brain/heic: purego libheif when installed,
-// embedded WASM fallback — CGO-free). It returns the image and a format
-// string: "jpeg" | "png" | "gif" | "webp" | "heic" | "tiff" | "bmp" | "unknown".
+// and then WebP and HEIC. HEIC prefers the native libheif loaded from our
+// release bundle via purego (correct iPhone grid rendering); when unavailable
+// it falls back to gen2brain/heic (dynamic libheif, else its embedded WASM).
 func Decode(raw []byte) (stdimage.Image, string, error) {
 	if img, format, err := stdimage.Decode(bytes.NewReader(raw)); err == nil {
 		return img, format, nil
@@ -193,7 +193,11 @@ func Decode(raw []byte) (stdimage.Image, string, error) {
 	if img, err := webp.Decode(bytes.NewReader(raw)); err == nil {
 		return img, "webp", nil
 	}
-	// Fall back to HEIC/HEIF (iPhone stills). heic.Decode is CGO-free.
+	// Fall back to HEIC/HEIF (iPhone stills). All paths are CGO-free.
+	initNativeHeif()
+	if img, _, _, ok := decodeNativeHEIC(raw); ok {
+		return img, "heic", nil
+	}
 	if img, err := heic.Decode(bytes.NewReader(raw)); err == nil {
 		return img, "heic", nil
 	}
