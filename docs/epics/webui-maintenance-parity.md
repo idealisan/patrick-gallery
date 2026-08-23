@@ -175,3 +175,20 @@ integrity-checksum-mismatch      integrity-checksum-mismatch-refresh      integr
 - 2026-08-23：开放问题 1 决议——虚拟重启/进程内切换，不做真实重启；
   问题 2、3 已对照官方源码核实并记录（integrity.repository.ts /
   integrity-report.table.ts / system-metadata.repository.ts），待确认后转入实施。
+- 2026-08-23/24：**实施完成（WI-1..WI-5 + WI-6 验证）**，用户确认三个开放
+  问题决议后开工。提交清单：
+  - `1dccf8c` WI-1+NaN：QueueStatisticsDto 补 waiting；GET /jobs 改嵌套 legacy 形状
+  - `1c74b97` WI-3：IntegrityReport(UUID+溯源)/SystemMetadata KV 模型落库；
+    scan 持久化；report/csv/file/delete 官方形状与三分支处置
+  - `cb44c38` WI-2：9 个 integrity-* 手动任务注册（检查/刷新/删除全部），
+    queueKey 挂 integrityCheck 队列；backup-database 别名；测试覆盖
+  - `c6dc81b` WI-4：维护模式官方动作枚举 + {jwt} + 虚拟重启（停调度器、暂停队列）
+  - `d11cb40` WI-5：校验和断点续扫，游标存 system_metadata(integrityChecksumCheckpoint)
+  - `f4f81e7` 路径归一化修复：untracked 误报 149→3（真实孤儿）
+- 验证记录：schemathesis PASS（critical 全 0）；真实浏览器（Chrome headless，
+  规则 8）：维护页 `/admin/maintenance` 正常渲染，「检查全部/检查/刷新」真实
+  点击全部 200 且触发正确任务名、「切换到维护模式」点击 → 201 {jwt} → 无
+  pageerror；退出恢复 `{active:false,action:"end"}`。
+- 剩余深度项（P2/P3）：SystemConfig.integrityChecks 定时 cron 配置面
+  （WI-5 的配置部分）、checksum timeLimit/percentageLimit 可调参数、
+  维护 UI 内的 detect-install/install 流程深化。
