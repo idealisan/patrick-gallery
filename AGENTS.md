@@ -231,3 +231,9 @@ Go 方式重建，或显式引入受控的外部组件；水平多租户扩展�
   `THIRD_PARTY.md` is specifically for *runtime* native libraries (FFmpeg
   shared builds, etc.) that are loaded via purego.
 
+
+### Development process (Epic / Story)
+
+- 本项目采用软件工程化的 **Epic / Story** 方式开发与维护：跨多个提交的主题性
+  工作用 Epic 文档跟踪（`docs/epics/*.md`），其下分解为可独立验收的 Story/任务。
+  流程、模板与约定详见 [docs/README.md](docs/README.md)。
