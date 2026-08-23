@@ -1,6 +1,7 @@
 package app
 
 import (
+	"encoding/json"
 	"time"
 
 	"gorm.io/gorm"
@@ -416,3 +417,46 @@ func (DuplicateResolution) TableName() string { return "duplicate_resolutions" }
 func (SyncState) TableName() string           { return "sync_state" }
 func (Session) TableName() string             { return "sessions" }
 func (UserPreferences) TableName() string     { return "user_preferences" }
+
+// IntegrityReport is one flagged file of the integrity audit, mirroring the
+// official integrity_report table (UUID id + optional origin links that drive
+// the delete disposition: assetId → trash the asset, fileAssetId → delete the
+// derived file, neither → unlink the raw path).
+type IntegrityReport struct {
+	ID          string    `gorm:"primaryKey;type:text" json:"id"`
+	Type        string    `gorm:"uniqueIndex:idx_integrity_type_path;type:text" json:"type"` // untracked_file | missing_file | checksum_mismatch
+	Path        string    `gorm:"uniqueIndex:idx_integrity_type_path;type:text" json:"path"`
+	AssetID     *string   `gorm:"index;type:text" json:"assetId,omitempty"`
+	FileAssetID *string   `gorm:"index;type:text" json:"fileAssetId,omitempty"`
+	CreatedAt   time.Time `json:"createdAt"`
+}
+
+func (IntegrityReport) TableName() string { return "integrity_report" }
+
+// SystemMetadata is the generic key/value store mirroring the official
+// system_metadata table. Values are JSON documents; used for scan checkpoints
+// (integrityChecksumCheckpoint), maintenance-mode state, etc.
+type SystemMetadata struct {
+	Key   string `gorm:"primaryKey;column:key;type:text" json:"key"`
+	Value string `gorm:"column:value;type:text" json:"value"`
+}
+
+func (SystemMetadata) TableName() string { return "system_metadata" }
+
+// metaGet reads and JSON-decodes the value stored under key (false if absent).
+func (a *App) metaGet(key string, out any) bool {
+	var row SystemMetadata
+	if err := a.store.DB.First(&row, "`key` = ?", key).Error; err != nil {
+		return false
+	}
+	return json.Unmarshal([]byte(row.Value), out) == nil
+}
+
+// metaSet JSON-encodes and upserts the value for key.
+func (a *App) metaSet(key string, v any) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	return a.store.DB.Save(&SystemMetadata{Key: key, Value: string(b)}).Error
+}

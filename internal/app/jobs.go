@@ -175,11 +175,11 @@ func (a *App) jobRegistry() map[string]jobSpec {
 					thumbPath = filepath.Join(a.cfg.ResourceDir, "thumbnail", it.ID+".jpg")
 				}
 				upd := map[string]any{
-					"has_thumbnail": thumbPath != "", "resize_path": thumbPath,
-					"thumb_version": imgproc.CurrentCacheVersion(imgproc.CacheFamily(familyOfItem(it))),
+					"has_thumbnail":  thumbPath != "", "resize_path": thumbPath,
+					"thumb_version":  imgproc.CurrentCacheVersion(imgproc.CacheFamily(familyOfItem(it))),
 					"preview_family": familyOfItem(it),
-					"preview_ver":   imgproc.CurrentCacheVersion(imgproc.CacheFamily(familyOfItem(it))),
-					"updated_at":    time.Now().UTC(),
+					"preview_ver":    imgproc.CurrentCacheVersion(imgproc.CacheFamily(familyOfItem(it))),
+					"updated_at":     time.Now().UTC(),
 				}
 				if err := a.store.DB.Model(&Asset{}).Where("id = ?", it.ID).Updates(upd).Error; err != nil {
 					return false, err

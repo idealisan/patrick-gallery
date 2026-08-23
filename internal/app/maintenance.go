@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -149,71 +150,141 @@ func countEntries(path string) int {
 	return len(entries)
 }
 
-// ---- integrity check (real scan) ----
+// ---- integrity check (persistent report model, mirrors the official
+// integrity_report architecture) ----
 
-// handleIntegritySummary mirrors GET /api/admin/integrity/summary. Performs a
-// real scan of the assets table against on-disk files.
+// handleIntegritySummary mirrors GET /api/admin/integrity/summary: a cheap
+// COUNT over the persisted report table (the scan itself is driven by jobs).
 func (a *App) handleIntegritySummary(c *gin.Context) {
 	if _, ok := a.requireAdmin(c); !ok {
 		return
 	}
-	summary, err := a.runIntegrityScan()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error(), "statusCode": 500})
-		return
-	}
-	c.JSON(http.StatusOK, summary)
+	c.JSON(http.StatusOK, a.integrityCounts())
 }
 
-// runIntegrityScan walks assets and the resource tree, classifying each
-// discrepancy. Genuine file-system audit (sha1 + os.Stat), not a stub.
+// integrityCounts aggregates the report table into the summary DTO shape.
+func (a *App) integrityCounts() gin.H {
+	out := gin.H{"checksum_mismatch": 0, "missing_file": 0, "untracked_file": 0}
+	type row struct {
+		Type  string
+		Count int64
+	}
+	var rows []row
+	a.store.DB.Model(&IntegrityReport{}).Select("type, count(*) as count").Group("type").Scan(&rows)
+	for _, r := range rows {
+		out[r.Type] = r.Count
+	}
+	return out
+}
+
+// reportUpsert inserts or refreshes one report row keyed by (type, path),
+// mirroring the official onConflict-doUpdate semantics.
+func (a *App) reportUpsert(typ, path string, assetID *string) {
+	var existing IntegrityReport
+	err := a.store.DB.Where("type = ? AND path = ?", typ, path).First(&existing).Error
+	if err != nil {
+		a.store.DB.Create(&IntegrityReport{
+			ID: newUUID(), Type: typ, Path: path,
+			AssetID: assetID, CreatedAt: time.Now().UTC(),
+		})
+		return
+	}
+	if assetID != nil && existing.AssetID == nil {
+		a.store.DB.Model(&existing).Update("asset_id", *assetID)
+	}
+}
+
+// refreshExistingReports revalidates every stored report row and drops the
+// ones whose underlying state changed (official -refresh job semantics):
+// untracked file gone / missing file back / checksum now matches.
+func (a *App) refreshExistingReports() error {
+	var rows []IntegrityReport
+	if err := a.store.DB.Find(&rows).Error; err != nil {
+		return err
+	}
+	for _, r := range rows {
+		stale := false
+		switch r.Type {
+		case "untracked_file":
+			_, err := os.Stat(r.Path)
+			stale = err != nil
+		case "missing_file":
+			_, err := os.Stat(r.Path)
+			stale = err == nil
+		case "checksum_mismatch":
+			sum, err := sha1File(r.Path)
+			switch {
+			case os.IsNotExist(err):
+				stale = true // handled by the missing-file audit
+			case err == nil:
+				var as Asset
+				if e := a.store.DB.First(&as, "id = ?", r.AssetID).Error; e != nil || as.Checksum == "" ||
+					strings.EqualFold(sum, as.Checksum) {
+					stale = true
+				}
+			}
+		}
+		if stale {
+			a.store.DB.Delete(&r)
+		}
+	}
+	return nil
+}
+
+// runIntegrityScan performs the genuine filesystem audit and PERSISTS its
+// findings into integrity_report: refresh stale rows, then classify missing /
+// checksum-mismatch assets and untracked files.
 func (a *App) runIntegrityScan() (gin.H, error) {
+	if err := a.refreshExistingReports(); err != nil {
+		return nil, err
+	}
 	var assets []Asset
 	if err := a.store.DB.Find(&assets).Error; err != nil {
 		return nil, err
 	}
-	missing, checksumMismatch, untracked := 0, 0, 0
-
-	onDisk := map[string]bool{}
-	_ = filepath.Walk(a.cfg.ResourceDir, func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
+	tracked := map[string]bool{}
+	for i := range assets {
+		as := &assets[i]
+		tracked[as.OriginalPath] = true
+		if as.EncodedVideoPath != "" {
+			tracked[as.EncodedVideoPath] = true
 		}
-		rel, _ := filepath.Rel(a.cfg.ResourceDir, p)
-		onDisk[rel] = true
-		return nil
-	})
-
-	knownRels := map[string]bool{}
-	for _, as := range assets {
-		rel := assetRel(as.OriginalPath, a.cfg.ResourceDir)
-		knownRels[rel] = true
+		if as.ResizePath != "" {
+			tracked[as.ResizePath] = true
+		}
+	}
+	for i := range assets {
+		as := &assets[i]
 		if as.OriginalPath == "" {
 			continue
 		}
+		id := as.ID
 		if _, err := os.Stat(as.OriginalPath); err != nil {
-			missing++
+			a.reportUpsert("missing_file", as.OriginalPath, &id)
 			continue
 		}
 		if as.Checksum != "" {
 			if sum, e := sha1File(as.OriginalPath); e == nil && !strings.EqualFold(sum, as.Checksum) {
-				checksumMismatch++
+				a.reportUpsert("checksum_mismatch", as.OriginalPath, &id)
 			}
 		}
 	}
-	for rel := range onDisk {
-		if isSystemDir(rel) {
-			continue
+	// Untracked: files under the resource tree not referenced by any asset
+	// (originals, encoded video, thumbnails/previews). DB artifacts, profile
+	// pictures, backups and ML scratch dirs are out of scope (official only
+	// walks upload/library/encoded-video/thumbs).
+	_ = filepath.Walk(a.cfg.ResourceDir, func(p string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() || tracked[p] {
+			return nil
 		}
-		if !knownRels[rel] {
-			untracked++
+		rel, _ := filepath.Rel(a.cfg.ResourceDir, p)
+		if isSystemDir(rel) || isDBArtifact(rel) {
+			return nil
 		}
-	}
-	return gin.H{
-		"checksum_mismatch": checksumMismatch,
-		"missing_file":      missing,
-		"untracked_file":    untracked,
-	}, nil
+		a.reportUpsert("untracked_file", p, nil)
+		return nil
+	})
+	return a.integrityCounts(), nil
 }
 
 func assetRel(p, base string) string {
@@ -227,15 +298,32 @@ func assetRel(p, base string) string {
 func isSystemDir(rel string) bool {
 	top := strings.Split(rel, string(filepath.Separator))[0]
 	switch top {
-	case "thumbnail", "preview", "encoded-video", "fullsize", "faces", "ml":
+	// Dirs with no per-file DB reference (ML scratch, profile avatars,
+	// backups). Everything else under the resource tree is expected to be
+	// tracked via asset.original_path / encoded_video_path / resize_path.
+	case "faces", "ml", "profile", "backups":
 		return true
 	}
 	return false
 }
 
-// handleIntegrityReport mirrors GET/POST /api/admin/integrity/report. Lists the
-// individual discrepancies of a given type (query `type`) as paginated report
-// items. POST (create report) performs the same real scan.
+// isDBArtifact excludes SQLite sidecar files living directly in the resource
+// dir — they are server internals, never user media.
+func isDBArtifact(rel string) bool {
+	if strings.Contains(rel, string(filepath.Separator)) {
+		return false
+	}
+	for _, suf := range []string{".db", ".db-wal", ".db-shm"} {
+		if strings.HasSuffix(rel, suf) {
+			return true
+		}
+	}
+	return strings.HasPrefix(rel, ".")
+}
+
+// handleIntegrityReport mirrors GET /api/admin/integrity/report — paginated
+// rows of the persisted report table ({items:[{id,type,path}], nextCursor}),
+// ordered by id descending with an exclusive uuid cursor.
 func (a *App) handleIntegrityReport(c *gin.Context) {
 	if _, ok := a.requireAdmin(c); !ok {
 		return
@@ -246,77 +334,55 @@ func (a *App) handleIntegrityReport(c *gin.Context) {
 	}
 	limit := 100
 	if l := c.Query("limit"); l != "" {
-		if n, err := fmt.Sscanf(l, "%d", new(int)); err == nil {
+		if n, err := strconv.Atoi(l); err == nil && n > 0 && n <= 1000 {
 			limit = n
 		}
 	}
-	if _, err := a.runIntegrityScan(); err != nil {
+	q := a.store.DB.Where("type = ?", typ).Order("id DESC").Limit(limit + 1)
+	if cur := c.Query("cursor"); cur != "" {
+		q = q.Where("id < ?", cur)
+	}
+	var rows []IntegrityReport
+	if err := q.Find(&rows).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error(), "statusCode": 500})
 		return
 	}
-	items := a.integrityItems(typ, limit)
-	// Official IntegrityReportResponseDto: items carry id/type/path; the id is
-	// also the deletion handle (DELETE /admin/integrity/report/:id).
-	for _, it := range items {
-		if _, has := it["type"]; !has {
-			it["type"] = typ
-		}
-	}
 	next := ""
-	if limit < len(items) {
-		next = items[limit-1]["id"].(string)
-		items = items[:limit]
+	if len(rows) > limit {
+		next = rows[limit-1].ID
+		rows = rows[:limit]
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"items":      items,
-		"nextCursor": next,
-	})
+	items := make([]gin.H, 0, len(rows))
+	for _, r := range rows {
+		items = append(items, gin.H{"id": r.ID, "type": r.Type, "path": r.Path})
+	}
+	c.JSON(http.StatusOK, gin.H{"items": items, "nextCursor": next})
 }
 
-func (a *App) integrityItems(typ string, limit int) []gin.H {
-	var assets []Asset
-	a.store.DB.Find(&assets)
-	out := []gin.H{}
-	for _, as := range assets {
-		if as.OriginalPath == "" {
-			continue
+// disposeReportRow applies the official delete disposition for one report row:
+// assetId → trash the owning asset (recoverable); fileAssetId → permanently
+// delete the derived file; neither → unlink the raw path. Always removes the
+// row afterwards.
+func (a *App) disposeReportRow(r *IntegrityReport) error {
+	switch {
+	case r.AssetID != nil && *r.AssetID != "":
+		now := time.Now().UTC()
+		if err := a.store.DB.Model(&Asset{}).Where("id = ?", *r.AssetID).Updates(map[string]any{
+			"is_trash": true, "trashed_at": &now, "updated_at": now,
+		}).Error; err != nil {
+			return err
 		}
-		_, statErr := os.Stat(as.OriginalPath)
-		switch typ {
-		case "missing_file":
-			if statErr != nil {
-				out = append(out, gin.H{"id": as.ID, "path": as.OriginalPath, "assetId": as.ID})
-			}
-		case "checksum_mismatch":
-			if statErr == nil && as.Checksum != "" {
-				if sum, e := sha1File(as.OriginalPath); e == nil && !strings.EqualFold(sum, as.Checksum) {
-					out = append(out, gin.H{"id": as.ID, "path": as.OriginalPath, "assetId": as.ID})
-				}
-			}
-		}
-		if len(out) >= limit {
-			break
+	default:
+		// untracked / derived-file branch: remove the offending file itself.
+		if err := os.Remove(r.Path); err != nil && !os.IsNotExist(err) {
+			return err
 		}
 	}
-	if typ == "untracked_file" {
-		_ = filepath.Walk(a.cfg.ResourceDir, func(p string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() || len(out) >= limit {
-				return nil
-			}
-			rel, _ := filepath.Rel(a.cfg.ResourceDir, p)
-			if isSystemDir(rel) {
-				return nil
-			}
-			out = append(out, gin.H{"id": rel, "path": p})
-			return nil
-		})
-	}
-	return out
+	return a.store.DB.Delete(r).Error
 }
-
 
 // handleIntegrityReportDeletePath is the slashed-id variant of
-// handleIntegrityReportDelete (ids are relative paths containing '/').
+// handleIntegrityReportDelete.
 func (a *App) handleIntegrityReportDeletePath(c *gin.Context) {
 	id := c.Param("idpath")
 	if len(id) > 0 && id[0] == '/' {
@@ -327,24 +393,19 @@ func (a *App) handleIntegrityReportDeletePath(c *gin.Context) {
 }
 
 // handleIntegrityReportDelete mirrors DELETE /api/admin/integrity/report/:id.
-// Report ids are data-dir-relative paths. For untracked files, dismissal means
-// removing the offending file; other types acknowledge the entry.
 func (a *App) handleIntegrityReportDelete(c *gin.Context) {
 	if _, ok := a.requireAdmin(c); !ok {
 		return
 	}
 	id := c.Param("id")
-	if id == "" || filepath.IsAbs(id) || strings.Contains(id, "..") {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid report id", "statusCode": 400})
+	var r IntegrityReport
+	if err := a.store.DB.First(&r, "id = ?", id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"message": "report not found", "statusCode": 404})
 		return
 	}
-	target := filepath.Join(a.cfg.ResourceDir, id)
-	if strings.HasSuffix(id, ".preview.jpg") || strings.HasSuffix(id, ".db") ||
-		strings.HasSuffix(id, ".jpg") {
-		if err := os.Remove(target); err != nil && !os.IsNotExist(err) {
-			c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error(), "statusCode": 500})
-			return
-		}
+	if err := a.disposeReportRow(&r); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error(), "statusCode": 500})
+		return
 	}
 	c.JSON(http.StatusOK, gin.H{})
 }
@@ -365,21 +426,30 @@ func (a *App) handleIntegrityReportFileOrCsv(c *gin.Context) {
 	a.handleIntegrityReportFile(c)
 }
 
-// handleIntegrityReportFile streams a single reported asset's original.
+// handleIntegrityReportFile streams a single reported file by report UUID,
+// mirroring the official ImmichFileResponse (octet-stream attachment).
 func (a *App) handleIntegrityReportFile(c *gin.Context) {
 	if _, ok := a.requireAdmin(c); !ok {
 		return
 	}
 	id := c.Param("id")
-	var as Asset
-	if err := a.store.DB.First(&as, "id = ?", id).Error; err != nil || as.OriginalPath == "" {
+	var r IntegrityReport
+	if err := a.store.DB.First(&r, "id = ?", id).Error; err != nil {
 		c.Status(http.StatusNotFound)
 		return
 	}
-	c.File(as.OriginalPath)
+	if _, err := os.Stat(r.Path); err != nil {
+		c.Status(http.StatusNotFound)
+		return
+	}
+	c.Header("Content-Disposition", `attachment; filename="`+filepath.Base(r.Path)+`"`)
+	c.Header("Cache-Control", "private, no-cache")
+	c.File(r.Path)
 }
 
-// handleIntegrityReportCsv mirrors GET /api/admin/integrity/csv.
+// handleIntegrityReportCsv mirrors GET /api/admin/integrity/report/:type/csv
+// (and the legacy all-types /admin/integrity/csv): official header
+// id,type,assetId,fileAssetId,path.
 func (a *App) handleIntegrityReportCsv(c *gin.Context) {
 	if _, ok := a.requireAdmin(c); !ok {
 		return
@@ -387,33 +457,29 @@ func (a *App) handleIntegrityReportCsv(c *gin.Context) {
 	c.Header("Content-Type", "text/csv")
 	c.Header("Content-Disposition", "attachment; filename=\"integrity-report.csv\"")
 	w := csv.NewWriter(c.Writer)
-	_ = w.Write([]string{"type", "path", "assetId"})
-	// Support both the per-type route (/admin/integrity/report/:type/csv) and
-	// the legacy all-types route (/admin/integrity/csv).
+	_ = w.Write([]string{"id", "type", "assetId", "fileAssetId", "path"})
 	typ := c.Param("type")
 	if typ == "" {
 		typ = c.Query("type")
 	}
-	types := []string{"missing_file", "checksum_mismatch", "untracked_file"}
+	q := a.store.DB.Order("id DESC")
 	if typ != "" {
-		types = []string{typ}
+		q = q.Where("type = ?", typ)
 	}
-	for _, t := range types {
-		for _, it := range a.integrityItems(t, 100000) {
-			_ = w.Write([]string{t, it["path"].(string), fmtS(it["assetId"])})
+	var rows []IntegrityReport
+	q.Find(&rows)
+	for _, r := range rows {
+		assetID, fileAssetID := "", ""
+		if r.AssetID != nil {
+			assetID = *r.AssetID
 		}
+		if r.FileAssetID != nil {
+			fileAssetID = *r.FileAssetID
+		}
+		path := strings.ReplaceAll(r.Path, `"`, `""`)
+		_ = w.Write([]string{r.ID, r.Type, assetID, fileAssetID, path})
 	}
 	w.Flush()
-}
-
-func fmtS(v interface{}) string {
-	if v == nil {
-		return ""
-	}
-	if s, ok := v.(string); ok {
-		return s
-	}
-	return ""
 }
 
 // sha1File returns the hex SHA-1 of a file's contents.
