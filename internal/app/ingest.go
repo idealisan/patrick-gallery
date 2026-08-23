@@ -62,7 +62,9 @@ type ingestOptions struct {
 // thumbnail bytes, the EXIF extracted (for images), and the preferred local
 // datetime (EXIF capture time when available).
 type mediaResult struct {
-	thumbBytes []byte // jpeg-encoded thumbnail, empty if none could be made
+	thumbBytes  []byte      // jpeg-encoded thumbnail, empty if none could be made
+	thumbFamily imgproc.CacheFamily // format family of the source (for versioning)
+	thumbVer    uint32      // pipeline version at generation time
 	exif       *Exif  // populated for images; nil for videos / failures
 	localDate  time.Time
 	// gallery-fidelity fields consumed by the asset response
@@ -132,6 +134,8 @@ func (a *App) processMedia(path, assetID, ownerID, typ string, fallbackDate time
 			res.width = w
 			res.height = h
 		}
+		res.thumbFamily = imgproc.FamilyForFormat(imgproc.SniffFormat(raw))
+		res.thumbVer = imgproc.CurrentCacheVersion(res.thumbFamily)
 		if out, terr := imgproc.Thumbnail(raw, 256); terr == nil && len(out) > 0 {
 			res.thumbBytes = out
 			_ = os.WriteFile(tp, out, 0o644)
@@ -220,6 +224,9 @@ func (a *App) ingestStoredFile(opts ingestOptions) (*Asset, error) {
 		Height:           res.height,
 		Duration:         durSecToMsString(res.duration),
 		Thumbhash:        res.thumbhash,
+		ThumbVersion:     res.thumbVer,
+		PreviewFamily:    string(res.thumbFamily),
+		PreviewVer:       res.thumbVer,
 		CreatedAt:        now,
 		UpdatedAt:        now,
 	}

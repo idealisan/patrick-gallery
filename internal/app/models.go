@@ -76,7 +76,13 @@ type Asset struct {
 	Width            int            `gorm:"type:int" json:"-"`
 	Height           int            `gorm:"type:int" json:"-"`
 	Thumbhash        string         `gorm:"type:text" json:"-"`
-	HasThumbnail     bool           `json:"hasThumbnail"`
+	// ThumbVersion / PreviewVersion record the pipeline generation that
+	// produced each cache (Epic S7). 0/"" = legacy (pre-S7) — S8 treats them
+	// as stale for families whose current version is >1.
+	ThumbVersion  uint32 `gorm:"type:int;default:0" json:"-"`
+	PreviewFamily string `gorm:"type:text" json:"-"` // cache family of the preview render
+	PreviewVer    uint32 `gorm:"type:int;default:0" json:"-"`
+	HasThumbnail  bool   `json:"hasThumbnail"`
 	Size             int64          `json:"-"`
 	ExifID           string         `gorm:"type:text" json:"exifId"`
 	LastPlayedAt     *time.Time     `gorm:"type:datetime" json:"-"`

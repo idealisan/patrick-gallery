@@ -6,10 +6,12 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	imgproc "immich-go/internal/image"
 	"immich-go/internal/ml"
 	"immich-go/internal/video"
 )
@@ -102,6 +104,30 @@ type jobItem struct {
 	Type string // IMAGE | VIDEO
 }
 
+// familyOfItem resolves the cache format family for a job item by sniffing its
+// original bytes (cheap magic check; falls back to extension).
+func familyOfItem(it jobItem) string {
+	if raw, err := os.ReadFile(it.Path); err == nil {
+		if f := imgproc.SniffFormat(raw); f != "" {
+			return f
+		}
+	}
+	switch strings.ToLower(filepath.Ext(it.Path)) {
+	case ".jpg", ".jpeg":
+		return "jpeg"
+	case ".png":
+		return "png"
+	case ".heic", ".heif", ".avif":
+		return "heic"
+	case ".webp":
+		return "webp"
+	case ".gif":
+		return "gif"
+	default:
+		return ""
+	}
+}
+
 // jobRegistry maps immich job ids to their implementation. Jobs not listed
 // here are unknown and rejected with 400.
 func (a *App) jobRegistry() map[string]jobSpec {
@@ -135,7 +161,13 @@ func (a *App) jobRegistry() map[string]jobSpec {
 				if res.thumbBytes != nil {
 					thumbPath = filepath.Join(a.cfg.ResourceDir, "thumbnail", it.ID+".jpg")
 				}
-				upd := map[string]any{"has_thumbnail": thumbPath != "", "resize_path": thumbPath, "updated_at": time.Now().UTC()}
+				upd := map[string]any{
+					"has_thumbnail": thumbPath != "", "resize_path": thumbPath,
+					"thumb_version": imgproc.CurrentCacheVersion(imgproc.CacheFamily(familyOfItem(it))),
+					"preview_family": familyOfItem(it),
+					"preview_ver":   imgproc.CurrentCacheVersion(imgproc.CacheFamily(familyOfItem(it))),
+					"updated_at":    time.Now().UTC(),
+				}
 				if err := a.store.DB.Model(&Asset{}).Where("id = ?", it.ID).Updates(upd).Error; err != nil {
 					return false, err
 				}
