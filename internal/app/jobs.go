@@ -88,6 +88,10 @@ type jobSpec struct {
 	// supported marks jobs this server can actually run. AI jobs (object /
 	// facial / smart search) are reported for compatibility but not executed.
 	supported bool
+	// queueKey routes progress/pause tracking to another queue name. Manual
+	// integrity jobs report under the shared "integrityCheck" queue so the
+	// admin UI sees integrityCheck.queueStatus.isActive while they run.
+	queueKey string
 	// items returns the set of assets (ids + on-disk paths) the job should
 	// process. Returning an empty slice means "nothing to do" (a no-op success).
 	// force mirrors the official JobCreateDto.force: when true the job must
@@ -330,6 +334,186 @@ func (a *App) jobRegistry() map[string]jobSpec {
 				return err == nil, err
 			},
 		},
+		// ManualJobName aliases: the official web fires these kebab-case names via
+		// POST /jobs. All report progress under the shared integrityCheck queue.
+		// Semantics mirror server/src/services/integrity.service.ts:
+		//   <type>          = refresh stale rows, then scan and upsert findings
+		//   <type>-refresh  = revalidate existing report rows only
+		//   <type>-delete-all = dispose each flagged file (trash/unlink) + drop row
+		"backup-database": {
+			supported: true,
+			items: func(a *App, force bool) ([]jobItem, error) {
+				return []jobItem{{ID: "backup"}}, nil
+			},
+			run: func(a *App, it jobItem) (bool, error) {
+				path, err := a.createDatabaseBackup()
+				if err != nil {
+					return false, err
+				}
+				log.Printf("[jobs] backup-database written: %s", path)
+				return true, nil
+			},
+		},
+		"integrity-untracked-files": {
+			supported: true,
+			queueKey:  "integrityCheck",
+			items: func(a *App, force bool) ([]jobItem, error) {
+				a.refreshReportType("untracked_file")
+				return a.untrackedCandidates()
+			},
+			run: func(a *App, it jobItem) (bool, error) {
+				if a.pathReferenced(it.Path) {
+					return true, nil
+				}
+				a.reportUpsert("untracked_file", it.Path, nil)
+				return true, nil
+			},
+		},
+		"integrity-missing-files": {
+			supported: true,
+			queueKey:  "integrityCheck",
+			items: func(a *App, force bool) ([]jobItem, error) {
+				a.refreshReportType("missing_file")
+				var assets []Asset
+				if err := a.store.DB.Where("original_path != ''").Find(&assets).Error; err != nil {
+					return nil, err
+				}
+				out := make([]jobItem, 0, len(assets)*2)
+				for _, as := range assets {
+					out = append(out, jobItem{ID: as.ID, Path: as.OriginalPath, Type: "original"})
+					if as.EncodedVideoPath != "" {
+						out = append(out, jobItem{ID: as.ID, Path: as.EncodedVideoPath, Type: "encoded"})
+					}
+				}
+				return out, nil
+			},
+			run: func(a *App, it jobItem) (bool, error) {
+				id := it.ID
+				if _, err := os.Stat(it.Path); err == nil {
+					a.store.DB.Where("type = ? AND path = ?", "missing_file", it.Path).
+						Delete(&IntegrityReport{})
+					return true, nil
+				} else if !os.IsNotExist(err) {
+					return false, err
+				}
+				row := IntegrityReport{ID: newUUID(), Type: "missing_file", Path: it.Path, CreatedAt: time.Now().UTC()}
+				if it.Type == "encoded" {
+					row.FileAssetID = &id
+				} else {
+					row.AssetID = &id
+				}
+				var existing IntegrityReport
+				if err := a.store.DB.Where("type = ? AND path = ?", "missing_file", it.Path).First(&existing).Error; err != nil {
+					a.store.DB.Create(&row)
+				}
+				return true, nil
+			},
+		},
+		"integrity-checksum-mismatch": {
+			supported: true,
+			queueKey:  "integrityCheck",
+			items: func(a *App, force bool) ([]jobItem, error) {
+				a.refreshReportType("checksum_mismatch")
+				var assets []Asset
+				if err := a.store.DB.Where("checksum != '' AND original_path != ''").Find(&assets).Error; err != nil {
+					return nil, err
+				}
+				out := make([]jobItem, 0, len(assets))
+				for _, as := range assets {
+					out = append(out, jobItem{ID: as.ID, Path: as.OriginalPath})
+				}
+				return out, nil
+			},
+			run: func(a *App, it jobItem) (bool, error) {
+				sum, err := sha1File(it.Path)
+				if os.IsNotExist(err) {
+					return true, nil // owned by the missing-files audit
+				}
+				if err != nil {
+					return false, err
+				}
+				var as Asset
+				if err := a.store.DB.First(&as, "id = ?", it.ID).Error; err != nil {
+					return false, err
+				}
+				if strings.EqualFold(sum, as.Checksum) {
+					a.store.DB.Where("type = ? AND path = ?", "checksum_mismatch", it.Path).Delete(&IntegrityReport{})
+					return true, nil
+				}
+				id := it.ID
+				a.reportUpsert("checksum_mismatch", it.Path, &id)
+				return true, nil
+			},
+		},
+		// -refresh jobs: revalidate existing report rows only (no full scan).
+		"integrity-untracked-files-refresh": {
+			supported: true,
+			queueKey:  "integrityCheck",
+			items:     func(a *App, force bool) ([]jobItem, error) { return a.reportRows("untracked_file") },
+			run: func(a *App, it jobItem) (bool, error) {
+				// row is stale when the flagged file no longer exists
+				if _, err := os.Stat(it.Path); err != nil {
+					a.store.DB.Where("id = ?", it.ID).Delete(&IntegrityReport{})
+				}
+				return true, nil
+			},
+		},
+		"integrity-missing-files-refresh": {
+			supported: true,
+			queueKey:  "integrityCheck",
+			items:     func(a *App, force bool) ([]jobItem, error) { return a.reportRows("missing_file") },
+			run: func(a *App, it jobItem) (bool, error) {
+				// row is stale when the missing file came back
+				if _, err := os.Stat(it.Path); err == nil {
+					a.store.DB.Where("id = ?", it.ID).Delete(&IntegrityReport{})
+				}
+				return true, nil
+			},
+		},
+		"integrity-checksum-mismatch-refresh": {
+			supported: true,
+			queueKey:  "integrityCheck",
+			items:     func(a *App, force bool) ([]jobItem, error) { return a.reportRows("checksum_mismatch") },
+			run: func(a *App, it jobItem) (bool, error) {
+				var r IntegrityReport
+				if err := a.store.DB.First(&r, "id = ?", it.ID).Error; err != nil {
+					return true, nil // row already gone
+				}
+				sum, err := sha1File(r.Path)
+				stale := os.IsNotExist(err)
+				if err == nil && r.AssetID != nil {
+					var as Asset
+					if e := a.store.DB.First(&as, "id = ?", *r.AssetID).Error; e != nil ||
+						as.Checksum == "" || strings.EqualFold(sum, as.Checksum) {
+						stale = true
+					}
+				}
+				if stale {
+					a.store.DB.Where("id = ?", r.ID).Delete(&IntegrityReport{})
+				}
+				return true, nil
+			},
+		},
+		// -delete-all jobs: dispose every flagged file of the type (official
+		// IntegrityDeleteReportType → per-row IntegrityDeleteReports batches).
+		"integrity-untracked-files-delete-all": {
+			supported: true,
+			queueKey:  "integrityCheck",
+			items:     func(a *App, force bool) ([]jobItem, error) { return a.reportRows("untracked_file") },
+			run:       func(a *App, it jobItem) (bool, error) { return a.disposeRowByID(it.ID) },
+		},
+		"integrity-missing-files-delete-all": {
+			supported: true,
+			queueKey:  "integrityCheck",
+			items:     func(a *App, force bool) ([]jobItem, error) { return a.reportRows("missing_file") },
+			run:       func(a *App, it jobItem) (bool, error) { return a.disposeRowByID(it.ID) },
+		},
+		"integrity-checksum-mismatch-delete-all": {
+			supported: true,
+			queueKey:  "integrityCheck",
+			items:     func(a *App, force bool) ([]jobItem, error) { return a.reportRows("checksum_mismatch") },
+			run:       func(a *App, it jobItem) (bool, error) { return a.disposeRowByID(it.ID) },
+		},
 		// backupDatabase: consistent SQLite snapshot into
 		// resources/backups/ (S4). Uses VACUUM INTO after a WAL checkpoint so
 		// the copy is self-contained; keeps the newest N files.
@@ -479,7 +663,12 @@ func (a *App) dispatchJob(c *gin.Context, id string, force bool) {
 		return
 	}
 
-	st := a.jobStateFor(id)
+	key := spec.queueKey
+	if key == "" {
+		key = id
+	}
+
+	st := a.jobStateFor(key)
 	st.mu.Lock()
 	alreadyRunning := st.running
 	st.mu.Unlock()
@@ -489,7 +678,7 @@ func (a *App) dispatchJob(c *gin.Context, id string, force bool) {
 	}
 
 	if force {
-		a.dispatchChainedForce(c, id, spec)
+		a.dispatchChainedForce(c, key, spec)
 		return
 	}
 
@@ -509,7 +698,7 @@ func (a *App) dispatchJob(c *gin.Context, id string, force bool) {
 	}
 
 	st.begin(len(items))
-	go a.runJob(id, spec, items)
+	go a.runJob(key, spec, items)
 	c.JSON(http.StatusOK, gin.H{"jobId": id, "started": true, "total": len(items)})
 }
 
