@@ -68,9 +68,15 @@ func (a *App) handleTrashCleanup(c *gin.Context) {
 // trash-expiry cleanup, run once shortly after boot and then every 24h. The
 // scheduler is best-effort: failures are logged and never stop the server.
 func (a *App) startSchedulers() {
+	stopTrash := make(chan struct{})
+	a.trashStop = stopTrash
 	go func() {
 		// First run a little after startup so it doesn't compete with boot.
-		time.Sleep(30 * time.Second)
+		select {
+		case <-time.After(30 * time.Second):
+		case <-stopTrash:
+			return
+		}
 		if n, err := a.runTrashCleanup(); err != nil {
 			log.Printf("[trash] scheduler run failed: %v", err)
 		} else if n > 0 {
@@ -78,7 +84,12 @@ func (a *App) startSchedulers() {
 		}
 		ticker := time.NewTicker(24 * time.Hour)
 		defer ticker.Stop()
-		for range ticker.C {
+		for {
+			select {
+			case <-stopTrash:
+				return
+			case <-ticker.C:
+			}
 			if n, err := a.runTrashCleanup(); err != nil {
 				log.Printf("[trash] scheduler run failed: %v", err)
 			} else if n > 0 {
@@ -86,4 +97,13 @@ func (a *App) startSchedulers() {
 			}
 		}
 	}()
+}
+
+// stopTrashScheduler stops the periodic trash cleanup loop (used by tests so
+// the 30s first-run timer doesn't hold the test process open).
+func (a *App) stopTrashScheduler() {
+	if a.trashStop != nil {
+		close(a.trashStop)
+		a.trashStop = nil
+	}
 }

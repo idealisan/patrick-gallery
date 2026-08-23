@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -112,11 +113,19 @@ func TestDispatchJobForceEndpoint(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d body %s", rec.Code, rec.Body.String())
 	}
+	// Chained force (S3) processes in batches; wait for chain completion.
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if _, ok := jobChains.Load("thumbnailGeneration"); !ok {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
 	st := app.jobStateFor("thumbnailGeneration")
 	st.mu.Lock()
-	total := st.total
+	completed := st.completed
 	st.mu.Unlock()
-	if total != 1 {
-		t.Fatalf("force dispatch total = %d, want 1 (asset re-processed despite thumbnail)", total)
+	if completed != 1 {
+		t.Fatalf("force processed %d, want 1 (asset re-processed despite thumbnail)", completed)
 	}
 }

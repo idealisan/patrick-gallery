@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	imgproc "immich-go/internal/image"
 )
 
 // S5: repair steps must fix seeded inconsistencies and be idempotent.
@@ -140,4 +142,40 @@ func TestRunRepairPassIdempotentAndSafe(t *testing.T) {
 	// Must not panic with empty DB and must be safely re-runnable.
 	app.runRepairPass()
 	app.runRepairPass()
+}
+
+// S8: stale-version caches must be selected by the default (non-force)
+// thumbnailGeneration items query.
+func TestStaleVersionSelectedByDefaultItems(t *testing.T) {
+	app := newTestApp(t)
+	// fresh heic cache (v1, current) — NOT stale
+	app.store.DB.Create(&Asset{ID: "fresh-heic", OwnerID: "o", Type: "IMAGE",
+		HasThumbnail: true, PreviewFamily: "heic", ThumbVersion: 1, PreviewVer: 1})
+	// legacy jpeg cache with NO family recorded and jpeg still at v1 — not stale
+	app.store.DB.Create(&Asset{ID: "legacy-jpeg", OwnerID: "o", Type: "IMAGE",
+		HasThumbnail: true})
+	// With all families at their current versions, nothing with a complete
+	// stamp is selected by default items() — only genuinely missing ones.
+	spec := app.jobRegistry()["thumbnailGeneration"]
+	items, _ := spec.items(app, false)
+	got := map[string]bool{}
+	for _, it := range items {
+		got[it.ID] = true
+	}
+	if got["fresh-heic"] {
+		t.Fatal("current-version heic cache wrongly selected")
+	}
+	// Bump heic: now the v1 heic asset becomes stale and MUST be picked up.
+	imgproc.BumpCacheVersion(imgproc.FamilyHEIC)
+	items2, _ := spec.items(app, false)
+	got2 := map[string]bool{}
+	for _, it := range items2 {
+		got2[it.ID] = true
+	}
+	if !got2["fresh-heic"] {
+		t.Fatal("stale heic (v1 < current v2) not selected after bump")
+	}
+	if !got["legacy-jpeg"] || !got2["legacy-jpeg"] {
+		t.Log("legacy-jpeg selection:", got["legacy-jpeg"], got2["legacy-jpeg"])
+	}
 }

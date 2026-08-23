@@ -1018,12 +1018,17 @@ func (a *App) servePreview(c *gin.Context, asset *Asset) {
 		return
 	}
 
-	// Serve a cached render if it exists (cheap repeat requests).
+	// Serve a cached render if it exists (cheap repeat requests) — but only
+	// when its recorded pipeline version is current for the family (S8);
+	// stale caches are regenerated below and re-stamped.
 	cachePath := previewCachePath(asset.OriginalPath, asset.ID)
 	if data, serr := os.ReadFile(cachePath); serr == nil && len(data) > 0 {
-		c.Header("Content-Type", "image/jpeg")
-		c.Data(http.StatusOK, "image/jpeg", data)
-		return
+		if !previewStale(asset) {
+			c.Header("Content-Type", "image/jpeg")
+			c.Data(http.StatusOK, "image/jpeg", data)
+			return
+		}
+		_ = os.Remove(cachePath) // drop stale render; regenerate now
 	}
 
 	data, err := imgproc.Preview(raw, a.cfg.PreviewSize, 0)
@@ -1041,6 +1046,22 @@ func (a *App) servePreview(c *gin.Context, asset *Asset) {
 	_ = os.WriteFile(cachePath, data, 0o644)
 	c.Header("Content-Type", "image/jpeg")
 	c.Data(http.StatusOK, "image/jpeg", data)
+}
+
+
+// previewStale reports whether the asset's recorded preview cache was made by
+// an older pipeline generation (Epic S8). Legacy rows without a family are
+// considered fresh unless that family's version has been bumped past 1.
+func previewStale(asset *Asset) bool {
+	family := imgproc.CacheFamily(asset.PreviewFamily)
+	if family == "" {
+		return false
+	}
+	cur := imgproc.CurrentCacheVersion(family)
+	if cur <= 1 {
+		return false // family never bumped; legacy caches stay valid
+	}
+	return asset.PreviewVer > 0 && asset.PreviewVer < cur
 }
 
 // handleAssetPreview serves a mid-size representation: the generated

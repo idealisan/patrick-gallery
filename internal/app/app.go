@@ -47,6 +47,9 @@ type App struct {
 	// endpoint.
 	bus *EventBus
 
+	// trashStop closes to stop the 24h trash scheduler (test teardown).
+	trashStop chan struct{}
+
 	// jobStates tracks progress of background jobs keyed by job id.
 	jobStates sync.Map
 
