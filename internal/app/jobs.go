@@ -273,6 +273,23 @@ func (a *App) jobRegistry() map[string]jobSpec {
 				return true, nil
 			},
 		},
+		// backupDatabase: consistent SQLite snapshot into
+		// resources/backups/ (S4). Uses VACUUM INTO after a WAL checkpoint so
+		// the copy is self-contained; keeps the newest N files.
+		"backupDatabase": {
+			supported: true,
+			items: func(a *App, force bool) ([]jobItem, error) {
+				return []jobItem{{ID: "backup"}}, nil
+			},
+			run: func(a *App, it jobItem) (bool, error) {
+				path, err := a.createDatabaseBackup()
+				if err != nil {
+					return false, err
+				}
+				log.Printf("[jobs] backupDatabase written: %s", path)
+				return true, nil
+			},
+		},
 		// Periodic trash-expiry cleanup (Immich's "userDeleteCheck" cron).
 		// Supported: it permanently deletes assets older than trashDays.
 		"trashCleanup": {

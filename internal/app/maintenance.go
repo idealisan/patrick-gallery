@@ -4,9 +4,11 @@ import (
 	"crypto/sha1"
 	"encoding/csv"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -400,6 +402,71 @@ func sha1File(path string) (string, error) {
 
 // ---- SQLite backup snapshots (replaces PG-style database-backups) ----
 
+// backupKeepCount is how many recent backups to retain (S4).
+var backupKeepCount = 3
+
+// backupDir returns resources/backups under the resource dir.
+func (a *App) backupDir() string {
+	return filepath.Join(a.cfg.ResourceDir, "backups")
+}
+
+// createDatabaseBackup produces a consistent SQLite snapshot via
+// `VACUUM INTO` (after a WAL checkpoint) into resources/backups/, then prunes
+// older files beyond backupKeepCount. Returns the created path.
+func (a *App) createDatabaseBackup() (string, error) {
+	dir := a.backupDir()
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", fmt.Errorf("mkdir backup dir: %w", err)
+	}
+	// Fold WAL into the main db so VACUUM INTO sees a fully consistent view.
+	if err := a.store.DB.Exec("PRAGMA wal_checkpoint(TRUNCATE)").Error; err != nil {
+		return "", fmt.Errorf("wal checkpoint: %w", err)
+	}
+	name := "immich-" + time.Now().UTC().Format("20060102T150405.000000000Z") + ".db"
+	dst := filepath.Join(dir, name)
+	if err := a.store.DB.Exec("VACUUM INTO ?", dst).Error; err != nil {
+		return "", fmt.Errorf("vacuum into: %w", err)
+	}
+	info, err := os.Stat(dst)
+	if err != nil || info.Size() == 0 {
+		return "", fmt.Errorf("backup empty or missing: %s", dst)
+	}
+	a.pruneOldBackups(dir)
+	return dst, nil
+}
+
+// pruneOldBackups deletes the oldest immich-*.db files beyond
+// backupKeepCount.
+func (a *App) pruneOldBackups(dir string) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	type bk struct {
+		path string
+		mod  time.Time
+	}
+	var all []bk
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasPrefix(e.Name(), "immich-") || !strings.HasSuffix(e.Name(), ".db") {
+			continue
+		}
+		info, err := e.Info()
+		if err != nil {
+			continue
+		}
+		all = append(all, bk{filepath.Join(dir, e.Name()), info.ModTime()})
+	}
+	if len(all) <= backupKeepCount {
+		return
+	}
+	sort.Slice(all, func(i, j int) bool { return all[i].mod.After(all[j].mod) })
+	for _, b := range all[backupKeepCount:] {
+		_ = os.Remove(b.path)
+		log.Printf("[backup] pruned old snapshot %s", filepath.Base(b.path))
+	}
+}
+
 // latestBackupFile returns the most recent *.db.bak snapshot under the data
 // directory, or "" if none exist.
 func (a *App) latestBackupFile() string {
@@ -466,26 +533,28 @@ func (a *App) handleDatabaseBackupsList(c *gin.Context) {
 	if _, ok := a.requireAdmin(c); !ok {
 		return
 	}
-	dir := filepath.Dir(a.cfg.DBPath)
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		c.JSON(http.StatusOK, []any{})
-		return
-	}
+	dirs := []string{filepath.Dir(a.cfg.DBPath), a.backupDir()}
 	out := []databaseBackupEntry{}
-	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".db.bak") {
-			continue
-		}
-		info, err := e.Info()
+	for _, dir := range dirs {
+		entries, err := os.ReadDir(dir)
 		if err != nil {
 			continue
 		}
-		out = append(out, databaseBackupEntry{
-			FileName:  e.Name(),
-			Size:      info.Size(),
-			CreatedAt: info.ModTime().UTC().Format(time.RFC3339),
-		})
+		for _, e := range entries {
+			if e.IsDir() || (!strings.HasSuffix(e.Name(), ".db.bak") &&
+				!(dir == a.backupDir() && strings.HasPrefix(e.Name(), "immich-") && strings.HasSuffix(e.Name(), ".db"))) {
+				continue
+			}
+			info, err := e.Info()
+			if err != nil {
+				continue
+			}
+			out = append(out, databaseBackupEntry{
+				FileName:  e.Name(),
+				Size:      info.Size(),
+				CreatedAt: info.ModTime().UTC().Format(time.RFC3339),
+			})
+		}
 	}
 	c.JSON(http.StatusOK, out)
 }
