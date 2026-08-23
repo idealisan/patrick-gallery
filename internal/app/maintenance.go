@@ -255,11 +255,21 @@ func (a *App) handleIntegrityReport(c *gin.Context) {
 		return
 	}
 	items := a.integrityItems(typ, limit)
+	// Official IntegrityReportResponseDto: items carry id/type/path; the id is
+	// also the deletion handle (DELETE /admin/integrity/report/:id).
+	for _, it := range items {
+		if _, has := it["type"]; !has {
+			it["type"] = typ
+		}
+	}
+	next := ""
+	if limit < len(items) {
+		next = items[limit-1]["id"].(string)
+		items = items[:limit]
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"items":      items,
-		"nextCursor": "",
-		"count":      len(items),
-		"total":      len(items),
+		"nextCursor": next,
 	})
 }
 
@@ -304,12 +314,39 @@ func (a *App) integrityItems(typ string, limit int) []gin.H {
 	return out
 }
 
-// handleIntegrityReportDelete mirrors DELETE /api/admin/integrity/:id.
+
+// handleIntegrityReportDeletePath is the slashed-id variant of
+// handleIntegrityReportDelete (ids are relative paths containing '/').
+func (a *App) handleIntegrityReportDeletePath(c *gin.Context) {
+	id := c.Param("idpath")
+	if len(id) > 0 && id[0] == '/' {
+		id = id[1:]
+	}
+	c.Params = append(c.Params, gin.Param{Key: "id", Value: id})
+	a.handleIntegrityReportDelete(c)
+}
+
+// handleIntegrityReportDelete mirrors DELETE /api/admin/integrity/report/:id.
+// Report ids are data-dir-relative paths. For untracked files, dismissal means
+// removing the offending file; other types acknowledge the entry.
 func (a *App) handleIntegrityReportDelete(c *gin.Context) {
 	if _, ok := a.requireAdmin(c); !ok {
 		return
 	}
-	c.Status(http.StatusOK)
+	id := c.Param("id")
+	if id == "" || filepath.IsAbs(id) || strings.Contains(id, "..") {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid report id", "statusCode": 400})
+		return
+	}
+	target := filepath.Join(a.cfg.ResourceDir, id)
+	if strings.HasSuffix(id, ".preview.jpg") || strings.HasSuffix(id, ".db") ||
+		strings.HasSuffix(id, ".jpg") {
+		if err := os.Remove(target); err != nil && !os.IsNotExist(err) {
+			c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error(), "statusCode": 500})
+			return
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{})
 }
 
 // handleIntegrityReportFileOrCsv serves either a single reported asset's

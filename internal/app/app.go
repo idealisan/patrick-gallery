@@ -491,6 +491,7 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.GET("/jobs", a.handleJobsList)
 		api.POST("/jobs", a.handleJobCreate)
 		api.POST("/jobs/:id", a.handleJobCommand)
+		api.PUT("/jobs/:id", a.handleJobCommand)
 		api.GET("/jobs/:id", a.handleJobStatus)
 		api.GET("/queues", a.handleQueuesList)
 		api.GET("/queues/:name", a.handleQueueGet)
@@ -506,7 +507,9 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.GET("/admin/integrity/summary", a.handleIntegritySummary)
 		api.POST("/admin/integrity/report", a.handleIntegrityReport)
 		api.GET("/admin/integrity/report", a.handleIntegrityReport)
-		api.DELETE("/admin/integrity/report/:id", a.handleIntegrityReportDelete)
+		// DELETE uses a catch-all because report ids are relative paths that
+		// may contain slashes (single-segment ids arrive as "/<id>").
+		api.DELETE("/admin/integrity/report/*idpath", a.handleIntegrityReportDeletePath)
 		// Gin forbids two wildcard siblings (/:id/file vs /:type/csv), so the
 		// file-stream and per-type CSV share one parameterized route and the
 		// handler dispatches on the trailing segment.

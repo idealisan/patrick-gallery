@@ -318,6 +318,18 @@ func (a *App) jobRegistry() map[string]jobSpec {
 				return true, nil
 			},
 		},
+		// integrityCheck: official JobName. Runs a genuine filesystem audit
+		// (missing/untracked/checksum mismatch counts) via runIntegrityScan.
+		"integrityCheck": {
+			supported: true,
+			items: func(a *App, force bool) ([]jobItem, error) {
+				return []jobItem{{ID: "integrity"}}, nil
+			},
+			run: func(a *App, it jobItem) (bool, error) {
+				_, err := a.runIntegrityScan()
+				return err == nil, err
+			},
+		},
 		// backupDatabase: consistent SQLite snapshot into
 		// resources/backups/ (S4). Uses VACUUM INTO after a WAL checkpoint so
 		// the copy is self-contained; keeps the newest N files.
