@@ -149,12 +149,29 @@ integrity-checksum-mismatch      integrity-checksum-mismatch-refresh      integr
 
 ## 5. 开放问题
 
-1. WI-4 维护模式「重启进入维护 UI」的实现载体：exec 自重启 vs 进程内模式切换？
-   （影响是否能在不破坏单二进制规则的前提下完全复刻官方体验）
-2. delete-all 中 trash 语义与我们回收站实现的对接细节（deletedAt+status=trashed）。
-3. checksum 断点续扫的 checkpoint 存放（system metadata 表 vs 新表）。
+1. ~~WI-4 维护模式「重启进入维护 UI」的实现载体~~ **已决议（2026-08-23）**：
+   Go 版**不做真实进程重启**，采用**虚拟重启 / 进程内模式切换**——进入维护模式时
+   优雅停掉所有其他功能（调度器、任务队列、媒体管线等），路由面切到维护 UI，
+   进程保持存活；对外契约层仍返回 `{jwt}` 等官方形状。
+2. delete-all / 单条删除的文件处置语义 —— **已核实官方做法（2026-08-23）**：
+   官方 `integrity_report` 表含可空外键 `assetId`(→asset)、`fileAssetId`(→asset_file)，
+   删除时三分支：有 assetId → 资产进回收站（deletedAt+status=trashed，可在回收站
+   恢复）；有 fileAssetId → 永久删除该派生文件（如转码视频）；否则 unlink 裸路径，
+   最后删报告行。我们当前一律直接 unlink，缺回收站分支。
+   待确认：采用同一三分支映射到我们的模型（IsTrash/TrashedAt 已具备；
+   EncodedVideoPath 对应派生文件分支；预览/缩略图文件归入哪支实施时定）。
+3. checksum 断点续扫 checkpoint 存放 —— **已核实官方做法（2026-08-23）**：
+   官方存于通用 KV 表 `system_metadata(key TEXT PK, value JSON)`，键
+   `integrityChecksumCheckpoint`，值 `{date}`＝上次处理到的资产 createdAt 游标；
+   扫描按 createdAt 流式进行，触发 timeLimit/percentageLimit 停止条件时回写游标，
+   下次从游标续扫。
+   建议：我们也建同构的小型 `system_metadata` KV 表（后续维护模式 secret 等
+   也可复用），不塞进 SystemConfig 单例的 ConfigJSON。
 
 ## 6. 决议记录
 
 - 2026-08-23：Epic 创建。仅记录与分析，未做代码改动（用户明确「以后接下来做」）。
   所有契约均已在本地实例复现验证（G1–G3 的失败响应原文见 §1 表格）。
+- 2026-08-23：开放问题 1 决议——虚拟重启/进程内切换，不做真实重启；
+  问题 2、3 已对照官方源码核实并记录（integrity.repository.ts /
+  integrity-report.table.ts / system-metadata.repository.ts），待确认后转入实施。
