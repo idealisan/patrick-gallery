@@ -87,7 +87,9 @@ type jobSpec struct {
 	supported bool
 	// items returns the set of assets (ids + on-disk paths) the job should
 	// process. Returning an empty slice means "nothing to do" (a no-op success).
-	items func(a *App) ([]jobItem, error)
+	// force mirrors the official JobCreateDto.force: when true the job must
+	// re-process ALL eligible assets, not only the ones missing byproducts.
+	items func(a *App, force bool) ([]jobItem, error)
 	// run processes one item. ok=false marks the item failed (counted but not
 	// fatal — the job continues with the next item).
 	run func(a *App, it jobItem) (ok bool, err error)
@@ -105,9 +107,13 @@ func (a *App) jobRegistry() map[string]jobSpec {
 	return map[string]jobSpec{
 		"thumbnailGeneration": {
 			supported: true,
-			items: func(a *App) ([]jobItem, error) {
+			items: func(a *App, force bool) ([]jobItem, error) {
 				var assets []Asset
-				if err := a.store.DB.Where("has_thumbnail = ? AND is_trash = ?", false, false).Find(&assets).Error; err != nil {
+				q := a.store.DB.Where("is_trash = ?", false)
+				if !force {
+					q = q.Where("has_thumbnail = ?", false)
+				}
+				if err := q.Find(&assets).Error; err != nil {
 					return nil, err
 				}
 				out := make([]jobItem, 0, len(assets))
@@ -137,10 +143,14 @@ func (a *App) jobRegistry() map[string]jobSpec {
 		},
 		"metadataExtraction": {
 			supported: true,
-			items: func(a *App) ([]jobItem, error) {
+			items: func(a *App, force bool) ([]jobItem, error) {
 				// assets without an exif row, or with an empty exif row.
 				var assets []Asset
-				if err := a.store.DB.Where("exif_id = ? AND is_trash = ?", "", false).Find(&assets).Error; err != nil {
+				q := a.store.DB.Where("type = ? AND is_trash = ?", "IMAGE", false)
+				if !force {
+					q = q.Where("exif_id = ?", "")
+				}
+				if err := q.Find(&assets).Error; err != nil {
 					return nil, err
 				}
 				out := make([]jobItem, 0, len(assets))
@@ -194,9 +204,13 @@ func (a *App) jobRegistry() map[string]jobSpec {
 		},
 		"videoConversion": {
 			supported: true,
-			items: func(a *App) ([]jobItem, error) {
+			items: func(a *App, force bool) ([]jobItem, error) {
 				var assets []Asset
-				if err := a.store.DB.Where("type = ? AND encoded_video_path = ? AND is_trash = ?", "VIDEO", "", false).Find(&assets).Error; err != nil {
+				q := a.store.DB.Where("type = ? AND is_trash = ?", "VIDEO", false)
+				if !force {
+					q = q.Where("encoded_video_path = ?", "")
+				}
+				if err := q.Find(&assets).Error; err != nil {
 					return nil, err
 				}
 				out := make([]jobItem, 0, len(assets))
@@ -234,7 +248,7 @@ func (a *App) jobRegistry() map[string]jobSpec {
 		},
 		"duplicateDetection": {
 			supported: true,
-			items: func(a *App) ([]jobItem, error) {
+			items: func(a *App, force bool) ([]jobItem, error) {
 				// compute duplicate groups by checksum; the result is queryable
 				// via GET /api/assets/duplicates. The job itself just (re)scans.
 				type dup struct {
@@ -262,7 +276,7 @@ func (a *App) jobRegistry() map[string]jobSpec {
 		// Supported: it permanently deletes assets older than trashDays.
 		"trashCleanup": {
 			supported: true,
-			items: func(a *App) ([]jobItem, error) {
+			items: func(a *App, force bool) ([]jobItem, error) {
 				return []jobItem{{ID: "trash"}}, nil
 			},
 			run: func(a *App, it jobItem) (bool, error) {
@@ -272,9 +286,13 @@ func (a *App) jobRegistry() map[string]jobSpec {
 		},
 		"smartSearch": {
 			supported: a.ml != nil && len(a.ml.Capabilities()) > 0,
-			items: func(a *App) ([]jobItem, error) {
+			items: func(a *App, force bool) ([]jobItem, error) {
 				var assets []Asset
-				if err := a.store.DB.Where("type = ? AND is_trash = ? AND id NOT IN (SELECT asset_id FROM asset_mls)", "IMAGE", false).Find(&assets).Error; err != nil {
+				q := a.store.DB.Where("type = ? AND is_trash = ?", "IMAGE", false)
+				if !force {
+					q = q.Where("id NOT IN (SELECT asset_id FROM asset_mls)")
+				}
+				if err := q.Find(&assets).Error; err != nil {
 					return nil, err
 				}
 				out := make([]jobItem, 0, len(assets))
@@ -319,6 +337,7 @@ func (a *App) handleJobCommand(c *gin.Context) {
 	}
 	var cmd struct {
 		Command string `json:"command"`
+		Force   bool   `json:"force"` // official JobCommandDto.force
 	}
 	_ = c.ShouldBindJSON(&cmd)
 	if cmd.Command != "" {
@@ -349,18 +368,22 @@ func (a *App) handleJobCommand(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"jobId": id, "cleared": true})
 			return
 		case "start":
-			// fall through to dispatch below
+			// fall through to dispatch below; official JobCommandDto carries
+			// {command, force} — force re-processes all assets this run.
+			a.dispatchJob(c, id, cmd.Force)
+			return
 		default:
 			c.JSON(http.StatusBadRequest, gin.H{"message": "unknown command: " + cmd.Command, "statusCode": 400})
 			return
 		}
 	}
-	a.dispatchJob(c, id)
+	a.dispatchJob(c, id, cmd.Force)
 }
 
-// dispatchJob starts (or force-starts) a job by id. Immich's body may carry
-// {force:true}; we always (re)start if not already running.
-func (a *App) dispatchJob(c *gin.Context, id string) {
+// dispatchJob starts (or force-starts) a job by id. Immich's JobCreateDto
+// carries {force:true}: when set, the job re-processes ALL eligible assets
+// instead of only the ones missing byproducts.
+func (a *App) dispatchJob(c *gin.Context, id string, force bool) {
 	reg := a.jobRegistry()
 	spec, ok := reg[id]
 	if !ok {
@@ -386,7 +409,7 @@ func (a *App) dispatchJob(c *gin.Context, id string) {
 		return
 	}
 
-	items, err := spec.items(a)
+	items, err := spec.items(a, force)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error(), "statusCode": 500})
 		return
@@ -480,19 +503,20 @@ func (a *App) handleJobsList(c *gin.Context) {
 }
 
 // handleJobCreate mirrors POST /api/jobs (createJob). Triggers a manual job by
-// name (JobCreateDto{name}). It reuses the same dispatcher as /jobs/:id.
+// name (JobCreateDto{name, force}). It reuses the same dispatcher as /jobs/:id.
 func (a *App) handleJobCreate(c *gin.Context) {
 	if _, ok := a.requireAdmin(c); !ok {
 		return
 	}
 	var body struct {
-		Name string `json:"name"`
+		Name  string `json:"name"`
+		Force bool   `json:"force"` // official JobCreateDto.force
 	}
 	if err := c.ShouldBindJSON(&body); err != nil || body.Name == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "job name required", "statusCode": 400})
 		return
 	}
-	a.dispatchJob(c, body.Name)
+	a.dispatchJob(c, body.Name, body.Force)
 }
 
 // ensure jobStateFor returns (creating if needed) the per-job state.
