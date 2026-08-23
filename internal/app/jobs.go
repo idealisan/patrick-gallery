@@ -327,6 +327,10 @@ func (a *App) jobRegistry() map[string]jobSpec {
 // jobWorkers bounds concurrent media processing across all jobs.
 const jobWorkers = 4
 
+// jobBatchSize bounds how many items one dispatch processes before the next
+// chained batch (S3) takes over. Keeps SQLite write pressure bounded.
+var jobBatchSize = 50
+
 // handleJobCommand mirrors POST /api/jobs/:name. It accepts either a manual
 // trigger (no body / {force:true}) or a QueueCommandDto{command} to
 // pause/resume/empty/clear-failed the queue.
@@ -430,11 +434,34 @@ func (a *App) dispatchJob(c *gin.Context, id string, force bool) {
 }
 
 // runJob executes the items with a bounded worker pool, updating progress.
+// Items are processed in chunks of jobBatchSize; between chunks the queue
+// pause flag is honored so admins can stop long-running jobs promptly.
 func (a *App) runJob(id string, spec jobSpec, items []jobItem) {
+	st := a.jobStateFor(id)
+	for start := 0; start < len(items); start += jobBatchSize {
+		if paused, ok := a.queuePaused.Load(id); ok && paused.(bool) {
+			log.Printf("[jobs] %s paused at item %d/%d", id, start, len(items))
+			st.mu.Lock()
+			st.running = false
+			st.finishedAt = time.Now()
+			st.mu.Unlock()
+			return
+		}
+		end := start + jobBatchSize
+		if end > len(items) {
+			end = len(items)
+		}
+		a.runBatch(id, spec, items[start:end])
+	}
+	log.Printf("[jobs] %s finished: %d processed", id, len(items))
+}
+
+// runBatch processes one chunk of items concurrently.
+func (a *App) runBatch(id string, spec jobSpec, batch []jobItem) {
 	st := a.jobStateFor(id)
 	sem := make(chan struct{}, jobWorkers)
 	var wg sync.WaitGroup
-	for _, it := range items {
+	for _, it := range batch {
 		wg.Add(1)
 		sem <- struct{}{}
 		go func(it jobItem) {
@@ -455,7 +482,6 @@ func (a *App) runJob(id string, spec jobSpec, items []jobItem) {
 		}(it)
 	}
 	wg.Wait()
-	log.Printf("[jobs] %s finished: %d processed", id, len(items))
 }
 
 // handleJobStatus returns live progress for a job id.
