@@ -19,6 +19,7 @@ import (
 // only needs active/total to drive a progress bar, so we keep the full shape
 // for compatibility and fill active/completed.
 type jobState struct {
+	forceChain bool
 	mu         sync.Mutex
 	active     int
 	total      int
@@ -413,7 +414,12 @@ func (a *App) dispatchJob(c *gin.Context, id string, force bool) {
 		return
 	}
 
-	items, err := spec.items(a, force)
+	if force {
+		a.dispatchChainedForce(c, id, spec)
+		return
+	}
+
+	items, err := spec.items(a, false)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error(), "statusCode": 500})
 		return
@@ -432,6 +438,103 @@ func (a *App) dispatchJob(c *gin.Context, id string, force bool) {
 	go a.runJob(id, spec, items)
 	c.JSON(http.StatusOK, gin.H{"jobId": id, "started": true, "total": len(items)})
 }
+
+// dispatchChainedForce starts a full (force) rebuild that processes assets in
+// chained batches: only the first batch is materialized now; each completed
+// batch dispatches the next one until the cursor passes the snapshot upper
+// bound. Epic §5.5: never one giant task, never a pre-materialized queue.
+func (a *App) dispatchChainedForce(c *gin.Context, id string, spec jobSpec) bool {
+	st := a.jobStateFor(id)
+
+	var maxID string
+	if err := a.store.DB.Model(&Asset{}).Select("COALESCE(MAX(id),'') AS id").Scan(&maxID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error(), "statusCode": 500})
+		return false
+	}
+	ch := &jobChain{idUpper: maxID + "\uffff", force: true}
+	jobChains.Store(id, ch)
+
+	st.mu.Lock()
+	st.forceChain = true
+	st.mu.Unlock()
+
+	a.dispatchNextForceBatch(id, spec, ch)
+
+	st.mu.Lock()
+	running := st.running
+	st.mu.Unlock()
+	c.JSON(http.StatusOK, gin.H{
+		"jobId": id, "started": true, "mode": "chained-force",
+		"batchSize": jobBatchSize, "running": running,
+	})
+	return true
+}
+
+// dispatchNextForceBatch materializes and runs ONE batch; on completion it
+// schedules the next batch unless paused or exhausted.
+func (a *App) dispatchNextForceBatch(id string, spec jobSpec, ch *jobChain) {
+	ch.mu.Lock()
+	start := ch.nextStart
+	force := ch.force
+	idUpper := ch.idUpper
+	ch.mu.Unlock()
+	_ = start
+	_ = force
+	_ = idUpper
+
+	items, err := spec.itemsForceBatch(a, idUpper, &ch.mu, &ch.nextStart)
+	if err != nil {
+		log.Printf("[jobs] %s force batch error: %v", id, err)
+		a.finishJobState(id)
+		return
+	}
+	if len(items) == 0 {
+		log.Printf("[jobs] %s chained force complete", id)
+		a.finishJobState(id)
+		jobChains.Delete(id)
+		return
+	}
+
+	st := a.jobStateFor(id)
+	if st.total == 0 {
+		// First batch: initialize totals with a growing estimate.
+		st.begin(jobBatchSize)
+	} else {
+		st.mu.Lock()
+		st.total += len(items)
+		st.mu.Unlock()
+	}
+	go func() {
+		a.runJob(id, spec, items)
+		// Chain: schedule next batch unless queue is paused.
+		if paused, ok := a.queuePaused.Load(id); ok && paused.(bool) {
+			log.Printf("[jobs] %s chain paused before next batch", id)
+			return
+		}
+		a.dispatchNextForceBatch(id, spec, ch)
+	}()
+}
+
+// finishJobState marks a job finished.
+func (a *App) finishJobState(id string) {
+	st := a.jobStateFor(id)
+	st.mu.Lock()
+	st.running = false
+	st.finishedAt = time.Now()
+	st.mu.Unlock()
+}
+
+// jobChain tracks a force (full-rebuild) run: the id upper bound snapshot at
+// trigger time bounds the set, and nextStart is the cursor for the chained
+// batch. Only ONE pending batch exists at any time (Epic §5.5 decision).
+type jobChain struct {
+	mu        sync.Mutex
+	idUpper   string // lexicographic exclusive upper bound on asset ids
+	nextStart int    // count of eligible items already dispatched
+	force     bool
+}
+
+var jobChains sync.Map // map[jobID]*jobChain
 
 // runJob executes the items with a bounded worker pool, updating progress.
 // Items are processed in chunks of jobBatchSize; between chunks the queue
@@ -543,6 +646,30 @@ func (a *App) handleJobCreate(c *gin.Context) {
 		return
 	}
 	a.dispatchJob(c, body.Name, body.Force)
+}
+
+// itemsForceBatch returns the next force-mode batch for a chained run. It
+// selects up to jobBatchSize assets (id > lastID, id < idUpper, ordered by id)
+// and advances *cursor by the number returned. The mutex guards the cursor
+// across chained goroutines.
+func (spec jobSpec) itemsForceBatch(a *App, idUpper string, mu *sync.Mutex, cursor *int) ([]jobItem, error) {
+	mu.Lock()
+	// Offset-cursor over the id-ordered eligible set, bounded per batch. The
+	// idUpper snapshot bound excludes assets created after the force trigger
+	// (they follow the normal pipeline and need no rebuild).
+	var assets []Asset
+	q := a.store.DB.Where("id < ?", idUpper).Order("id").Offset(*cursor).Limit(jobBatchSize)
+	if err := q.Find(&assets).Error; err != nil {
+		mu.Unlock()
+		return nil, err
+	}
+	out := make([]jobItem, 0, len(assets))
+	for _, as := range assets {
+		out = append(out, jobItem{ID: as.ID, Path: as.OriginalPath, Type: as.Type})
+	}
+	*cursor += len(out)
+	mu.Unlock()
+	return out, nil
 }
 
 // ensure jobStateFor returns (creating if needed) the per-job state.
