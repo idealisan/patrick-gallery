@@ -298,12 +298,23 @@ func (a *App) refreshReportType(typ string) {
 	}
 }
 
+// resourceTail returns "<parentDir>/<fileName>" for p with forward slashes.
+// Asset rows historically store resource paths in several shapes (absolute,
+// resource-relative, cwd-relative), so reference matching anchors on the
+// trailing segments — file names are UUIDs, which makes this unambiguous.
+func resourceTail(p string) string {
+	return filepath.Base(filepath.Dir(p)) + "/" + filepath.Base(p)
+}
+
 // pathReferenced reports whether an absolute file path is referenced by any
 // asset (original, encoded video or thumbnail/preview).
 func (a *App) pathReferenced(p string) bool {
+	tail := resourceTail(p)
 	var n int64
 	a.store.DB.Model(&Asset{}).Where(
-		"original_path = ? OR encoded_video_path = ? OR resize_path = ?", p, p, p,
+		"original_path = ? OR encoded_video_path = ? OR resize_path = ? "+
+			"OR original_path LIKE ? OR encoded_video_path LIKE ? OR resize_path LIKE ?",
+		p, p, p, "%/"+tail, "%/"+tail, "%/"+tail,
 	).Count(&n)
 	return n > 0
 }
@@ -312,12 +323,13 @@ func (a *App) pathReferenced(p string) bool {
 // referenced by any asset (the untracked scan's input batch).
 func (a *App) untrackedCandidates() ([]jobItem, error) {
 	out := []jobItem{}
-	err := filepath.Walk(a.cfg.ResourceDir, func(p string, info os.FileInfo, err error) error {
+	base := a.resourceDirAbs()
+	err := filepath.Walk(base, func(p string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return nil
 		}
-		rel, _ := filepath.Rel(a.cfg.ResourceDir, p)
-		if isSystemDir(rel) || isDBArtifact(rel) {
+		rel, _ := filepath.Rel(base, p)
+		if isSystemDir(rel) || isDBArtifact(rel) || strings.HasSuffix(rel, ".preview.jpg") {
 			return nil
 		}
 		if !a.pathReferenced(p) {
@@ -366,17 +378,6 @@ func (a *App) runIntegrityScan() (gin.H, error) {
 	if err := a.store.DB.Find(&assets).Error; err != nil {
 		return nil, err
 	}
-	tracked := map[string]bool{}
-	for i := range assets {
-		as := &assets[i]
-		tracked[as.OriginalPath] = true
-		if as.EncodedVideoPath != "" {
-			tracked[as.EncodedVideoPath] = true
-		}
-		if as.ResizePath != "" {
-			tracked[as.ResizePath] = true
-		}
-	}
 	for i := range assets {
 		as := &assets[i]
 		if as.OriginalPath == "" {
@@ -396,19 +397,31 @@ func (a *App) runIntegrityScan() (gin.H, error) {
 	// Untracked: files under the resource tree not referenced by any asset
 	// (originals, encoded video, thumbnails/previews). DB artifacts, profile
 	// pictures, backups and ML scratch dirs are out of scope (official only
-	// walks upload/library/encoded-video/thumbs).
-	_ = filepath.Walk(a.cfg.ResourceDir, func(p string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() || tracked[p] {
+	// walks upload/library/encoded-video/thumbs). Derived preview caches
+	// (<name>.<assetID>.preview.jpg) are managed by the repair pass instead.
+	base := a.resourceDirAbs()
+	_ = filepath.Walk(base, func(p string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() || a.pathReferenced(p) {
 			return nil
 		}
-		rel, _ := filepath.Rel(a.cfg.ResourceDir, p)
-		if isSystemDir(rel) || isDBArtifact(rel) {
+		rel, _ := filepath.Rel(base, p)
+		if isSystemDir(rel) || isDBArtifact(rel) || strings.HasSuffix(rel, ".preview.jpg") {
 			return nil
 		}
 		a.reportUpsert("untracked_file", p, nil)
 		return nil
 	})
 	return a.integrityCounts(), nil
+}
+
+// resourceDirAbs returns the configured resource dir as an absolute path —
+// the config default ("resources") is relative to the working directory and
+// must be normalized before being matched against absolute asset paths.
+func (a *App) resourceDirAbs() string {
+	if abs, err := filepath.Abs(a.cfg.ResourceDir); err == nil {
+		return abs
+	}
+	return a.cfg.ResourceDir
 }
 
 func assetRel(p, base string) string {
