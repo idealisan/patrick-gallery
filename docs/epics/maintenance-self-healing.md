@@ -117,6 +117,15 @@ duplicateDetection / ocr（smartSearch 需 ML backend）。
 
 ## 6. 变更记录
 
+- 2026-08-23: **S1–S9 全部交付**（除 CLI 放弃项）。commits: S1 dcd9a58,
+  S2 22dcb96, S3 c9b6e1a, S4 bb465cf, S5 0c9f00a, S7 9729791, S8 8c2f2c0,
+  S6 ddb8ca7, S9 schemathesis PASS (response_schema/content_type/server_error
+  均 0)。实测: force 链式分批(67资产=50+17)、backup integrity_check ok、
+  repairPass 自动修复脏行、integrity summary/report/delete 全链路、
+  版本戳落库(jpeg/gif/heic v1)。
+  已知遗留: TestAndroidClientContract/Stacks 与 TestMemoriesOnThisDay 在
+  干净树上即失败（预先存在，非本 Epic 引入），待单独排查。
+
 - 2026-08-23: 创建 Epic，录入现状调查与范围决策（放弃 CLI 子命令）
 - 2026-08-23: §5 五个开放问题全部讨论并决策（备份跟随官方、Repair UI 对齐、
   格式族版本粒度+发版时评估 bump、版本存 DB、force 分批链式执行）；

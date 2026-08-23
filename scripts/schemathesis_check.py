@@ -95,7 +95,7 @@ def start_server(bin_path, port, workdir):
         [bin_path], cwd=workdir, env=env,
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
-    url = f"http://localhost:{port}/api/server/ping"
+    url = f"http://127.0.0.1:{port}/api/server/ping"
     for _ in range(80):
         if p.poll() is not None:
             raise RuntimeError("server exited early (code %s)" % p.returncode)
@@ -112,7 +112,7 @@ def start_server(bin_path, port, workdir):
 
 
 def login(port):
-    url = f"http://localhost:{port}/api/auth/login"
+    url = f"http://127.0.0.1:{port}/api/auth/login"
     data = json.dumps({"email": ADMIN_EMAIL, "password": ADMIN_PASS}).encode()
     req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=15) as r:

@@ -20,14 +20,14 @@ S9 契约测试补全 ──> 随各 Story 同步交付，收尾统一回归
 
 | Story | 标题 | WI | 优先级 | 估算 | 状态 |
 |---|---|---|---|---|---|
-| [S1](stories/S1-force-param.md) | jobs API 支持 `force:true` | WI-1 | P0 | 0.5d | 待开工 |
-| [S2](stories/S2-job-batch-framework.md) | job 批次框架（chunked items） | WI-1 | P0 | 1d | 待开工 |
-| [S3](stories/S3-chained-batch-execution.md) | 全量重建的链式分批执行 | WI-1/§5.5 | P0 | 1d | 依赖 S1+S2 |
-| [S4](stories/S4-backup-database.md) | backupDatabase 实现 | WI-2 | P1 | 1d | 待开工 |
-| [S5](stories/S5-repairpass-core.md) | repairPass 一致性自愈核心 | WI-3 | P1 | 1.5d | 待开工 |
-| [S6](stories/S6-repair-api-alignment.md) | Repair 端点对齐官方 Admin UI | WI-3 | P2 | 1d | 依赖 S5 + 读原版 |
-| [S7](stories/S7-cache-version-schema.md) | 缓存版本元数据落库 | WI-4 | P2 | 0.5d | 待开工 |
-| [S8](stories/S8-cache-invalidation.md) | 版本驱动的缓存失效重建 | WI-4 | P2 | 1d | 依赖 S7(+S1) |
-| [S9](stories/S9-contract-regression.md) | 维护类端点契约测试回归 | 全部 | P1 | 0.5d | 随交付滚动 |
+| [S1](stories/S1-force-param.md) | jobs API 支持 `force:true` | WI-1 | P0 | 0.5d | ✅ 完成 |
+| [S2](stories/S2-job-batch-framework.md) | job 批次框架（chunked items） | WI-1 | P0 | 1d | ✅ 完成 |
+| [S3](stories/S3-chained-batch-execution.md) | 全量重建的链式分批执行 | WI-1/§5.5 | P0 | 1d | ✅ 完成 |
+| [S4](stories/S4-backup-database.md) | backupDatabase 实现 | WI-2 | P1 | 1d | ✅ 完成 |
+| [S5](stories/S5-repairpass-core.md) | repairPass 一致性自愈核心 | WI-3 | P1 | 1.5d | ✅ 完成 |
+| [S6](stories/S6-repair-api-alignment.md) | Repair 端点对齐官方 Admin UI | WI-3 | P2 | 1d | ✅ 完成 |
+| [S7](stories/S7-cache-version-schema.md) | 缓存版本元数据落库 | WI-4 | P2 | 0.5d | ✅ 完成 |
+| [S8](stories/S8-cache-invalidation.md) | 版本驱动的缓存失效重建 | WI-4 | P2 | 1d | ✅ 完成 |
+| [S9](stories/S9-contract-regression.md) | 维护类端点契约测试回归 | 全部 | P1 | 0.5d | ✅ PASS |
 
 建议实施顺序：**S1 → S2 → S3**（一条完整可验收的用户价值线），随后 S4 或 S5 任选。
