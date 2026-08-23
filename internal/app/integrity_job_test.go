@@ -149,8 +149,10 @@ func TestIntegrityChecksumMismatchFlow(t *testing.T) {
 	os.WriteFile(p, []byte("real-bytes"), 0o644)
 	sum, _ := sha1File(p)
 	wrong := "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+	base := time.Now().Add(-2 * time.Hour)
 	as := Asset{ID: newUUID(), OwnerID: "owner", Type: "IMAGE", OriginalPath: p,
-		Checksum: wrong, HasThumbnail: true, CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}
+		Checksum: wrong, HasThumbnail: true,
+		FileCreatedAt: base, CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}
 	app.store.DB.Create(&as)
 
 	runIntegrityJob(t, app, "integrity-checksum-mismatch")
@@ -167,6 +169,37 @@ func TestIntegrityChecksumMismatchFlow(t *testing.T) {
 	if cnt != 0 {
 		t.Fatal("stale checksum row survived refresh")
 	}
+
+	// checkpoint persisted; a follow-up scan only sees assets created after it
+	var cp integrityCheckpoint
+	if !app.metaGet(integrityCheckpointKey, &cp) || cp.Date == "" {
+		t.Fatal("checksum checkpoint not persisted")
+	}
+	marker := mustParseRFC(t, cp.Date)
+	newer := filepath.Join(app.cfg.ResourceDir, "upload", "later.jpg")
+	os.WriteFile(newer, []byte("later-bytes"), 0o644)
+	app.store.DB.Create(&Asset{ID: newUUID(), OwnerID: "owner", Type: "IMAGE",
+		OriginalPath: newer, Checksum: "ffffffffffffffffffffffffffffffffffffffff",
+		FileCreatedAt: marker.Add(time.Hour), CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()})
+	items2, err := app.integrityChecksumItems(false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items2) != 2 { // 1 new asset + checkpoint sentinel
+		t.Fatalf("resume scan should see only the new asset, got %d items", len(items2))
+	}
+	if items2[0].Path != newer {
+		t.Fatalf("resume picked wrong asset: %s", items2[0].Path)
+	}
+}
+
+func mustParseRFC(t *testing.T, s string) time.Time {
+	t.Helper()
+	ts, err := time.Parse(time.RFC3339Nano, s)
+	if err != nil {
+		t.Fatalf("bad checkpoint date %q: %v", s, err)
+	}
+	return ts
 }
 
 func TestIntegrityReportEndpointsShape(t *testing.T) {

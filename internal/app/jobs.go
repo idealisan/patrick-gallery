@@ -409,22 +409,17 @@ func (a *App) jobRegistry() map[string]jobSpec {
 				return true, nil
 			},
 		},
+		// "integrity-checksum-mismatch": official semantics with a checkpointed
+		// resume cursor persisted in system_metadata (mirrors the original's
+		// IntegrityChecksumCheckpoint document).
 		"integrity-checksum-mismatch": {
 			supported: true,
 			queueKey:  "integrityCheck",
-			items: func(a *App, force bool) ([]jobItem, error) {
-				a.refreshReportType("checksum_mismatch")
-				var assets []Asset
-				if err := a.store.DB.Where("checksum != '' AND original_path != ''").Find(&assets).Error; err != nil {
-					return nil, err
-				}
-				out := make([]jobItem, 0, len(assets))
-				for _, as := range assets {
-					out = append(out, jobItem{ID: as.ID, Path: as.OriginalPath})
-				}
-				return out, nil
-			},
+			items:     func(a *App, force bool) ([]jobItem, error) { return a.integrityChecksumItems(force) },
 			run: func(a *App, it jobItem) (bool, error) {
+				if it.ID == "__checkpoint__" {
+					return true, a.metaSet(integrityCheckpointKey, integrityCheckpoint{Date: it.Path})
+				}
 				sum, err := sha1File(it.Path)
 				if os.IsNotExist(err) {
 					return true, nil // owned by the missing-files audit
@@ -581,6 +576,54 @@ func (a *App) jobRegistry() map[string]jobSpec {
 		"tagCopy":                  {supported: false},
 		"tagImage":                 {supported: false},
 	}
+}
+
+// integrityCheckpoint mirrors the official system-metadata document stored
+// under IntegrityChecksumCheckpoint: the createdAt cursor the checksum scan
+// resumes from.
+type integrityCheckpoint struct {
+	Date string `json:"date"`
+}
+
+const integrityCheckpointKey = "integrityChecksumCheckpoint"
+
+// integrityChecksumItems returns the checksum-audit batch: every checksummed
+// asset created after the persisted resume cursor (unless force), oldest
+// first, plus a trailing sentinel item that persists the new cursor.
+func (a *App) integrityChecksumItems(force bool) ([]jobItem, error) {
+	a.refreshReportType("checksum_mismatch")
+	var cp integrityCheckpoint
+	if !force {
+		a.metaGet(integrityCheckpointKey, &cp)
+	}
+	var start time.Time
+	if cp.Date != "" {
+		if t, err := time.Parse(time.RFC3339Nano, cp.Date); err == nil {
+			start = t
+		}
+	}
+	q := a.store.DB.Where("checksum != '' AND original_path != ''").Order("file_created_at")
+	var assets []Asset
+	if err := q.Find(&assets).Error; err != nil {
+		return nil, err
+	}
+	out := make([]jobItem, 0, len(assets)+1)
+	var last time.Time
+	for _, as := range assets {
+		// Resume cursor is applied in Go: SQLite stores datetimes as local-offset
+		// text, so a parameterized time comparison would be format-sensitive.
+		if !start.IsZero() && !as.FileCreatedAt.After(start) {
+			continue
+		}
+		out = append(out, jobItem{ID: as.ID, Path: as.OriginalPath})
+		if as.FileCreatedAt.After(last) {
+			last = as.FileCreatedAt
+		}
+	}
+	if len(out) > 0 {
+		out = append(out, jobItem{ID: "__checkpoint__", Path: last.UTC().Format(time.RFC3339Nano)})
+	}
+	return out, nil
 }
 
 // jobWorkers bounds concurrent media processing across all jobs.
