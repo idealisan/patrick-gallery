@@ -140,29 +140,11 @@ func NewApp(cfg *Config, store *Store) *App {
 		a.geoLoadedAtVal = time.Now()
 		log.Printf("[geo] reverse-geocoder loaded with %d cities", g.Cities())
 	}
-	a.backfillLivePhotoHidden()
+	a.runRepairPass()
 	a.startSchedulers()
 	return a
 }
 
-// backfillLivePhotoHidden applies the official live-photo contract to assets
-// ingested before the rule existed: any asset referenced as another's
-// livePhotoVideoId is motion-part video and must be hidden from the timeline
-// (official metadata.service.ts linkLivePhotos). Idempotent; runs at startup.
-func (a *App) backfillLivePhotoHidden() {
-	res := a.store.DB.Exec(`
-		UPDATE assets SET visibility = 'hidden', is_archived = 0, updated_at = ?
-		WHERE (visibility IS NULL OR visibility = '' OR visibility = 'timeline')
-		  AND id IN (SELECT live_photo_video_id FROM assets WHERE live_photo_video_id != '')`,
-		time.Now().UTC())
-	if res.Error != nil {
-		log.Printf("[livephoto] backfill error: %v", res.Error)
-		return
-	}
-	if res.RowsAffected > 0 {
-		log.Printf("[livephoto] hid %d motion-part video assets", res.RowsAffected)
-	}
-}
 
 // RegisterRoutes wires every Immich-compatible endpoint. Public endpoints
 // (health, about, auth login) are registered outside the auth guard.
