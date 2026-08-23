@@ -50,6 +50,9 @@ duplicateDetection / ocr（smartSearch 需 ML backend）。
 
 ## 4. 任务分解（Work Items）
 
+> Story 拆分见 [stories/README.md](stories/README.md) —— 9 个可独立开发验证的
+> Story（S1–S9）及其依赖图、优先级与实施顺序建议。本节保留 WI 作为需求级描述。
+
 ### WI-1 force 全量参数（对齐官方）
 
 - [ ] `PUT /api/jobs/:name` body `{force:true}` 时忽略"缺失项"过滤，全量重跑
@@ -118,3 +121,5 @@ duplicateDetection / ocr（smartSearch 需 ML backend）。
 - 2026-08-23: §5 五个开放问题全部讨论并决策（备份跟随官方、Repair UI 对齐、
   格式族版本粒度+发版时评估 bump、版本存 DB、force 分批链式执行）；
   WI-1/2/3/4 按决策更新；新增开发流程文档 docs/README.md
+- 2026-08-23: WI 拆分为 S1–S9 九个 Story（stories/ 目录），含依赖图、优先级与
+  建议实施顺序 S1→S2→S3
