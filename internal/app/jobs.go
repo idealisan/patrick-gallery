@@ -667,6 +667,12 @@ func (a *App) dispatchJob(c *gin.Context, id string, force bool) {
 	if key == "" {
 		key = id
 	}
+	if a.inMaintenance() {
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"message": "server is in maintenance mode", "statusCode": 503,
+		})
+		return
+	}
 
 	st := a.jobStateFor(key)
 	st.mu.Lock()

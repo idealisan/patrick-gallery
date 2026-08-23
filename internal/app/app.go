@@ -62,9 +62,10 @@ type App struct {
 	// maintenance holds the global maintenance-mode state (set via
 	// POST /admin/maintenance). While active, mutating endpoints reject writes
 	// with 503 so operators can safely restore/inspect the instance.
-	maintenanceMu   sync.Mutex
-	maintenanceMode bool
-	maintenanceTask string
+	maintenanceMu      sync.Mutex
+	maintenanceMode    bool
+	maintenanceTask    string
+	maintenanceResumed []string
 
 	// sioConnectAck tracks Socket.IO polling transports that have sent a
 	// namespace-connect packet (40) over POST, so the next long-poll GET can

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -224,5 +225,73 @@ func TestIntegrityReportEndpointsShape(t *testing.T) {
 	json.Unmarshal(rec3.Body.Bytes(), &summary)
 	if summary["untracked_file"] < 2 {
 		t.Fatalf("summary counts wrong: %v", summary)
+	}
+}
+
+func TestMaintenanceModeVirtualRestart(t *testing.T) {
+	app := newTestApp(t)
+	gin.SetMode(gin.TestMode)
+
+	// official toggle: {action:"start"} → 201 {jwt}
+	rec := httptest.NewRecorder()
+	c := ctxAsAdmin(t, app, rec, httptest.NewRequest(http.MethodPost, "/api/admin/maintenance",
+		bytes.NewBufferString(`{"action":"start"}`)))
+	app.handleMaintenanceSet(c)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("start status %d: %s", rec.Code, rec.Body.String())
+	}
+	var started struct {
+		JWT string `json:"jwt"`
+	}
+	json.Unmarshal(rec.Body.Bytes(), &started)
+	if started.JWT == "" {
+		t.Fatal("start response missing jwt")
+	}
+	if !app.inMaintenance() {
+		t.Fatal("maintenance flag not set")
+	}
+
+	// status reports the active action (enum-valid)
+	rec2 := httptest.NewRecorder()
+	c2 := ctxAsAdmin(t, app, rec2, httptest.NewRequest(http.MethodGet, "/api/admin/maintenance/status", nil))
+	app.handleMaintenanceStatus(c2)
+	var st struct {
+		Active bool   `json:"active"`
+		Action string `json:"action"`
+	}
+	json.Unmarshal(rec2.Body.Bytes(), &st)
+	if !st.Active || st.Action != "start" {
+		t.Fatalf("status %+v", st)
+	}
+
+	// end → back to normal; official idle shape {active:false, action:"end"}
+	rec3 := httptest.NewRecorder()
+	c3 := ctxAsAdmin(t, app, rec3, httptest.NewRequest(http.MethodPost, "/api/admin/maintenance",
+		bytes.NewBufferString(`{"action":"end"}`)))
+	app.handleMaintenanceSet(c3)
+	if rec3.Code != http.StatusOK {
+		t.Fatalf("end status %d", rec3.Code)
+	}
+	rec4 := httptest.NewRecorder()
+	c4 := ctxAsAdmin(t, app, rec4, httptest.NewRequest(http.MethodGet, "/api/admin/maintenance/status", nil))
+	app.handleMaintenanceStatus(c4)
+	json.Unmarshal(rec4.Body.Bytes(), &st)
+	if st.Active || st.Action != "end" {
+		t.Fatalf("idle status %+v", st)
+	}
+	if app.inMaintenance() {
+		t.Fatal("maintenance still active after end")
+	}
+}
+
+func TestMaintenanceUnknownActionRejected(t *testing.T) {
+	app := newTestApp(t)
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c := ctxAsAdmin(t, app, rec, httptest.NewRequest(http.MethodPost, "/api/admin/maintenance",
+		bytes.NewBufferString(`{"action":"enable"}`)))
+	app.handleMaintenanceSet(c)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("legacy action must be rejected, got %d", rec.Code)
 	}
 }

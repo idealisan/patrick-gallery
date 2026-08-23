@@ -25,11 +25,15 @@ type maintenanceStatus struct {
 	Task     *string `json:"task,omitempty"`
 }
 
-// handleMaintenanceSet mirrors POST /api/admin/maintenance.
-// Body: SetMaintenanceModeDto{action: "enable"|"disable"|"restore",
-// restoreBackupFilename?}. "restore" restores the latest SQLite snapshot.
+// handleMaintenanceSet mirrors POST /api/admin/maintenance with the official
+// SetMaintenanceModeDto: action ∈ start | end | select_database_restore |
+// restore_database (+ optional restoreBackupFilename). Per Epic decision,
+// immich-go performs a VIRTUAL restart: entering maintenance quiesces
+// background work (scheduler, job queues) while the process keeps serving;
+// the response shape still matches the official {jwt} payload.
 func (a *App) handleMaintenanceSet(c *gin.Context) {
-	if _, ok := a.requireAdmin(c); !ok {
+	admin, ok := a.requireAdmin(c)
+	if !ok {
 		return
 	}
 	var body struct {
@@ -38,52 +42,94 @@ func (a *App) handleMaintenanceSet(c *gin.Context) {
 	}
 	_ = c.ShouldBindJSON(&body)
 	switch body.Action {
-	case "enable":
-		a.maintenanceMu.Lock()
-		a.maintenanceMode = true
-		a.maintenanceTask = "maintenance"
-		a.maintenanceMu.Unlock()
-		c.JSON(http.StatusOK, a.maintenanceSnapshot("enable"))
-	case "disable":
-		a.maintenanceMu.Lock()
-		a.maintenanceMode = false
-		a.maintenanceTask = ""
-		a.maintenanceMu.Unlock()
-		c.JSON(http.StatusOK, a.maintenanceSnapshot("disable"))
-	case "restore":
-		if body.RestoreBackupFilename == "" {
-			body.RestoreBackupFilename = a.latestBackupFile()
-		}
-		if body.RestoreBackupFilename == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"message": "no backup available to restore", "statusCode": 400})
-			return
-		}
-		if err := a.restoreBackup(body.RestoreBackupFilename); err != nil {
+	case "start", "select_database_restore":
+		a.enterMaintenance(body.Action)
+		tok, err := a.issueToken(admin.ID)
+		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error(), "statusCode": 500})
 			return
 		}
-		a.maintenanceMu.Lock()
-		a.maintenanceMode = false
-		a.maintenanceTask = ""
-		a.maintenanceMu.Unlock()
-		c.JSON(http.StatusOK, a.maintenanceSnapshot("restore"))
+		c.JSON(http.StatusCreated, gin.H{"jwt": tok})
+	case "end":
+		a.exitMaintenance()
+		c.JSON(http.StatusOK, gin.H{})
+	case "restore_database":
+		name := body.RestoreBackupFilename
+		if name == "" {
+			name = a.latestBackupFile()
+		}
+		if name == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"message": "no backup available", "statusCode": 400})
+			return
+		}
+		a.enterMaintenance("restore_database")
+		if err := a.restoreBackup(name); err != nil {
+			a.exitMaintenance()
+			c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error(), "statusCode": 500})
+			return
+		}
+		log.Printf("[maintenance] database restored from %s", filepath.Base(name))
+		a.exitMaintenance()
+		c.JSON(http.StatusOK, gin.H{})
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{"message": "unknown action: " + body.Action, "statusCode": 400})
 	}
 }
 
-func (a *App) maintenanceSnapshot(action string) maintenanceStatus {
+// inMaintenance reports whether virtual maintenance mode is active.
+func (a *App) inMaintenance() bool {
 	a.maintenanceMu.Lock()
 	defer a.maintenanceMu.Unlock()
-	ms := maintenanceStatus{Action: action, Active: a.maintenanceMode}
-	if a.maintenanceTask != "" {
-		t := a.maintenanceTask
-		ms.Task = &t
-	}
-	return ms
+	return a.maintenanceMode
 }
 
-// handleMaintenanceStatus mirrors GET /api/admin/maintenance/status.
+// enterMaintenance switches the app into virtual maintenance mode: background
+// work is stopped/paused, but the process keeps serving requests.
+func (a *App) enterMaintenance(task string) {
+	a.maintenanceMu.Lock()
+	a.maintenanceMode = true
+	a.maintenanceTask = task
+	a.maintenanceMu.Unlock()
+	a.stopTrashScheduler()
+	// Pause every queue not already paused; remembered for exit.
+	var newlyPaused []string
+	for _, name := range queueNames {
+		paused := false
+		if v, ok := a.queuePaused.Load(name); ok {
+			paused = v.(bool)
+		}
+		if !paused {
+			a.queuePaused.Store(name, true)
+			newlyPaused = append(newlyPaused, name)
+		}
+	}
+	a.maintenanceMu.Lock()
+	a.maintenanceResumed = newlyPaused
+	a.maintenanceMu.Unlock()
+	log.Printf("[maintenance] entered (virtual restart, task=%s)", task)
+}
+
+// exitMaintenance leaves virtual maintenance mode and resumes background work.
+func (a *App) exitMaintenance() {
+	a.maintenanceMu.Lock()
+	task := a.maintenanceTask
+	resumed := a.maintenanceResumed
+	a.maintenanceMode = false
+	a.maintenanceTask = ""
+	a.maintenanceResumed = nil
+	a.maintenanceMu.Unlock()
+	for _, name := range resumed {
+		a.queuePaused.Store(name, false)
+	}
+	if task != "" {
+		a.startSchedulers()
+	}
+	log.Printf("[maintenance] exited")
+}
+
+// handleMaintenanceStatus mirrors GET /api/admin/maintenance/status. The
+// official normal server always reports {active:false, action:"end"}; while
+// our virtual maintenance is active we report the chosen action instead.
 func (a *App) handleMaintenanceStatus(c *gin.Context) {
 	if _, ok := a.requireAdmin(c); !ok {
 		return
@@ -92,21 +138,35 @@ func (a *App) handleMaintenanceStatus(c *gin.Context) {
 	active := a.maintenanceMode
 	task := a.maintenanceTask
 	a.maintenanceMu.Unlock()
-	ms := maintenanceStatus{Action: task, Active: active}
-	if task != "" {
-		t := task
+	action := "end"
+	if active && task != "" {
+		action = task
+	}
+	ms := maintenanceStatus{Action: action, Active: active}
+	if active && task == "select_database_restore" {
+		t := "restore"
 		ms.Task = &t
 	}
 	c.JSON(http.StatusOK, ms)
 }
 
-// handleMaintenanceLogin mirrors POST /api/admin/maintenance/login (no-op
-// token endpoint; maintenance here reuses the existing admin session).
+// handleMaintenanceLogin mirrors POST /api/admin/maintenance/login: exchanges
+// the maintenance token for a {jwt} the maintenance UI can present.
 func (a *App) handleMaintenanceLogin(c *gin.Context) {
-	if _, ok := a.requireAdmin(c); !ok {
+	admin, ok := a.requireAdmin(c)
+	if !ok {
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"token": ""})
+	var body struct {
+		Token string `json:"token"`
+	}
+	_ = c.ShouldBindJSON(&body)
+	tok, err := a.issueToken(admin.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error(), "statusCode": 500})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"jwt": tok, "username": admin.Name})
 }
 
 // handleMaintenanceDetectInstall mirrors GET /api/admin/maintenance/detect-install.
@@ -198,13 +258,21 @@ func (a *App) reportUpsert(typ, path string, assetID *string) {
 // ones whose underlying state changed (official -refresh job semantics):
 // untracked file gone / missing file back / checksum now matches.
 func (a *App) refreshExistingReports() error {
+	for _, typ := range []string{"untracked_file", "missing_file", "checksum_mismatch"} {
+		a.refreshReportType(typ)
+	}
+	return nil
+}
+
+// refreshReportType drops stale rows of one report type.
+func (a *App) refreshReportType(typ string) {
 	var rows []IntegrityReport
-	if err := a.store.DB.Find(&rows).Error; err != nil {
-		return err
+	if err := a.store.DB.Where("type = ?", typ).Find(&rows).Error; err != nil {
+		return
 	}
 	for _, r := range rows {
 		stale := false
-		switch r.Type {
+		switch typ {
 		case "untracked_file":
 			_, err := os.Stat(r.Path)
 			stale = err != nil
@@ -228,8 +296,64 @@ func (a *App) refreshExistingReports() error {
 			a.store.DB.Delete(&r)
 		}
 	}
-	return nil
 }
+
+// pathReferenced reports whether an absolute file path is referenced by any
+// asset (original, encoded video or thumbnail/preview).
+func (a *App) pathReferenced(p string) bool {
+	var n int64
+	a.store.DB.Model(&Asset{}).Where(
+		"original_path = ? OR encoded_video_path = ? OR resize_path = ?", p, p, p,
+	).Count(&n)
+	return n > 0
+}
+
+// untrackedCandidates walks the resource tree and returns files not
+// referenced by any asset (the untracked scan's input batch).
+func (a *App) untrackedCandidates() ([]jobItem, error) {
+	out := []jobItem{}
+	err := filepath.Walk(a.cfg.ResourceDir, func(p string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return nil
+		}
+		rel, _ := filepath.Rel(a.cfg.ResourceDir, p)
+		if isSystemDir(rel) || isDBArtifact(rel) {
+			return nil
+		}
+		if !a.pathReferenced(p) {
+			out = append(out, jobItem{ID: p, Path: p, Type: "untracked"})
+		}
+		return nil
+	})
+	return out, err
+}
+
+// reportRows loads one report type as job items (id = report uuid).
+func (a *App) reportRows(typ string) ([]jobItem, error) {
+	var rows []IntegrityReport
+	if err := a.store.DB.Where("type = ?", typ).Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	out := make([]jobItem, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, jobItem{ID: r.ID, Path: r.Path})
+	}
+	return out, nil
+}
+
+// disposeRowByID applies the official disposition for one report row.
+func (a *App) disposeRowByID(id string) (bool, error) {
+	var r IntegrityReport
+	if err := a.store.DB.First(&r, "id = ?", id).Error; err != nil {
+		return true, nil // already gone
+	}
+	if err := a.disposeReportRow(&r); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// handleIntegritySummary mirrors GET /api/admin/integrity/summary: a cheap
 
 // runIntegrityScan performs the genuine filesystem audit and PERSISTS its
 // findings into integrity_report: refresh stale rows, then classify missing /
