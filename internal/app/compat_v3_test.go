@@ -124,49 +124,79 @@ func TestDownloadInfoIsReal(t *testing.T) {
 	}
 }
 
-func TestDuplicatesResolveHidesPair(t *testing.T) {
+func TestDuplicatesResolveOfficialFlow(t *testing.T) {
 	app, r, token := newTestServer(t)
 	var admin User
 	if err := app.store.DB.First(&admin).Error; err != nil {
 		t.Fatalf("no admin: %v", err)
 	}
-	// Two assets sharing a checksum form a duplicate pair.
+	// Two assets sharing a checksum form a duplicate group once the
+	// duplicateDetection job assigns it.
 	resDir := app.cfg.ResourceDir
 	app.store.DB.Create(&Asset{ID: "dup-keeper", OwnerID: admin.ID, Type: "IMAGE",
 		Checksum: "shared-checksum", OriginalPath: filepath.Join(resDir, "keeper.jpg"), OriginalFileName: "keeper.jpg"})
 	app.store.DB.Create(&Asset{ID: "dup-hidden", OwnerID: admin.ID, Type: "IMAGE",
 		Checksum: "shared-checksum", OriginalPath: filepath.Join(resDir, "hidden.jpg"), OriginalFileName: "hidden.jpg"})
 
-	if w := do(r, "GET", "/api/assets/duplicates", token, nil, ""); w.Code != http.StatusOK {
+	spec := app.jobRegistry()["duplicateDetection"]
+	items, err := spec.items(app, false)
+	if err != nil || len(items) != 1 {
+		t.Fatalf("detect items: %v (%d)", err, len(items))
+	}
+	if ok, err := spec.run(app, items[0]); !ok || err != nil {
+		t.Fatalf("detect run: %v %v", ok, err)
+	}
+
+	var keeper Asset
+	app.store.DB.First(&keeper, "id = ?", "dup-keeper")
+	if keeper.DuplicateID == "" {
+		t.Fatal("duplicate group id not assigned")
+	}
+
+	if w := do(r, "GET", "/api/duplicates", token, nil, ""); w.Code != http.StatusOK {
 		t.Fatalf("duplicates -> %d", w.Code)
 	} else {
 		var groups []struct {
-			Assets []string `json:"assets"`
+			DuplicateID           string   `json:"duplicateId"`
+			SuggestedKeepAssetIds []string `json:"suggestedKeepAssetIds"`
+			Assets                []struct {
+				ID string `json:"id"`
+			} `json:"assets"`
 		}
-		_ = json.Unmarshal(w.Body.Bytes(), &groups)
-		if len(groups) != 1 {
-			t.Fatalf("expected 1 duplicate group before resolve, got %d", len(groups))
+		if err := json.Unmarshal(w.Body.Bytes(), &groups); err != nil || len(groups) != 1 {
+			t.Fatalf("expected 1 official-shaped group, got %v %s", err, w.Body.String())
+		}
+		g := groups[0]
+		if g.DuplicateID != keeper.DuplicateID || len(g.Assets) != 2 || len(g.SuggestedKeepAssetIds) == 0 {
+			t.Fatalf("group shape wrong: %+v", g)
 		}
 	}
 
-	// Resolve: keep dup-keeper, hide dup-hidden.
-	rb, _ := json.Marshal(map[string]any{"assetId": "dup-keeper", "duplicateId": "dup-hidden"})
+	// Resolve per the official DuplicateResolveDto.
+	rb, _ := json.Marshal(map[string]any{"groups": []map[string]any{{
+		"duplicateId":   keeper.DuplicateID,
+		"keepAssetIds":  []string{"dup-keeper"},
+		"trashAssetIds": []string{"dup-hidden"},
+	}}})
 	w := do(r, "POST", "/api/duplicates/resolve", token, rb, "application/json")
 	if w.Code != http.StatusOK {
-		t.Fatalf("duplicates/resolve -> %d: %s", w.Code, w.Body.String())
+		t.Fatalf("resolve -> %d: %s", w.Code, w.Body.String())
+	}
+	var hidden Asset
+	app.store.DB.First(&hidden, "id = ?", "dup-hidden")
+	if !hidden.IsTrash {
+		t.Fatal("loser asset not trashed by resolve")
+	}
+	var kept Asset
+	app.store.DB.First(&kept, "id = ?", "dup-keeper")
+	if kept.DuplicateID != "" {
+		t.Fatal("group not dissolved after resolve")
 	}
 
-	// After resolve the pair must no longer surface as a duplicate.
-	if w := do(r, "GET", "/api/assets/duplicates", token, nil, ""); w.Code != http.StatusOK {
-		t.Fatalf("duplicates -> %d", w.Code)
-	} else {
-		var groups []struct {
-			Assets []string `json:"assets"`
-		}
-		_ = json.Unmarshal(w.Body.Bytes(), &groups)
-		if len(groups) != 0 {
-			t.Errorf("expected 0 duplicate groups after resolve, got %d", len(groups))
-		}
+	// DELETE /duplicates {ids} clears named groups (no-op here, must 200).
+	rb, _ = json.Marshal(map[string]any{"ids": []string{"gone"}})
+	if w := do(r, "DELETE", "/api/duplicates", token, rb, "application/json"); w.Code != http.StatusOK {
+		t.Fatalf("delete-all -> %d", w.Code)
 	}
 }
 

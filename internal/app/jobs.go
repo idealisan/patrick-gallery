@@ -299,27 +299,31 @@ func (a *App) jobRegistry() map[string]jobSpec {
 		"duplicateDetection": {
 			supported: true,
 			items: func(a *App, force bool) ([]jobItem, error) {
-				// compute duplicate groups by checksum; the result is queryable
-				// via GET /api/assets/duplicates. The job itself just (re)scans.
+				// Real detection: group non-trashed assets by exact checksum
+				// and keep the groups with more than one member. Stale group
+				// assignments (group dissolved) are cleared first.
+				a.store.DB.Model(&Asset{}).Where("duplicate_id != ''").Update("duplicate_id", "")
 				type dup struct {
 					Checksum string
 					Count    int
 				}
 				var dups []dup
 				if err := a.store.DB.Model(&Asset{}).Select("checksum, count(*) as count").
-					Where("is_trash = ?", false).Group("checksum").Having("count > 1").Scan(&dups).Error; err != nil {
+					Where("is_trash = ? AND checksum != ''", false).Group("checksum").
+					Having("count > 1").Scan(&dups).Error; err != nil {
 					return nil, err
 				}
 				out := make([]jobItem, 0, len(dups))
-				for i, d := range dups {
-					out = append(out, jobItem{ID: d.Checksum, Path: "", Type: ""})
-					_ = i
+				for _, d := range dups {
+					out = append(out, jobItem{ID: d.Checksum})
 				}
 				return out, nil
 			},
 			run: func(a *App, it jobItem) (bool, error) {
-				// nothing to mutate per group; detection is query-driven.
-				return true, nil
+				gid := newUUID()
+				return true, a.store.DB.Model(&Asset{}).
+					Where("checksum = ? AND is_trash = ?", it.ID, false).
+					Update("duplicate_id", gid).Error
 			},
 		},
 		// integrityCheck: official JobName. Runs a genuine filesystem audit

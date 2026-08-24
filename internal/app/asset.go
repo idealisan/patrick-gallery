@@ -1234,41 +1234,6 @@ func (a *App) handleAssetBulkInfo(c *gin.Context) {
 	c.JSON(http.StatusOK, res)
 }
 
-func (a *App) handleAssetDuplicates(c *gin.Context) {
-	// Hide duplicates the user has already resolved (POST /duplicates/resolve)
-	// so they stop re-surfacing in the duplicate review list.
-	var resolved []DuplicateResolution
-	a.store.DB.Find(&resolved)
-	hidden := make(map[string]bool, len(resolved))
-	for _, r := range resolved {
-		hidden[r.DuplicateID] = true
-	}
-	// Group by checksum; return assets that share a checksum with another.
-	type dup struct {
-		Checksum string
-		Count    int
-	}
-	var dups []dup
-	a.store.DB.Model(&Asset{}).Select("checksum, count(*) as count").
-		Where("is_trash = ?", false).Group("checksum").Having("count > 1").Scan(&dups)
-	out := []gin.H{}
-	for _, d := range dups {
-		var assets []Asset
-		a.store.DB.Where("checksum = ? AND is_trash = ?", d.Checksum, false).Find(&assets)
-		ids := make([]string, 0, len(assets))
-		for _, a2 := range assets {
-			if hidden[a2.ID] {
-				continue
-			}
-			ids = append(ids, a2.ID)
-		}
-		if len(ids) > 1 {
-			out = append(out, gin.H{"assets": ids})
-		}
-	}
-	c.JSON(http.StatusOK, out)
-}
-
 // ---- helpers ----
 
 func (a *App) isAdmin(uid string) bool {

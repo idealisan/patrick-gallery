@@ -84,6 +84,9 @@ type Asset struct {
 	PreviewFamily string `gorm:"type:text" json:"-"` // cache family of the preview render
 	PreviewVer    uint32 `gorm:"type:int;default:0" json:"-"`
 	HasThumbnail  bool   `json:"hasThumbnail"`
+	// DuplicateID groups exact-duplicate assets (assigned by the real
+	// checksum-based duplicateDetection job; '' = not part of a group).
+	DuplicateID string         `gorm:"index;type:text" json:"duplicateId,omitempty"`
 	Size             int64          `json:"-"`
 	ExifID           string         `gorm:"type:text" json:"exifId"`
 	LastPlayedAt     *time.Time     `gorm:"type:datetime" json:"-"`
