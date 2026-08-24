@@ -149,7 +149,6 @@ func NewApp(cfg *Config, store *Store) *App {
 	return a
 }
 
-
 // RegisterRoutes wires every Immich-compatible endpoint. Public endpoints
 // (health, about, auth login) are registered outside the auth guard.
 func (a *App) RegisterRoutes(r *gin.Engine) {
@@ -227,6 +226,7 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 	r.GET("/api/share/:key", a.handleShareView)
 	r.GET("/api/share/:key/thumbnail/:assetId", a.handleShareThumbnail)
 	r.GET("/api/share/:key/original/:assetId", a.handleShareOriginal)
+	r.POST("/api/shared-links/login", a.handleSharedLinkLogin)
 
 	// ---- authenticated ----
 	api := r.Group("/api")
@@ -464,7 +464,6 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.PUT("/shared-links/:id", a.handleSharedLinkUpdate)
 		api.DELETE("/shared-links/:id", a.handleSharedLinkDelete)
 		api.GET("/shared-links/me", a.handleSharedLinksMe)
-		api.POST("/shared-links/login", a.handleSharedLinkLogin)
 		api.GET("/shared-links/:id/assets/:assetId", a.handleSharedLinkAssetAdd)
 		api.PUT("/shared-links/:id/assets/:assetId", a.handleSharedLinkAssetRemove)
 		api.DELETE("/shared-links/:id/assets/:assetId", a.handleSharedLinkAssetRemove)

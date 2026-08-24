@@ -354,7 +354,7 @@ func (a *App) handleSharedLinkCreate(c *gin.Context) {
 	_ = c.ShouldBindJSON(&b)
 	link := SharedLink{
 		ID:            newUUID(),
-		Key:           newUUID() + newUUID(),
+		Key:           newUUID(),
 		Type:          b.Type,
 		AssetID:       b.AssetID,
 		AlbumID:       b.AlbumID,
