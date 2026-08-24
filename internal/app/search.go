@@ -367,34 +367,56 @@ func (a *App) handleSearchStatistics(c *gin.Context) {
 // instead of a hard 501.
 func (a *App) handleSearchSmart(c *gin.Context) {
 	uid := currentUserID(c)
+	// Official SmartSearchDto: {query} drives semantic search while {ocr}
+	// (BaseSearchSchema) filters by recognized text; both may arrive on the
+	// same endpoint depending on the web query type.
 	var req struct {
-		Query string `json:"query"`
-		Page  int    `json:"page"`
-		Size  int    `json:"size"`
+		Query         string `json:"query"`
+		OCR           string `json:"ocr"`
+		QueryAssetID  string `json:"queryAssetId"`
+		Type          string `json:"type"`
+		IsFavorite    *bool  `json:"isFavorite"`
+		Visibility    string `json:"visibility"`
+		Page          int    `json:"page"`
+		Size          int    `json:"size"`
 	}
 	_ = c.ShouldBindJSON(&req)
-	if req.Query == "" {
+	if req.Query == "" && req.OCR == "" && req.QueryAssetID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "query is required", "statusCode": 400})
 		return
 	}
 	if req.Size <= 0 {
 		req.Size = 100
 	}
-	like := "%" + req.Query + "%"
-	var assets []Asset
-	err := a.store.DB.
-		Where("assets.owner_id = ? AND assets.is_trash = ?", uid, false).
-		Where(`assets.id IN (
+	q := a.store.DB.Where("assets.owner_id = ? AND assets.is_trash = ?", uid, false)
+	if req.Visibility == "timeline" || req.Visibility == "" {
+		q = q.Where("(assets.visibility IS NULL OR assets.visibility = '' OR assets.visibility != 'hidden')")
+	} else if req.Visibility != "" {
+		q = q.Where("assets.visibility = ?", strings.ToLower(req.Visibility))
+	}
+	switch {
+	case req.OCR != "":
+		// OCR text search (web query type "ocr"): match recognized words.
+		q = q.Where("assets.id IN (SELECT asset_id FROM asset_ocrs WHERE text LIKE ?)",
+			"%"+req.OCR+"%")
+	default:
+		like := "%" + req.Query + "%"
+		q = q.Where(`assets.id IN (
 			SELECT asset_id FROM asset_mls WHERE description LIKE ? OR labels_json LIKE ?
 			UNION
 			SELECT id FROM assets WHERE original_file_name LIKE ?
 			UNION
 			SELECT asset_id FROM asset_ocrs WHERE text LIKE ?
-		)`, like, like, like, like).
-		Order("assets.local_date_time DESC").
-		Limit(req.Size).
-		Find(&assets).Error
-	if err != nil {
+		)`, like, like, like, like)
+	}
+	if req.Type != "" {
+		q = q.Where("assets.type = ?", normalizeType(req.Type))
+	}
+	if req.IsFavorite != nil {
+		q = q.Where("assets.is_favorite = ?", *req.IsFavorite)
+	}
+	var assets []Asset
+	if err := q.Order("assets.local_date_time DESC").Limit(req.Size).Find(&assets).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

@@ -71,7 +71,14 @@ func (a *App) repairMotionVideoVisibility() (int64, int64, error) {
 		"WHERE (visibility IS NULL OR visibility = '' OR visibility = 'timeline') "+
 		"AND id IN (SELECT live_photo_video_id FROM assets WHERE live_photo_video_id != '')",
 		time.Now().UTC())
-	return res.RowsAffected, res.RowsAffected, res.Error
+	// Official linkLivePhotos also REMOVES the motion video from every album;
+	// hidden members otherwise linger in albums_assets_assets and make the
+	// album's assetCount disagree with its visible grid.
+	del := a.store.DB.Exec("DELETE FROM albums_assets_assets WHERE asset_id IN "+
+		"(SELECT id FROM assets WHERE visibility = 'hidden' AND is_trash = 0)",
+	)
+	fixed := res.RowsAffected + del.RowsAffected
+	return fixed, fixed, res.Error
 }
 
 // ---- Step 3: archive boolean must follow canonical visibility ----
