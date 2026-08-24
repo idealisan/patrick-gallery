@@ -189,6 +189,15 @@ integrity-checksum-mismatch      integrity-checksum-mismatch-refresh      integr
   规则 8）：维护页 `/admin/maintenance` 正常渲染，「检查全部/检查/刷新」真实
   点击全部 200 且触发正确任务名、「切换到维护模式」点击 → 201 {jwt} → 无
   pageerror；退出恢复 `{active:false,action:"end"}`。
+- 2026-08-24：补全维护模式客户端链路（`3094702`）。官方 Web 的 toggle 点击后
+  本身不做任何导航——全靠 ①进程重启后 `GET /server/config` 的 maintenanceMode
+  标志触发根布局重定向 `/maintenance`，②WebSocket 事件 AppRestartV1（显示
+  「服务器正在重新启动」弹窗）与 MaintenanceStatusV1（action=end 清除维护态）。
+  虚拟重启方案下补齐：config 标志实时化 + 两个 WS 事件下发（SIO 名映射）。
+  浏览器实测全流程通过：点击→弹窗→任意导航进入维护 UI（含退出按钮）→退出恢复。
+- 2026-08-24：修复相册页崩溃（`3094702`）。官方契约 albumUsers「首项恒为
+  owner、形如 {role,user}」，我们此前返回 `{userId,role}` 平铺数组且不含
+  owner，相册页 `albumUsers[0].user.id` 取 undefined 崩溃。已按官方形状重构。
 - 剩余深度项（P2/P3）：SystemConfig.integrityChecks 定时 cron 配置面
   （WI-5 的配置部分）、checksum timeLimit/percentageLimit 可调参数、
   维护 UI 内的 detect-install/install 流程深化。
