@@ -9,16 +9,16 @@ import (
 
 type AlbumResponse struct {
 	Album
-	AlbumName                  string            `json:"albumName"`
-	Description                string            `json:"description"`
-	AlbumThumbnailAssetID      *string           `json:"albumThumbnailAssetId"`
-	IsActivityEnabled          bool              `json:"isActivityEnabled"`
-	AlbumUsers                 []albumUserEntry  `json:"albumUsers"`
-	HasSharedLink              bool              `json:"hasSharedLink"`
-	Shared                     bool              `json:"shared"`
-	Order                      string            `json:"order"`
-	AssetCount                 int               `json:"assetCount"`
-	LastModifiedAssetTimestamp *time.Time        `json:"lastModifiedAssetTimestamp,omitempty"`
+	AlbumName                  string           `json:"albumName"`
+	Description                string           `json:"description"`
+	AlbumThumbnailAssetID      *string          `json:"albumThumbnailAssetId"`
+	IsActivityEnabled          bool             `json:"isActivityEnabled"`
+	AlbumUsers                 []albumUserEntry `json:"albumUsers"`
+	HasSharedLink              bool             `json:"hasSharedLink"`
+	Shared                     bool             `json:"shared"`
+	Order                      string           `json:"order"`
+	AssetCount                 int              `json:"assetCount"`
+	LastModifiedAssetTimestamp *time.Time       `json:"lastModifiedAssetTimestamp,omitempty"`
 }
 
 // albumUserEntry mirrors the official AlbumUserResponseDto {role, user}.
@@ -27,7 +27,7 @@ type AlbumResponse struct {
 // always the album owner.
 type albumUserEntry struct {
 	Role string `json:"role"`
-	User gin.H `json:"user"`
+	User gin.H  `json:"user"`
 }
 
 // userLiteDTO renders the public UserResponseDto fields the web reads.
@@ -47,7 +47,10 @@ func (a *App) userLiteDTO(id string) gin.H {
 
 func (a *App) albumToResponse(al Album) AlbumResponse {
 	var cnt int64
-	a.store.DB.Model(&AlbumAsset{}).Where("album_id = ?", al.ID).Count(&cnt)
+	a.store.DB.Model(&AlbumAsset{}).
+		Joins("JOIN assets ON assets.id = albums_assets_assets.asset_id").
+		Where("albums_assets_assets.album_id = ? AND assets.is_trash = ?", al.ID, false).
+		Count(&cnt)
 	var users []AlbumUser
 	a.store.DB.Where("album_id = ?", al.ID).Order("user_id").Find(&users)
 	var sharedLinkCount int64
@@ -185,7 +188,7 @@ func (a *App) handleAlbumAssets(c *gin.Context) {
 	}
 	out := make([]AssetResponse, 0, len(ids))
 	for _, aid := range ids {
-		if as, ok := byID[aid]; ok {
+		if as, ok := byID[aid]; ok && !as.IsTrash {
 			out = append(out, a.toResponse(as))
 		}
 	}
