@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	imgproc "immich-go/internal/image"
 	"immich-go/internal/ml"
+	"immich-go/internal/ocr"
 	"immich-go/internal/video"
 )
 
@@ -179,7 +180,7 @@ func (a *App) jobRegistry() map[string]jobSpec {
 					thumbPath = filepath.Join(a.cfg.ResourceDir, "thumbnail", it.ID+".jpg")
 				}
 				upd := map[string]any{
-					"has_thumbnail":  thumbPath != "", "resize_path": thumbPath,
+					"has_thumbnail": thumbPath != "", "resize_path": thumbPath,
 					"thumb_version":  imgproc.CurrentCacheVersion(imgproc.CacheFamily(familyOfItem(it))),
 					"preview_family": familyOfItem(it),
 					"preview_ver":    imgproc.CurrentCacheVersion(imgproc.CacheFamily(familyOfItem(it))),
@@ -540,6 +541,50 @@ func (a *App) jobRegistry() map[string]jobSpec {
 			run: func(a *App, it jobItem) (bool, error) {
 				_, err := a.runTrashCleanup()
 				return err == nil, err
+			},
+		},
+		"ocr": {
+			supported: true,
+			items: func(a *App, force bool) ([]jobItem, error) {
+				var assets []Asset
+				q := a.store.DB.Where("type = ? AND is_trash = ?", "IMAGE", false)
+				if !force {
+					q = q.Where("id NOT IN (SELECT asset_id FROM asset_ocrs)")
+				}
+				if err := q.Find(&assets).Error; err != nil {
+					return nil, err
+				}
+				out := make([]jobItem, 0, len(assets))
+				for _, asset := range assets {
+					out = append(out, jobItem{ID: asset.ID, Path: asset.OriginalPath, Type: asset.Type})
+				}
+				return out, nil
+			},
+			run: func(a *App, it jobItem) (bool, error) {
+				data, err := os.ReadFile(it.Path)
+				if err != nil {
+					return false, err
+				}
+				result, err := a.ocr.Recognize(ocr.Request{
+					Data: data, MIME: mimeByExt(it.Path), Name: filepath.Base(it.Path), Language: a.cfg.OCRLanguage,
+				})
+				if err != nil {
+					return false, err
+				}
+				if strings.TrimSpace(result.Text) == "" {
+					return true, nil
+				}
+				words, _ := json.Marshal(result.Words)
+				now := time.Now().UTC()
+				var existing AssetOcr
+				if err := a.store.DB.Where("asset_id = ?", it.ID).First(&existing).Error; err == nil {
+					return true, a.store.DB.Model(&existing).Updates(map[string]any{
+						"text": result.Text, "words_json": string(words), "updated_at": now,
+					}).Error
+				}
+				return true, a.store.DB.Create(&AssetOcr{
+					AssetID: it.ID, Text: result.Text, WordsJSON: string(words), CreatedAt: now, UpdatedAt: now,
+				}).Error
 			},
 		},
 		"smartSearch": {
