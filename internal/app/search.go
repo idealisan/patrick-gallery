@@ -102,6 +102,10 @@ func (a *App) handleSearch(c *gin.Context) {
 		like := "%" + q + "%"
 		base = base.Where("original_file_name LIKE ? OR original_path LIKE ?", like, like)
 	}
+	if strings.TrimSpace(req.OCR) != "" {
+		base = base.Where("assets.id IN (SELECT asset_id FROM asset_ocrs WHERE text LIKE ?)",
+			"%"+strings.TrimSpace(req.OCR)+"%")
+	}
 	if req.Type != "" {
 		base = base.Where("type = ?", normalizeType(req.Type))
 	}
@@ -145,6 +149,15 @@ func (a *App) handleSearchMetadata(c *gin.Context) {
 	}
 	var assets []Asset
 	assetQuery := a.store.DB.Where("assets.owner_id = ? AND assets.is_trash = ? AND (assets.visibility IS NULL OR assets.visibility = '' OR assets.visibility != 'hidden')", uid, trash)
+	if query := strings.TrimSpace(req.Query); query != "" {
+		like := "%" + query + "%"
+		assetQuery = assetQuery.Where(`(
+			assets.original_file_name LIKE ? OR
+			assets.original_path LIKE ? OR
+			assets.id IN (SELECT asset_id FROM exif WHERE description LIKE ?) OR
+			assets.id IN (SELECT asset_id FROM asset_ocrs WHERE text LIKE ?)
+		)`, like, like, like, like)
+	}
 	if req.OriginalFileName != "" {
 		assetQuery = assetQuery.Where("assets.original_file_name LIKE ?", "%"+req.OriginalFileName+"%")
 	}
