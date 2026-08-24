@@ -106,20 +106,45 @@ func (a *App) albumRole(uid, albumID string) string {
 
 func (a *App) handleAlbumList(c *gin.Context) {
 	uid := currentUserID(c)
+	name := c.Query("name")
+	isOwned, hasOwned := c.GetQuery("isOwned")
+	isShared, hasShared := c.GetQuery("isShared")
+	owned := hasOwned && isOwned == "true"
+	shared := hasShared && isShared == "true"
+
 	var albums []Album
-	a.store.DB.Where("owner_id = ?", uid).Order("created_at DESC").Find(&albums)
-	// also surface albums shared with this user (in-album sharing).
-	var shared []AlbumUser
-	a.store.DB.Where("user_id = ?", uid).Find(&shared)
-	if len(shared) > 0 {
-		ids := make([]string, 0, len(shared))
-		for _, s := range shared {
-			ids = append(ids, s.AlbumID)
-		}
-		var more []Album
-		a.store.DB.Where("id IN ?", ids).Find(&more)
-		albums = append(albums, more...)
+	query := a.store.DB
+	switch {
+	case owned:
+		query = query.Where("owner_id = ?", uid)
+	case shared:
+		query = query.Where("owner_id != ? AND id IN (?)", uid,
+			a.store.DB.Model(&AlbumUser{}).Select("album_id").Where("user_id = ?", uid))
+	default:
+		query = query.Where(
+			"owner_id = ? OR id IN (?)",
+			uid,
+			a.store.DB.Model(&AlbumUser{}).Select("album_id").Where("user_id = ?", uid),
+		)
 	}
+	if name != "" {
+		query = query.Where("album_name LIKE ?", "%"+name+"%")
+	}
+	if err := query.Order("created_at DESC").Find(&albums).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error(), "statusCode": 500})
+		return
+	}
+	// Keep the result unique if a database contains duplicate membership rows.
+	seen := make(map[string]struct{}, len(albums))
+	unique := albums[:0]
+	for _, album := range albums {
+		if _, exists := seen[album.ID]; exists {
+			continue
+		}
+		seen[album.ID] = struct{}{}
+		unique = append(unique, album)
+	}
+	albums = unique
 	out := make([]AlbumResponse, 0, len(albums))
 	for _, al := range albums {
 		out = append(out, a.albumToResponse(al))
