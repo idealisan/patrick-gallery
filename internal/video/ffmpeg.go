@@ -135,15 +135,18 @@ func (f *ffmpeg) HardwareAccel() bool { return f.nameLabel != "software" }
 
 func loadFFmpeg() (*ffmpeg, error) {
 	cands := map[string][]string{
-		"libavformat":   {"libavformat.so", "libavformat.so.61", "libavformat.so.60", "libavformat.so.58", "libavformat.dylib", "avformat-61.dll", "avformat-60.dll", "avformat-58.dll"},
-		"libavcodec":    {"libavcodec.so", "libavcodec.so.61", "libavcodec.so.60", "libavcodec.so.58", "libavcodec.dylib", "avcodec-61.dll", "avcodec-60.dll", "avcodec-58.dll"},
-		"libavutil":     {"libavutil.so", "libavutil.so.59", "libavutil.so.58", "libavutil.so.56", "libavutil.dylib", "avutil-59.dll", "avutil-58.dll", "avutil-56.dll"},
-		"libswscale":    {"libswscale.so", "libswscale.so.8", "libswscale.so.7", "libswscale.so.6", "libswscale.so.5", "libswscale.dylib", "swscale-8.dll", "swscale-7.dll", "swscale-6.dll", "swscale-5.dll"},
-		"libswresample": {"libswresample.so", "libswresample.so.5", "libswresample.so.4", "libswresample.so.3", "libswresample.dylib", "swresample-5.dll", "swresample-4.dll", "swresample-3.dll"},
+		"libavformat":   {"libavformat.so", "libavformat.so.62", "libavformat.so.61", "libavformat.so.60", "libavformat.so.58", "libavformat.62.dylib", "libavformat.61.dylib", "libavformat.60.dylib", "libavformat.dylib", "avformat-61.dll", "avformat-60.dll", "avformat-58.dll"},
+		"libavcodec":    {"libavcodec.so", "libavcodec.so.62", "libavcodec.so.61", "libavcodec.so.60", "libavcodec.so.58", "libavcodec.62.dylib", "libavcodec.61.dylib", "libavcodec.60.dylib", "libavcodec.dylib", "avcodec-61.dll", "avcodec-60.dll", "avcodec-58.dll"},
+		"libavutil":     {"libavutil.so", "libavutil.so.60", "libavutil.so.59", "libavutil.so.58", "libavutil.so.56", "libavutil.60.dylib", "libavutil.59.dylib", "libavutil.58.dylib", "libavutil.dylib", "avutil-59.dll", "avutil-58.dll", "avutil-56.dll"},
+		"libswscale":    {"libswscale.so", "libswscale.so.9", "libswscale.so.8", "libswscale.so.7", "libswscale.so.6", "libswscale.so.5", "libswscale.9.dylib", "libswscale.8.dylib", "libswscale.7.dylib", "libswscale.dylib", "swscale-8.dll", "swscale-7.dll", "swscale-6.dll", "swscale-5.dll"},
+		"libswresample": {"libswresample.so", "libswresample.so.6", "libswresample.so.5", "libswresample.so.4", "libswresample.so.3", "libswresample.6.dylib", "libswresample.5.dylib", "libswresample.4.dylib", "libswresample.dylib", "swresample-5.dll", "swresample-4.dll", "swresample-3.dll"},
 	}
 
 	exeDir, _ := os.Executable()
-	searchDirs := []string{".", filepath.Dir(exeDir), filepath.Join(filepath.Dir(exeDir), "libs")}
+	searchDirs := []string{".", filepath.Dir(exeDir), filepath.Join(filepath.Dir(exeDir), "libs"),
+		// Homebrew / system lib dirs: purego.Dlopen has no rpath fallback on
+		// macOS, so unversioned sonames alone never resolve there.
+		"/opt/homebrew/lib", "/usr/local/lib"}
 
 	f := &ffmpeg{fn: &ffFuncs{}}
 	loaded := map[string]uintptr{}
