@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -569,6 +570,9 @@ func (a *App) jobRegistry() map[string]jobSpec {
 					Data: data, MIME: mimeByExt(it.Path), Name: filepath.Base(it.Path), Language: a.cfg.OCRLanguage,
 				})
 				if err != nil {
+					if errors.Is(err, ocr.ErrInvalidResult) {
+						return true, nil
+					}
 					return false, err
 				}
 				if strings.TrimSpace(result.Text) == "" {
@@ -858,11 +862,12 @@ func (a *App) dispatchNextForceBatch(id string, spec jobSpec, ch *jobChain) {
 
 	st := a.jobStateFor(id)
 	if st.total == 0 {
-		// First batch: initialize totals with a growing estimate.
-		st.begin(jobBatchSize)
+		// First batch initializes the state with the actual batch size.
+		st.begin(len(items))
 	} else {
 		st.mu.Lock()
 		st.total += len(items)
+		st.active += len(items)
 		st.mu.Unlock()
 	}
 	go func() {
