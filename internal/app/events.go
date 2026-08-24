@@ -93,6 +93,12 @@ func (a *App) handleEventsWS(c *gin.Context) {
 				if !ok {
 					return
 				}
+				if e.Type == kickEventType {
+					// Virtual restart: drop the client so it reconnects and
+					// re-evaluates server state (official web reloads itself
+					// on socket connect while a maintenance flag is set).
+					return
+				}
 				if err := conn.WriteJSON(e); err != nil {
 					return
 				}

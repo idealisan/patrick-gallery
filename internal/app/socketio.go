@@ -42,12 +42,30 @@ func socketIOOpen(sid string) string {
 	return `{"sid":"` + sid + `","upgrades":["websocket"],"pingInterval":25000,"pingTimeout":20000,"maxPayload":1000000}`
 }
 
+// kickEventType tells realtime handlers to close the client connection so
+// it reconnects and re-evaluates server state — the virtual-restart
+// equivalent of the official server exiting its process. The official web
+// reloads itself whenever its socket (re)connects while a restart/maintenance
+// flag is set (root layout onWebsocketConnect → /server/config → reload).
+const kickEventType = "__kick"
+
+// kickWebsockets disconnects every connected realtime client.
+func (a *App) kickWebsockets() {
+	if a.bus == nil {
+		return
+	}
+	a.bus.publish(Event{Type: kickEventType})
+}
+
 // socketIOEventName maps an immich-go internal event type to the Socket.IO
 // event name the official Immich v3.1.0 clients subscribe to. The upstream
 // gateway uses snake_case names (on_asset_delete, on_asset_update, ...); an
 // earlier build emitted camelCase (onAssetDelete) which the clients never
 // matched, so realtime push was silently dead. See docs/COMPAT_FINDINGS.md.
 func socketIOEventName(typ string) string {
+	if typ == kickEventType {
+		return "" // handled by the transport layer, never forwarded
+	}
 	switch typ {
 	case "asset.create":
 		return "on_upload_success"
@@ -209,6 +227,13 @@ func (a *App) socketIOWebsocket(c *gin.Context) {
 			select {
 			case e, ok := <-sub:
 				if !ok {
+					return
+				}
+				if e.Type == kickEventType {
+					// Engine.IO close packet → client reconnects; closing the
+					// conn unblocks the reader and ends this handler.
+					writePkt("1")
+					_ = conn.Close()
 					return
 				}
 				if name := socketIOEventName(e.Type); name != "" {

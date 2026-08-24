@@ -111,6 +111,11 @@ func (a *App) enterMaintenance(task string) {
 	// MaintenanceStatusV1 keeps the maintenance UI state in sync.
 	a.emit("app.restart", gin.H{"isMaintenanceMode": true})
 	a.emit("maintenance.status", gin.H{"action": task, "active": true})
+	// Virtual restart: drop realtime connections so clients reconnect and
+	// auto-reload into the maintenance UI (official web reloads itself on
+	// socket connect while AppRestartV1 flagged; official servers achieve
+	// this by exiting the process).
+	a.kickWebsockets()
 }
 
 // exitMaintenance leaves virtual maintenance mode and resumes background work.

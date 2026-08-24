@@ -3,27 +3,168 @@ package app
 import (
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
-// timelineOwners returns the owner IDs whose assets should appear in the
-// current user's timeline. By default Immich surfaces partner-shared assets in
-// the timeline; we honor the `withPartners` query (default true) and fall back
-// to the viewer's own assets only when explicitly disabled.
-func (a *App) timelineOwners(c *gin.Context, uid string) []string {
-	if c.Query("withPartners") == "false" {
-		return []string{uid}
-	}
-	return a.sharedOwnerIDs(uid)
+// timelineFilter carries the /timeline/bucket(s) query parameters, mirroring
+// the official TimeBucketDto (server/src/dtos/time-bucket.dto.ts) and the
+// query semantics of AssetRepository.getTimeBuckets / getTimeBucket.
+type timelineFilter struct {
+	userID       string
+	albumID      string
+	personID     string
+	tagID        string
+	isFavorite   *bool
+	isTrashed    bool
+	withStacked  bool
+	withPartners bool
+	order        string // asc | desc
+	orderBy      string // takenAt | createdAt
+	visibility   string // "" = official default: IN ('archive','timeline')
+	bbox         *[4]float64
 }
 
-// timelineTrash returns whether the timeline query should include trashed
-// assets. The web's trash gallery sets isTrashed:true (sent as isTrash=true).
-func (a *App) timelineTrash(c *gin.Context) bool {
-	return c.Query("isTrash") == "true"
+func parseTimelineFilter(c *gin.Context) timelineFilter {
+	f := timelineFilter{
+		userID:       c.Query("userId"),
+		albumID:      c.Query("albumId"),
+		personID:     c.Query("personId"),
+		tagID:        c.Query("tagId"),
+		withStacked:  c.Query("withStacked") == "true",
+		withPartners: c.Query("withPartners") == "true",
+		order:        strings.ToLower(c.Query("order")),
+		orderBy:      c.Query("orderBy"),
+		visibility:   c.Query("visibility"),
+	}
+	if v := c.Query("isFavorite"); v != "" {
+		b := v == "true"
+		f.isFavorite = &b
+	}
+	f.isTrashed = c.Query("isTrashed") == "true" || c.Query("isTrash") == "true"
+	if b := c.Query("bbox"); b != "" {
+		parts := strings.Split(b, ",")
+		if len(parts) == 4 {
+			vals := make([]float64, 4)
+			okAll := true
+			for i, p := range parts {
+				v, err := strconv.ParseFloat(strings.TrimSpace(p), 64)
+				if err != nil {
+					okAll = false
+					break
+				}
+				vals[i] = v
+			}
+			if okAll {
+				f.bbox = &[4]float64{vals[0], vals[1], vals[2], vals[3]}
+			}
+		}
+	}
+	if f.order != "asc" {
+		f.order = "desc"
+	}
+	switch f.orderBy {
+	case "createdAt":
+	default:
+		f.orderBy = "takenAt"
+	}
+	return f
+}
+
+// orderColumn maps orderBy to the SQL column used for bucketing/sorting,
+// matching truncatedDate(orderBy): takenAt → localDateTime,
+// createdAt → createdAt (date added).
+func (f timelineFilter) orderColumn() string {
+	if f.orderBy == "createdAt" {
+		return "created_at"
+	}
+	return "local_date_time"
+}
+
+// authorizeTimeline mirrors TimelineService.timeBucketChecks: album access via
+// AlbumRead when albumId is present; otherwise the viewer's own (or the named
+// user's) timeline; withPartners only for non-archived/non-trashed/
+// non-favorited/non-locked requests.
+func (a *App) authorizeTimeline(f timelineFilter, uid string) (int, string) {
+	if f.albumID != "" {
+		if a.albumRole(uid, f.albumID) == "" {
+			return http.StatusForbidden, "no access to this album"
+		}
+		return 0, ""
+	}
+	if f.userID != "" && f.userID != uid && !a.isAdmin(uid) {
+		return http.StatusForbidden, "no access to this user's timeline"
+	}
+	if f.withPartners {
+		requestedArchived := f.visibility == "" || f.visibility == "archive"
+		requestedLocked := f.visibility == "locked"
+		if requestedLocked || requestedArchived || f.isFavorite != nil || f.isTrashed {
+			return http.StatusBadRequest,
+				"withPartners is only supported for non-archived, non-trashed, non-favorited, non-locked assets"
+		}
+	}
+	return 0, ""
+}
+
+// buildTimelineQuery assembles the asset query with official semantics:
+// albumId path joins membership WITHOUT any owner restriction (official
+// leaves userIds unset there); visibility unset → IN ('archive','timeline')
+// (withDefaultVisibility); trash flips deleted-row semantics.
+func (a *App) buildTimelineQuery(f timelineFilter, uid string) *gorm.DB {
+	q := a.store.DB.Model(&Asset{})
+	if f.isTrashed {
+		q = q.Where("is_trash = ?", true)
+	} else {
+		q = q.Where("is_trash = ?", false)
+	}
+	if f.visibility == "" {
+		q = q.Where("visibility IN (?, ?)", "archive", "timeline")
+	} else {
+		q = q.Where("visibility = ?", strings.ToLower(f.visibility))
+	}
+	if f.albumID != "" {
+		q = q.Joins("JOIN album_assets aa ON aa.asset_id = assets.id AND aa.album_id = ?", f.albumID)
+	} else {
+		ids := []string{uid}
+		if f.userID != "" {
+			ids = []string{f.userID}
+		}
+		if f.withPartners {
+			for _, pid := range a.sharedOwnerIDs(uid) {
+				found := false
+				for _, x := range ids {
+					if x == pid {
+						found = true
+						break
+					}
+				}
+				if !found {
+					ids = append(ids, pid)
+				}
+			}
+		}
+		q = q.Where("owner_id IN ?", ids)
+	}
+	if f.personID != "" {
+		q = q.Where("person_id = ?", f.personID)
+	}
+	if f.tagID != "" {
+		q = q.Where("EXISTS (SELECT 1 FROM tags_assets ta WHERE ta.asset_id = assets.id AND ta.tag_id = ?)", f.tagID)
+	}
+	if f.isFavorite != nil {
+		q = q.Where("is_favorite = ?", *f.isFavorite)
+	}
+	if f.bbox != nil {
+		w, s2, e, n := f.bbox[0], f.bbox[1], f.bbox[2], f.bbox[3]
+		q = q.Joins("JOIN exifs ex ON ex.asset_id = assets.id").
+			Where("ex.latitude BETWEEN ? AND ? AND ex.longitude BETWEEN ? AND ?", s2, n, w, e)
+	}
+	q = q.Order(f.orderColumn() + " " + strings.ToUpper(f.order))
+	return q
 }
 
 func (a *App) handleTimelineBuckets(c *gin.Context) {
@@ -32,19 +173,24 @@ func (a *App) handleTimelineBuckets(c *gin.Context) {
 	if size == "" {
 		size = "MONTH"
 	}
+	f := parseTimelineFilter(c)
+	if status, msg := a.authorizeTimeline(f, uid); status != 0 {
+		c.JSON(status, gin.H{"message": msg, "statusCode": status})
+		return
+	}
 	var assets []Asset
-	owners := a.timelineOwners(c, uid)
-	a.store.DB.Where("owner_id IN ? AND is_trash = ? AND (visibility IS NULL OR visibility = '' OR visibility != 'hidden')", owners, a.timelineTrash(c)).Find(&assets)
+	a.buildTimelineQuery(f, uid).Find(&assets)
 
+	col := f.orderColumn()
 	counts := map[string]int{}
 	for _, as := range assets {
 		t := as.LocalDateTime
-		var key string
-		switch size {
-		case "YEAR":
+		if col == "created_at" {
+			t = as.CreatedAt
+		}
+		key := t.Format("2006-01")
+		if size == "YEAR" {
 			key = t.Format("2006")
-		default: // MONTH
-			key = t.Format("2006-01")
 		}
 		counts[key]++
 	}
@@ -55,12 +201,11 @@ func (a *App) handleTimelineBuckets(c *gin.Context) {
 	sort.Strings(keys)
 	out := make([]gin.H, 0, len(keys))
 	for _, k := range keys {
-		var bucket time.Time
+		layout := "2006-01"
 		if size == "YEAR" {
-			bucket, _ = time.Parse("2006", k)
-		} else {
-			bucket, _ = time.Parse("2006-01", k)
+			layout = "2006"
 		}
+		bucket, _ := time.Parse(layout, k)
 		out = append(out, gin.H{
 			"timeBucket": bucket.UTC().Format("2006-01-02T00:00:00.000Z"),
 			"count":      counts[k],
@@ -80,18 +225,27 @@ func (a *App) handleTimelineBucketAssets(c *gin.Context) {
 	prefix := strings.TrimSuffix(tb, "T00:00:00.000Z")
 	prefix = strings.TrimSuffix(prefix, "T00:00:00Z")
 	prefix = strings.TrimSuffix(prefix, "Z")
-	// accept "YYYY-MM" or "YYYY-MM-DD"
 	ym := prefix
 	if len(prefix) >= 7 {
 		ym = prefix[:7]
 	}
 
+	f := parseTimelineFilter(c)
+	if status, msg := a.authorizeTimeline(f, uid); status != 0 {
+		c.JSON(status, gin.H{"message": msg, "statusCode": status})
+		return
+	}
 	var assets []Asset
-	owners := a.timelineOwners(c, uid)
-	a.store.DB.Where("owner_id IN ? AND is_trash = ? AND (visibility IS NULL OR visibility = '' OR visibility != 'hidden')", owners, a.timelineTrash(c)).Order("local_date_time DESC").Find(&assets)
+	a.buildTimelineQuery(f, uid).Find(&assets)
+
+	col := f.orderColumn()
 	matched := make([]Asset, 0, len(assets))
 	for _, as := range assets {
-		if as.LocalDateTime.Format("2006-01") == ym {
+		t := as.LocalDateTime
+		if col == "created_at" {
+			t = as.CreatedAt
+		}
+		if t.Format("2006-01") == ym {
 			matched = append(matched, as)
 		}
 	}
