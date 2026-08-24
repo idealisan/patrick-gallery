@@ -61,6 +61,7 @@ Legend:
 | OS-native video backends | `internal/video/native_stub.go` (`newVideoToolbox` / `newMediaFoundation` / `newMediaCodec`) | Return `errBackendUnavailable` and fall through to the **real** FFmpeg backend. Honest degradation, not a fake feature. Implement purego bindings as enhancement. |
 | Placeholder video backend | `internal/video/placeholder.go` | Returns the original file / no thumbnail when no engine is available. Real degradation, not a stub. |
 | `handleFaceGet` / faces endpoints | `internal/app/compat_v3.go` | Return `501 "face detection requires an ML backend (deferred)"` — an **honest error**, not a fake success. Registered for GET/POST/PUT/DELETE `/faces` and `/faces/:id`. |
+| `/workflows*` CRUD | `internal/app/app.go` (`handleNotImplemented`) | Returns `501` — the official feature is the WASM plugin/workflow subsystem (host functions, plugin templates); hosting third-party WASM is an explicitly deferred subsystem (AGENTS.md P3). An honest error, not a fake success. |
 
 ---
 
