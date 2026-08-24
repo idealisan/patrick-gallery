@@ -107,6 +107,10 @@ func (a *App) enterMaintenance(task string) {
 	a.maintenanceResumed = newlyPaused
 	a.maintenanceMu.Unlock()
 	log.Printf("[maintenance] entered (virtual restart, task=%s)", task)
+	// Official web contract: AppRestartV1 shows the "server restarting" box;
+	// MaintenanceStatusV1 keeps the maintenance UI state in sync.
+	a.emit("app.restart", gin.H{"isMaintenanceMode": true})
+	a.emit("maintenance.status", gin.H{"action": task, "active": true})
 }
 
 // exitMaintenance leaves virtual maintenance mode and resumes background work.
@@ -125,6 +129,7 @@ func (a *App) exitMaintenance() {
 		a.startSchedulers()
 	}
 	log.Printf("[maintenance] exited")
+	a.emit("maintenance.status", gin.H{"action": "end", "active": false})
 }
 
 // handleMaintenanceStatus mirrors GET /api/admin/maintenance/status. The

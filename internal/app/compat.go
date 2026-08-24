@@ -51,7 +51,7 @@ func (a *App) handleServerConfig(c *gin.Context) {
 		"isInitialized":    n > 0,
 		"isOnboarded":      true,
 		"loginPageMessage": "",
-		"maintenanceMode":  false,
+		"maintenanceMode":  a.inMaintenance(),
 		"mapDarkStyleUrl":  "",
 		"mapLightStyleUrl": "",
 		"minFaces":         1,

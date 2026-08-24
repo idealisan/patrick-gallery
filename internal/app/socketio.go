@@ -85,6 +85,13 @@ func socketIOEventName(typ string) string {
 		return "on_person_thumbnail"
 	case "notification":
 		return "on_notification"
+	// Maintenance-mode lifecycle (official web listens for these exact names):
+	// AppRestartV1 shows the "server restarting" box, MaintenanceStatusV1
+	// carries {action, active}; action==="end" clears the maintenance state.
+	case "app.restart":
+		return "AppRestartV1"
+	case "maintenance.status":
+		return "MaintenanceStatusV1"
 	default:
 		return ""
 	}

@@ -9,28 +9,64 @@ import (
 
 type AlbumResponse struct {
 	Album
-	AlbumName                  string      `json:"albumName"`
-	Description                string      `json:"description"`
-	AlbumThumbnailAssetID      *string     `json:"albumThumbnailAssetId"`
-	IsActivityEnabled          bool        `json:"isActivityEnabled"`
-	AlbumUsers                 []AlbumUser `json:"albumUsers"`
-	HasSharedLink              bool        `json:"hasSharedLink"`
-	Shared                     bool        `json:"shared"`
-	Order                      string      `json:"order"`
-	AssetCount                 int         `json:"assetCount"`
-	LastModifiedAssetTimestamp *time.Time  `json:"lastModifiedAssetTimestamp,omitempty"`
+	AlbumName                  string            `json:"albumName"`
+	Description                string            `json:"description"`
+	AlbumThumbnailAssetID      *string           `json:"albumThumbnailAssetId"`
+	IsActivityEnabled          bool              `json:"isActivityEnabled"`
+	AlbumUsers                 []albumUserEntry  `json:"albumUsers"`
+	HasSharedLink              bool              `json:"hasSharedLink"`
+	Shared                     bool              `json:"shared"`
+	Order                      string            `json:"order"`
+	AssetCount                 int               `json:"assetCount"`
+	LastModifiedAssetTimestamp *time.Time        `json:"lastModifiedAssetTimestamp,omitempty"`
+}
+
+// albumUserEntry mirrors the official AlbumUserResponseDto {role, user}.
+// The official web REQUIRES albumUsers[0] to exist (it derives isOwned from
+// albumUsers[0].user.id), and the official contract states the first entry is
+// always the album owner.
+type albumUserEntry struct {
+	Role string `json:"role"`
+	User gin.H `json:"user"`
+}
+
+// userLiteDTO renders the public UserResponseDto fields the web reads.
+func (a *App) userLiteDTO(id string) gin.H {
+	var u User
+	if err := a.store.DB.First(&u, "id = ?", id).Error; err != nil {
+		return gin.H{"id": id, "email": "", "name": "", "avatarColor": "", "profileImagePath": ""}
+	}
+	return gin.H{
+		"id":               u.ID,
+		"email":            u.Email,
+		"name":             u.Name,
+		"avatarColor":      u.AvatarColor,
+		"profileImagePath": u.ProfileImagePath,
+	}
 }
 
 func (a *App) albumToResponse(al Album) AlbumResponse {
 	var cnt int64
 	a.store.DB.Model(&AlbumAsset{}).Where("album_id = ?", al.ID).Count(&cnt)
 	var users []AlbumUser
-	a.store.DB.Where("album_id = ?", al.ID).Find(&users)
+	a.store.DB.Where("album_id = ?", al.ID).Order("user_id").Find(&users)
 	var sharedLinkCount int64
 	a.store.DB.Model(&SharedLink{}).Where("album_id = ?", al.ID).Count(&sharedLinkCount)
 	var thumbnail *string
 	if al.AlbumThumbnailAssetId != "" {
 		thumbnail = &al.AlbumThumbnailAssetId
+	}
+	// Official contract: first entry is ALWAYS the owner; shared members follow.
+	entries := []albumUserEntry{{Role: "owner", User: a.userLiteDTO(al.OwnerID)}}
+	for _, au := range users {
+		if au.UserID == al.OwnerID {
+			continue
+		}
+		role := au.Role
+		if role == "" {
+			role = "viewer"
+		}
+		entries = append(entries, albumUserEntry{Role: role, User: a.userLiteDTO(au.UserID)})
 	}
 	return AlbumResponse{
 		Album:                 al,
@@ -38,7 +74,7 @@ func (a *App) albumToResponse(al Album) AlbumResponse {
 		Description:           al.Description,
 		AlbumThumbnailAssetID: thumbnail,
 		IsActivityEnabled:     al.IsActivityEnabled,
-		AlbumUsers:            users,
+		AlbumUsers:            entries,
 		HasSharedLink:         sharedLinkCount > 0,
 		Shared:                len(users) > 0,
 		Order:                 "asc",
