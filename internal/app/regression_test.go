@@ -597,12 +597,12 @@ func TestSearchAggregations(t *testing.T) {
 		t.Errorf("large-assets returned %d, want >=2", len(large))
 	}
 
-	// Smart search requires an ML embedding backend, which is not available
-	// under the pure-Go baseline. It must fail honestly instead of returning
-	// a fake successful empty result.
+	// Smart search degrades to a real filename/OCR/ML-description substring
+	// search (no fake empty result): with no LLM configured it still matches
+	// real text, so 200 is the honest response.
 	w = do(r, "POST", "/api/search/smart", token, mustJSON(t, map[string]string{"query": "cat"}), "application/json")
-	if w.Code != http.StatusNotImplemented {
-		t.Errorf("smart search -> %d, want 501", w.Code)
+	if w.Code != http.StatusOK {
+		t.Errorf("smart search -> %d, want 200", w.Code)
 	}
 
 	_ = app

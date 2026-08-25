@@ -384,14 +384,14 @@ func (a *App) handleSearchSmart(c *gin.Context) {
 	// (BaseSearchSchema) filters by recognized text; both may arrive on the
 	// same endpoint depending on the web query type.
 	var req struct {
-		Query         string `json:"query"`
-		OCR           string `json:"ocr"`
-		QueryAssetID  string `json:"queryAssetId"`
-		Type          string `json:"type"`
-		IsFavorite    *bool  `json:"isFavorite"`
-		Visibility    string `json:"visibility"`
-		Page          int    `json:"page"`
-		Size          int    `json:"size"`
+		Query        string `json:"query"`
+		OCR          string `json:"ocr"`
+		QueryAssetID string `json:"queryAssetId"`
+		Type         string `json:"type"`
+		IsFavorite   *bool  `json:"isFavorite"`
+		Visibility   string `json:"visibility"`
+		Page         int    `json:"page"`
+		Size         int    `json:"size"`
 	}
 	_ = c.ShouldBindJSON(&req)
 	if req.Query == "" && req.OCR == "" && req.QueryAssetID == "" {
@@ -428,14 +428,29 @@ func (a *App) handleSearchSmart(c *gin.Context) {
 	if req.IsFavorite != nil {
 		q = q.Where("assets.is_favorite = ?", *req.IsFavorite)
 	}
+	// Official pagination: page >= 1, size <= 1000, nextPage is a string
+	// page token ("2", "3"...) or null. The web grid keeps loading while
+	// Number(nextPage) > 0.
+	page := req.Page
+	if page < 1 {
+		page = 1
+	}
+	size := req.Size
+	if size < 1 || size > 1000 {
+		size = 1000
+	}
 	var assets []Asset
-	if err := q.Order("assets.local_date_time DESC").Limit(req.Size).Find(&assets).Error; err != nil {
+	if err := q.Order("assets.local_date_time DESC").Offset((page - 1) * size).Limit(size + 1).Find(&assets).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
+	}
+	hasMore := len(assets) > size
+	if hasMore {
+		assets = assets[:size]
 	}
 	out := make([]AssetResponse, 0, len(assets))
 	for _, asset := range assets {
 		out = append(out, a.toResponse(asset))
 	}
-	c.JSON(http.StatusOK, emptySearchResponse(out))
+	c.JSON(http.StatusOK, searchResponseForAssets(out, page, size, hasMore))
 }
