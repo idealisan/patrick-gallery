@@ -51,32 +51,32 @@ type User struct {
 }
 
 type Asset struct {
-	ID               string         `gorm:"primaryKey;type:text" json:"id"`
-	DeviceAssetId    string         `gorm:"type:text" json:"deviceAssetId"`
-	DeviceId         string         `gorm:"type:text" json:"deviceId"`
-	OwnerID          string         `gorm:"index;type:text" json:"ownerId"`
-	Type             string         `gorm:"type:text" json:"type"` // IMAGE | VIDEO
-	OriginalPath     string         `gorm:"type:text" json:"originalPath"`
-	OriginalFileName string         `gorm:"type:text" json:"originalFileName"`
-	ResizePath       string         `gorm:"type:text" json:"resizePath"`
-	EncodedVideoPath string         `gorm:"type:text" json:"encodedVideoPath"`
-	Checksum         string         `gorm:"type:text;index" json:"checksum"`
-	FileCreatedAt    time.Time      `json:"fileCreatedAt"`
-	FileModifiedAt   time.Time      `json:"fileModifiedAt"`
-	LocalDateTime    time.Time      `json:"localDateTime"`
-	Duration         string         `gorm:"type:text" json:"duration"`
-	IsFavorite       bool           `json:"isFavorite"`
-	IsArchived       bool           `json:"isArchived"`
-	Visibility       string         `gorm:"type:text;default:timeline" json:"visibility,omitempty"`
-	IsTrash          bool           `json:"isTrash"`
-	TrashedAt        *time.Time     `gorm:"type:datetime" json:"-"`
-	IsExternal       bool           `json:"isExternal"`
-	LibraryId        string         `gorm:"type:text" json:"libraryId"`
-	LivePhotoVideoID string         `gorm:"type:text" json:"-"`
-	PersonID         string         `gorm:"type:text;index" json:"personId,omitempty"`
-	Width            int            `gorm:"type:int" json:"-"`
-	Height           int            `gorm:"type:int" json:"-"`
-	Thumbhash        string         `gorm:"type:text" json:"-"`
+	ID               string     `gorm:"primaryKey;type:text" json:"id"`
+	DeviceAssetId    string     `gorm:"type:text" json:"deviceAssetId"`
+	DeviceId         string     `gorm:"type:text" json:"deviceId"`
+	OwnerID          string     `gorm:"index;type:text" json:"ownerId"`
+	Type             string     `gorm:"type:text" json:"type"` // IMAGE | VIDEO
+	OriginalPath     string     `gorm:"type:text" json:"originalPath"`
+	OriginalFileName string     `gorm:"type:text" json:"originalFileName"`
+	ResizePath       string     `gorm:"type:text" json:"resizePath"`
+	EncodedVideoPath string     `gorm:"type:text" json:"encodedVideoPath"`
+	Checksum         string     `gorm:"type:text;index" json:"checksum"`
+	FileCreatedAt    time.Time  `json:"fileCreatedAt"`
+	FileModifiedAt   time.Time  `json:"fileModifiedAt"`
+	LocalDateTime    time.Time  `json:"localDateTime"`
+	Duration         string     `gorm:"type:text" json:"duration"`
+	IsFavorite       bool       `json:"isFavorite"`
+	IsArchived       bool       `json:"isArchived"`
+	Visibility       string     `gorm:"type:text;default:timeline" json:"visibility,omitempty"`
+	IsTrash          bool       `json:"isTrash"`
+	TrashedAt        *time.Time `gorm:"type:datetime" json:"-"`
+	IsExternal       bool       `json:"isExternal"`
+	LibraryId        string     `gorm:"type:text" json:"libraryId"`
+	LivePhotoVideoID string     `gorm:"type:text" json:"-"`
+	PersonID         string     `gorm:"type:text;index" json:"personId,omitempty"`
+	Width            int        `gorm:"type:int" json:"-"`
+	Height           int        `gorm:"type:int" json:"-"`
+	Thumbhash        string     `gorm:"type:text" json:"-"`
 	// ThumbVersion / PreviewVersion record the pipeline generation that
 	// produced each cache (Epic S7). 0/"" = legacy (pre-S7) — S8 treats them
 	// as stale for families whose current version is >1.
@@ -86,13 +86,13 @@ type Asset struct {
 	HasThumbnail  bool   `json:"hasThumbnail"`
 	// DuplicateID groups exact-duplicate assets (assigned by the real
 	// checksum-based duplicateDetection job; '' = not part of a group).
-	DuplicateID string         `gorm:"index;type:text" json:"duplicateId,omitempty"`
-	Size             int64          `json:"-"`
-	ExifID           string         `gorm:"type:text" json:"exifId"`
-	LastPlayedAt     *time.Time     `gorm:"type:datetime" json:"-"`
-	CreatedAt        time.Time      `json:"createdAt"`
-	UpdatedAt        time.Time      `json:"updatedAt"`
-	DeletedAt        gorm.DeletedAt `gorm:"index" json:"-"`
+	DuplicateID  string         `gorm:"index;type:text" json:"duplicateId,omitempty"`
+	Size         int64          `json:"-"`
+	ExifID       string         `gorm:"type:text" json:"exifId"`
+	LastPlayedAt *time.Time     `gorm:"type:datetime" json:"-"`
+	CreatedAt    time.Time      `json:"createdAt"`
+	UpdatedAt    time.Time      `json:"updatedAt"`
+	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 type Exif struct {
@@ -172,6 +172,7 @@ type Album struct {
 	Description           string         `gorm:"type:text" json:"description,omitempty"`
 	AlbumThumbnailAssetId string         `gorm:"type:text" json:"albumThumbnailAssetId,omitempty"`
 	IsActivityEnabled     bool           `json:"isActivityEnabled,omitempty"`
+	Order                 string         `gorm:"type:text;default:asc" json:"order,omitempty"`
 	CreatedAt             time.Time      `json:"createdAt"`
 	UpdatedAt             time.Time      `json:"updatedAt"`
 	DeletedAt             gorm.DeletedAt `gorm:"index" json:"-"`
@@ -384,18 +385,18 @@ type StackAsset struct {
 // Only the curated memories are modeled here; the read-only "On this day"
 // view is served separately from asset dates (see handleMemories).
 type Memory struct {
-	ID        string    `gorm:"primaryKey;type:text" json:"id"`
-	OwnerID   string    `gorm:"index;type:text" json:"ownerId"`
-	Type      string    `gorm:"type:text" json:"type"` // on_this_day
-	MemoryAt  time.Time `json:"memoryAt"`
+	ID        string     `gorm:"primaryKey;type:text" json:"id"`
+	OwnerID   string     `gorm:"index;type:text" json:"ownerId"`
+	Type      string     `gorm:"type:text" json:"type"` // on_this_day
+	MemoryAt  time.Time  `json:"memoryAt"`
 	ShowAt    *time.Time `json:"showAt,omitempty"`
 	HideAt    *time.Time `json:"hideAt,omitempty"`
 	SeenAt    *time.Time `json:"seenAt,omitempty"`
-	IsSaved   bool      `json:"isSaved"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	IsSaved   bool       `json:"isSaved"`
+	CreatedAt time.Time  `json:"createdAt"`
+	UpdatedAt time.Time  `json:"updatedAt"`
 	// Data carries the OnThisDayDto {year}.
-	DataJSON  string `gorm:"type:text" json:"-"`
+	DataJSON  string         `gorm:"type:text" json:"-"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 }
 

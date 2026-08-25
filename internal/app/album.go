@@ -60,6 +60,9 @@ func (a *App) albumToResponse(al Album) AlbumResponse {
 		thumbnail = &al.AlbumThumbnailAssetId
 	}
 	// Official contract: first entry is ALWAYS the owner; shared members follow.
+	// Official semantics (album.repository): shared = has non-owner members OR a shared link.
+	var memberCount int64
+	a.store.DB.Model(&AlbumUser{}).Where("album_id = ? AND user_id <> ?", al.ID, al.OwnerID).Count(&memberCount)
 	entries := []albumUserEntry{{Role: "owner", User: a.userLiteDTO(al.OwnerID)}}
 	for _, au := range users {
 		if au.UserID == al.OwnerID {
@@ -79,7 +82,7 @@ func (a *App) albumToResponse(al Album) AlbumResponse {
 		IsActivityEnabled:     al.IsActivityEnabled,
 		AlbumUsers:            entries,
 		HasSharedLink:         sharedLinkCount > 0,
-		Shared:                len(users) > 0,
+		Shared:                memberCount > 0 || sharedLinkCount > 0,
 		Order:                 "asc",
 		AssetCount:            int(cnt),
 	}
@@ -106,29 +109,55 @@ func (a *App) albumRole(uid, albumID string) string {
 
 func (a *App) handleAlbumList(c *gin.Context) {
 	uid := currentUserID(c)
+	// Official GetAlbumsDto: assetId ignores all other params; name is an
+	// EXACT match; isOwned=false means shared-with-me (not "everything").
 	name := c.Query("name")
-	isOwned, hasOwned := c.GetQuery("isOwned")
-	isShared, hasShared := c.GetQuery("isShared")
-	owned := hasOwned && isOwned == "true"
-	shared := hasShared && isShared == "true"
+	assetID := c.Query("assetId")
+	idFilter := c.Query("id")
 
 	var albums []Album
 	query := a.store.DB
-	switch {
-	case owned:
-		query = query.Where("owner_id = ?", uid)
-	case shared:
-		query = query.Where("owner_id != ? AND id IN (?)", uid,
-			a.store.DB.Model(&AlbumUser{}).Select("album_id").Where("user_id = ?", uid))
-	default:
-		query = query.Where(
-			"owner_id = ? OR id IN (?)",
-			uid,
-			a.store.DB.Model(&AlbumUser{}).Select("album_id").Where("user_id = ?", uid),
-		)
+	if assetID != "" {
+		query = query.Where("id IN (SELECT album_id FROM albums_assets_assets WHERE asset_id = ?)", assetID)
+	} else {
+		isOwned, hasOwned := c.GetQuery("isOwned")
+		isShared, hasShared := c.GetQuery("isShared")
+		owned := hasOwned && isOwned == "true"
+		notOwned := hasOwned && isOwned == "false"
+		shared := hasShared && isShared == "true"
+		notShared := hasShared && isShared == "false"
+
+		switch {
+		case owned:
+			query = query.Where("owner_id = ?", uid)
+		case notOwned:
+			// Albums I can see but do not own (shared with me).
+			query = query.Where("owner_id <> ? AND id IN (?)", uid,
+				a.store.DB.Model(&AlbumUser{}).Select("album_id").Where("user_id = ?", uid))
+		case shared:
+			// Official: album has non-owner members OR a shared link.
+			query = query.Where(`(EXISTS (
+					SELECT 1 FROM albums_users_album au WHERE au.album_id = albums.id AND au.user_id <> albums.owner_id
+				) OR EXISTS (
+					SELECT 1 FROM shared_links sl WHERE sl.album_id = albums.id
+				))`)
+		case notShared:
+			query = query.Where("owner_id = ? AND NOT EXISTS ("+
+				"SELECT 1 FROM albums_users_album au WHERE au.album_id = albums.id AND au.user_id <> albums.owner_id"+
+				") AND NOT EXISTS (SELECT 1 FROM shared_links sl WHERE sl.album_id = albums.id)", uid)
+		default:
+			query = query.Where(
+				"owner_id = ? OR id IN (?)",
+				uid,
+				a.store.DB.Model(&AlbumUser{}).Select("album_id").Where("user_id = ?", uid),
+			)
+		}
+	}
+	if idFilter != "" {
+		query = query.Where("id = ?", idFilter)
 	}
 	if name != "" {
-		query = query.Where("album_name LIKE ?", "%"+name+"%")
+		query = query.Where("album_name = ?", name)
 	}
 	if err := query.Order("created_at DESC").Find(&albums).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error(), "statusCode": 500})
@@ -241,13 +270,32 @@ func (a *App) handleAlbumUpdate(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
 	}
-	var b albumCreateBody
-	_ = c.ShouldBindJSON(&b)
-	if b.AlbumName != "" {
-		al.AlbumName = b.AlbumName
+	// Official UpdateAlbumDto: albumName/description nullable-clearable,
+	// albumThumbnailAssetId, isActivityEnabled, order.
+	var b struct {
+		AlbumName             *string `json:"albumName"`
+		Description           *string `json:"description"`
+		AlbumThumbnailAssetID *string `json:"albumThumbnailAssetId"`
+		IsActivityEnabled     *bool   `json:"isActivityEnabled"`
+		Order                 *string `json:"order"`
 	}
-	if b.Description != "" {
-		al.Description = b.Description
+	_ = c.ShouldBindJSON(&b)
+	if b.AlbumName != nil {
+		al.AlbumName = *b.AlbumName
+	}
+	if b.Description != nil {
+		al.Description = *b.Description
+	}
+	if b.AlbumThumbnailAssetID != nil {
+		al.AlbumThumbnailAssetId = *b.AlbumThumbnailAssetID
+	}
+	if b.IsActivityEnabled != nil {
+		al.IsActivityEnabled = *b.IsActivityEnabled
+	}
+	if b.Order != nil {
+		if *b.Order == "desc" || *b.Order == "asc" {
+			al.Order = *b.Order
+		}
 	}
 	al.UpdatedAt = time.Now().UTC()
 	a.store.DB.Save(&al)
@@ -260,8 +308,10 @@ func (a *App) handleAlbumDelete(c *gin.Context) {
 	id := c.Param("id")
 	a.store.DB.Where("id = ? AND owner_id = ?", id, uid).Delete(&Album{})
 	a.store.DB.Where("album_id = ?", id).Delete(&AlbumAsset{})
+	a.store.DB.Where("album_id = ?", id).Delete(&AlbumUser{})
+	a.store.DB.Model(&SharedLink{}).Where("album_id = ? AND user_id = ?", id, uid).Delete(&SharedLink{})
 	a.emit("album.delete", map[string]any{"id": id})
-	c.Status(http.StatusOK)
+	c.Status(http.StatusNoContent)
 }
 
 type albumAssetsBody struct {
@@ -398,14 +448,19 @@ func (a *App) handleAlbumMapMarkers(c *gin.Context) {
 				"lat":     e.Latitude,
 				"lon":     e.Longitude,
 				"city":    e.City,
+				"state":   e.State,
 				"country": e.Country,
 			})
 		}
 	}
-	c.JSON(http.StatusOK, gin.H{"markers": markers})
+	// Official contract: bare MapMarkerResponseDto[] (NOT wrapped in {markers}).
+	c.JSON(http.StatusOK, markers)
 }
 
-// handleAlbumSetUsers replaces the album's shared users (Immich PUT /albums/:id/users).
+// handleAlbumSetUsers adds users to the album (Immich PUT /albums/:id/users).
+// Official AddUsersDto body is {albumUsers:[{userId, role}]}, the operation is
+// ADDITIVE (existing members kept, duplicates skipped), and the default role
+// is editor.
 func (a *App) handleAlbumSetUsers(c *gin.Context) {
 	uid := currentUserID(c)
 	id := c.Param("id")
@@ -416,17 +471,27 @@ func (a *App) handleAlbumSetUsers(c *gin.Context) {
 	var al Album
 	a.store.DB.First(&al, "id = ?", id)
 	var b struct {
-		Users []struct {
+		AlbumUsers []struct {
 			UserID string `json:"userId"`
 			Role   string `json:"role"`
-		} `json:"users"`
+		} `json:"albumUsers"`
 	}
-	_ = c.ShouldBindJSON(&b)
-	a.store.DB.Where("album_id = ?", id).Delete(&AlbumUser{})
-	for _, u := range b.Users {
+	if err := c.ShouldBindJSON(&b); err != nil || len(b.AlbumUsers) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "albumUsers required", "statusCode": 400})
+		return
+	}
+	for _, u := range b.AlbumUsers {
+		if u.UserID == al.OwnerID {
+			continue // cannot add the owner as a member
+		}
+		var cnt int64
+		a.store.DB.Model(&AlbumUser{}).Where("album_id = ? AND user_id = ?", id, u.UserID).Count(&cnt)
+		if cnt > 0 {
+			continue // additive: silently skip existing members
+		}
 		role := u.Role
-		if role == "" {
-			role = "viewer"
+		if role == "" || role == "owner" {
+			role = "editor"
 		}
 		a.store.DB.Create(&AlbumUser{AlbumID: id, UserID: u.UserID, Role: role})
 	}
@@ -450,25 +515,40 @@ func (a *App) handleAlbumAddUser(c *gin.Context) {
 	_ = c.ShouldBindJSON(&b)
 	role := b.Role
 	if role == "" {
-		role = "viewer"
+		role = "editor"
 	}
-	a.store.DB.Create(&AlbumUser{AlbumID: id, UserID: userId, Role: role})
-	c.JSON(http.StatusOK, a.albumToResponse(al))
+	var cnt int64
+	a.store.DB.Model(&AlbumUser{}).Where("album_id = ? AND user_id = ?", id, userId).Count(&cnt)
+	if cnt > 0 {
+		a.store.DB.Model(&AlbumUser{}).Where("album_id = ? AND user_id = ?", id, userId).Update("role", role)
+	} else {
+		a.store.DB.Create(&AlbumUser{AlbumID: id, UserID: userId, Role: role})
+	}
+	c.Status(http.StatusNoContent)
 }
 
-// handleAlbumRemoveUser unshares the album from a user.
+// handleAlbumRemoveUser unshares the album from a user. Official supports
+// userId="me" (self-leave) and returns 204.
 func (a *App) handleAlbumRemoveUser(c *gin.Context) {
 	uid := currentUserID(c)
 	id := c.Param("id")
 	userId := c.Param("userId")
-	if a.albumRole(uid, id) != "owner" {
+	if userId == "me" {
+		userId = uid
+	}
+	isOwner := a.albumRole(uid, id) == "owner"
+	if !isOwner && userId != uid {
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
 	}
 	var al Album
 	a.store.DB.First(&al, "id = ?", id)
+	if al.OwnerID == userId {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "cannot remove the owner", "statusCode": 400})
+		return
+	}
 	a.store.DB.Where("album_id = ? AND user_id = ?", id, userId).Delete(&AlbumUser{})
-	c.JSON(http.StatusOK, a.albumToResponse(al))
+	c.Status(http.StatusNoContent)
 }
 
 // handleAlbumBulkAddAssets adds the same set of assets to several albums at

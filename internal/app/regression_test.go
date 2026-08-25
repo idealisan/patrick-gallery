@@ -627,23 +627,22 @@ func TestAlbumMapMarkers(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("map-markers -> %d: %s", w.Code, w.Body.String())
 	}
-	var mm struct {
-		Markers []struct {
-			Lat float64 `json:"lat"`
-			Lon float64 `json:"lon"`
-		} `json:"markers"`
+	// Official contract: bare MapMarkerResponseDto[] (not wrapped in {markers}).
+	var mm []struct {
+		Lat float64 `json:"lat"`
+		Lon float64 `json:"lon"`
 	}
 	if err := json.Unmarshal(w.Body.Bytes(), &mm); err != nil {
 		t.Fatalf("map-markers decode: %v", err)
 	}
 	found := false
-	for _, m := range mm.Markers {
+	for _, m := range mm {
 		if m.Lat == 48.85 && m.Lon == 2.35 {
 			found = true
 		}
 	}
 	if !found {
-		t.Errorf("expected a Paris marker among %+v", mm.Markers)
+		t.Errorf("expected a Paris marker among %+v", mm)
 	}
 }
 

@@ -244,14 +244,18 @@ func (a *App) handlePersonAssets(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"assets": out, "count": len(out), "total": len(out)})
 }
 
-// handleAlbumStatistics mirrors GET /api/albums/statistics.
+// handleAlbumStatistics mirrors GET /api/albums/statistics: owned = albums I
+// own; shared = my albums that are shared (member or link); notShared = my
+// albums with no sharing at all. (Official AlbumStatisticsResponseDto.)
 func (a *App) handleAlbumStatistics(c *gin.Context) {
 	uid := currentUserID(c)
 	var owned, shared, notShared int64
 	a.store.DB.Model(&Album{}).Where("owner_id = ?", uid).Count(&owned)
-	a.store.DB.Model(&Album{}).Where("owner_id <> ?", uid).Count(&shared)
-	a.store.DB.Model(&Album{}).Where("owner_id = ? AND (select count(*) from albums_assets_assets where albums_assets_assets.albums_id = albums.id) = 0", uid).Count(&notShared)
-	c.JSON(http.StatusOK, gin.H{"count": owned + shared, "owned": owned, "shared": shared, "notShared": notShared})
+	a.store.DB.Model(&Album{}).Where("owner_id = ? AND (EXISTS "+
+		"(SELECT 1 FROM albums_users_album au WHERE au.album_id = albums.id AND au.user_id <> albums.owner_id)"+
+		" OR EXISTS (SELECT 1 FROM shared_links sl WHERE sl.album_id = albums.id))", uid).Count(&shared)
+	notShared = owned - shared
+	c.JSON(http.StatusOK, gin.H{"owned": owned, "shared": shared, "notShared": notShared})
 }
 
 // handleSearchSuggestions mirrors POST /api/search/suggestions.
