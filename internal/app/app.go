@@ -222,10 +222,12 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		c.JSON(http.StatusOK, gin.H{"authStatus": boolToStatus(cfg.LoginRequired)})
 	})
 
-	// public shared-link access (no auth): view + asset streaming
+	// public shared-link access (no auth): view + asset streaming + keyed
+	// "me" lookup used by the official /share/:key page
 	r.GET("/api/share/:key", a.handleShareView)
 	r.GET("/api/share/:key/thumbnail/:assetId", a.handleShareThumbnail)
 	r.GET("/api/share/:key/original/:assetId", a.handleShareOriginal)
+	r.GET("/api/shared-links/me", a.handleSharedLinksMe)
 	r.POST("/api/shared-links/login", a.handleSharedLinkLogin)
 
 	// ---- authenticated ----
@@ -463,7 +465,6 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.GET("/shared-links/:id", a.handleSharedLinkGet)
 		api.PUT("/shared-links/:id", a.handleSharedLinkUpdate)
 		api.DELETE("/shared-links/:id", a.handleSharedLinkDelete)
-		api.GET("/shared-links/me", a.handleSharedLinksMe)
 		api.GET("/shared-links/:id/assets/:assetId", a.handleSharedLinkAssetAdd)
 		api.PUT("/shared-links/:id/assets/:assetId", a.handleSharedLinkAssetRemove)
 		api.DELETE("/shared-links/:id/assets/:assetId", a.handleSharedLinkAssetRemove)

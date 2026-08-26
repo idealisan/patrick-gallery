@@ -8,10 +8,32 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// handleSharedLinksMe returns the shared links the current user has access to
-// via albums they own or collaborate on (GET /shared-links/me).
+// handleSharedLinksMe serves GET /shared-links/me. The official web PUBLIC
+// share view (/share/:key, /s/:slug) calls this endpoint with ?key=… (or
+// ?slug=…) and NO session — the server's AuthGuard accepts a valid share key
+// in place of a user token there. So: when a key/slug query is present the
+// handler authorizes by key alone; otherwise it falls back to the
+// authenticated listing of links visible to the current user.
 func (a *App) handleSharedLinksMe(c *gin.Context) {
+	if key := c.Query("key"); key != "" {
+		a.sharedLinksMeByKey(c, key)
+		return
+	}
+	if slug := c.Query("slug"); slug != "" {
+		var link SharedLink
+		if err := a.store.DB.First(&link, "slug = ?", slug).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "share not found", "statusCode": 404})
+			return
+		}
+		a.sharedLinksMeByKey(c, link.Key)
+		return
+	}
 	uid := currentUserID(c)
+	if uid == "" {
+		// No session and no key/slug: the official endpoint requires auth.
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized", "statusCode": 401})
+		return
+	}
 	// Links created by the user, plus links on albums they own or are added to.
 	albumIDs := []string{}
 	a.store.DB.Model(&AlbumUser{}).Where("user_id = ?", uid).Pluck("album_id", &albumIDs)
@@ -30,6 +52,18 @@ func (a *App) handleSharedLinksMe(c *gin.Context) {
 		out = append(out, a.toSharedLinkResponse(&links[i]))
 	}
 	c.JSON(http.StatusOK, out)
+}
+
+// sharedLinksMeByKey authorizes a share by its key (no user session) and
+// returns the single SharedLinkResponseDto the official web share view
+// consumes (it reads .album / .assets directly — NOT an array).
+func (a *App) sharedLinksMeByKey(c *gin.Context, key string) {
+	link, err := a.loadShare(key)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "share not found", "statusCode": 404})
+		return
+	}
+	c.JSON(http.StatusOK, a.toSharedLinkResponse(link))
 }
 
 // handleSharedLinkLogin validates a shared-link key (and optional password) and
@@ -60,10 +94,10 @@ func (a *App) handleSharedLinkLogin(c *gin.Context) {
 		}
 	}
 	c.JSON(http.StatusOK, gin.H{
-		"key":          link.Key,
-		"type":         link.Type,
-		"albumId":      link.AlbumID,
-		"assetId":      link.AssetID,
+		"key":           link.Key,
+		"type":          link.Type,
+		"albumId":       link.AlbumID,
+		"assetId":       link.AssetID,
 		"allowDownload": link.AllowDownload,
 		"allowUpload":   link.AllowUpload,
 		"showMetadata":  link.ShowMetadata,

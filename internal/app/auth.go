@@ -15,15 +15,43 @@ import (
 )
 
 const ctxUserID = "userID"
+const ctxShareKey = "shareLink"
+const ctxShareUserID = "shareUserID"
+
+// currentShareLink returns the SharedLink authorized via ?key=/?slug=/the
+// x-immich-share-key header, or nil when the caller is a normal user session.
+func currentShareLink(c *gin.Context) *SharedLink {
+	if v, ok := c.Get(ctxShareKey); ok {
+		if link, ok := v.(*SharedLink); ok {
+			return link
+		}
+	}
+	return nil
+}
+
+// shareKeyMatches reports whether the request's authorized share link exposes
+// the given album or asset (used to scope anonymous keyed access).
+func shareKeyMatches(link *SharedLink, assetID, albumID string) bool {
+	if link == nil {
+		return false
+	}
+	if albumID != "" && link.AlbumID == albumID {
+		return true
+	}
+	if assetID != "" && link.AssetID == assetID {
+		return true
+	}
+	return false
+}
 
 // Cookie names mirror the official Immich server (server/src/enum.ts ->
 // ImmichCookie). The official v3.1.0 web reads `immich_is_authenticated`
 // (non-httpOnly, so JS can see auth state) to decide whether to call the API,
 // and sends `immich_access_token` (httpOnly) on every same-origin request.
 const (
-	cookieAccessToken  = "immich_access_token"
-	cookieIsAuth       = "immich_is_authenticated"
-	authCookieMaxAge   = 400 * 24 * 3600 // seconds, matches official (400 days)
+	cookieAccessToken = "immich_access_token"
+	cookieIsAuth      = "immich_is_authenticated"
+	authCookieMaxAge  = 400 * 24 * 3600 // seconds, matches official (400 days)
 )
 
 // isSecureRequest reports whether the connection to the *client* is TLS,
@@ -144,6 +172,33 @@ func (a *App) AuthGuard() gin.HandlerFunc {
 			}
 		}
 
+		// Official auth.service also accepts a valid SHARED-LINK KEY as an
+		// alternative credential for the public share view: ?key=/&slug= on
+		// the request or the x-immich-share-key header. It grants anonymous
+		// read access to that link's album/assets only. When a key matches,
+		// the request is authorized WITHOUT a user session.
+		if uid == "" {
+			key := c.GetHeader("x-immich-share-key")
+			if key == "" {
+				key = c.Query("key")
+			}
+			if link, err := a.loadShare(key); err == nil {
+				c.Set(ctxShareKey, link)
+				c.Set(ctxShareUserID, link.UserID)
+				c.Next()
+				return
+			}
+			if slug := c.Query("slug"); slug != "" {
+				var bySlug SharedLink
+				if err := a.store.DB.First(&bySlug, "slug = ?", slug).Error; err == nil {
+					c.Set(ctxShareKey, &bySlug)
+					c.Set(ctxShareUserID, bySlug.UserID)
+					c.Next()
+					return
+				}
+			}
+		}
+
 		if uid == "" && !a.cfg.LoginRequired {
 			// anonymous mode: fall back to the admin user
 			var admin User
@@ -164,6 +219,13 @@ func (a *App) AuthGuard() gin.HandlerFunc {
 func currentUserID(c *gin.Context) string {
 	if v, ok := c.Get(ctxUserID); ok {
 		if s, ok := v.(string); ok {
+			return s
+		}
+	}
+	// Anonymous caller authorized via a share key: scope reads to the link's
+	// owner so keyed asset/album lookups resolve without granting a session.
+	if ownerID, ok := c.Get(ctxShareUserID); ok {
+		if s, ok := ownerID.(string); ok {
 			return s
 		}
 	}

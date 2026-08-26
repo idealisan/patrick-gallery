@@ -331,7 +331,7 @@ func (a *App) toSharedLinkResponse(link *SharedLink) SharedLinkResponse {
 		s := link.Slug
 		slug = &s
 	}
-	return SharedLinkResponse{
+	resp := SharedLinkResponse{
 		ID:            link.ID,
 		Key:           link.Key,
 		Type:          link.Type,
@@ -346,6 +346,13 @@ func (a *App) toSharedLinkResponse(link *SharedLink) SharedLinkResponse {
 		Slug:          slug,
 		UserID:        link.UserID,
 	}
+	if link.Type == "ALBUM" && link.AlbumID != "" {
+		var al Album
+		if err := a.store.DB.First(&al, "id = ?", link.AlbumID).Error; err == nil {
+			resp.Album = a.albumToResponse(al)
+		}
+	}
+	return resp
 }
 
 func (a *App) handleSharedLinkCreate(c *gin.Context) {
