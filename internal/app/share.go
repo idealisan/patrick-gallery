@@ -84,7 +84,7 @@ func (a *App) handleShareView(c *gin.Context) {
 	key := c.Param("key")
 	link, err := a.loadShare(key)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "share not found"})
+		c.JSON(http.StatusNotFound, gin.H{"message": "share not found"})
 		return
 	}
 	assets, albumName := a.shareAssets(link)

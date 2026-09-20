@@ -26,7 +26,7 @@ func (a *App) handleSessionGet(c *gin.Context) {
 	id := c.Param("id")
 	var s Session
 	if err := a.store.DB.Where("id = ? AND user_id = ?", id, uid).First(&s).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found", "statusCode": 404})
 		return
 	}
 	c.JSON(http.StatusOK, a.sessionToDTO(&s, s.ID == currentSessionID(c)))
@@ -40,7 +40,7 @@ func (a *App) handleSessionUpdate(c *gin.Context) {
 	id := c.Param("id")
 	var s Session
 	if err := a.store.DB.Where("id = ? AND user_id = ?", id, uid).First(&s).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found", "statusCode": 404})
 		return
 	}
 	var b struct {
@@ -92,7 +92,7 @@ func (a *App) handleSessionLockByID(c *gin.Context) {
 	id := c.Param("id")
 	var s Session
 	if err := a.store.DB.Where("id = ? AND user_id = ?", id, uid).First(&s).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found", "statusCode": 404})
 		return
 	}
 	expiry := time.Now().UTC().AddDate(10, 0, 0)

@@ -395,7 +395,7 @@ func (a *App) handleSearchSmart(c *gin.Context) {
 	}
 	_ = c.ShouldBindJSON(&req)
 	if req.Query == "" && req.OCR == "" && req.QueryAssetID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "query is required", "statusCode": 400})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "query is required", "statusCode": 400})
 		return
 	}
 	if req.Size <= 0 {
@@ -441,7 +441,7 @@ func (a *App) handleSearchSmart(c *gin.Context) {
 	}
 	var assets []Asset
 	if err := q.Order("assets.local_date_time DESC").Offset((page - 1) * size).Limit(size + 1).Find(&assets).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
 	hasMore := len(assets) > size

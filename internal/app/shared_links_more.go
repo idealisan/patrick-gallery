@@ -22,7 +22,7 @@ func (a *App) handleSharedLinksMe(c *gin.Context) {
 	if slug := c.Query("slug"); slug != "" {
 		var link SharedLink
 		if err := a.store.DB.First(&link, "slug = ?", slug).Error; err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "share not found", "statusCode": 404})
+			c.JSON(http.StatusNotFound, gin.H{"message": "share not found", "statusCode": 404})
 			return
 		}
 		a.sharedLinksMeByKey(c, link.Key)
@@ -31,7 +31,7 @@ func (a *App) handleSharedLinksMe(c *gin.Context) {
 	uid := currentUserID(c)
 	if uid == "" {
 		// No session and no key/slug: the official endpoint requires auth.
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized", "statusCode": 401})
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthorized", "statusCode": 401})
 		return
 	}
 	// Links created by the user, plus links on albums they own or are added to.
@@ -60,7 +60,7 @@ func (a *App) handleSharedLinksMe(c *gin.Context) {
 func (a *App) sharedLinksMeByKey(c *gin.Context, key string) {
 	link, err := a.loadShare(key)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "share not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "share not found", "statusCode": 404})
 		return
 	}
 	c.JSON(http.StatusOK, a.toSharedLinkResponse(link))
@@ -75,21 +75,21 @@ func (a *App) handleSharedLinkLogin(c *gin.Context) {
 		Password *string `json:"password"`
 	}
 	if err := c.ShouldBindJSON(&b); err != nil || b.Key == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "key required", "statusCode": 400})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "key required", "statusCode": 400})
 		return
 	}
 	link, err := a.loadShare(b.Key)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "share not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "share not found", "statusCode": 404})
 		return
 	}
 	if link.Password != "" {
 		if b.Password == nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "password required", "statusCode": 401, "needsPassword": true})
+			c.JSON(http.StatusUnauthorized, gin.H{"message": "password required", "statusCode": 401, "needsPassword": true})
 			return
 		}
 		if bcrypt.CompareHashAndPassword([]byte(link.Password), []byte(*b.Password)) != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid password", "statusCode": 401})
+			c.JSON(http.StatusUnauthorized, gin.H{"message": "invalid password", "statusCode": 401})
 			return
 		}
 	}
@@ -117,16 +117,16 @@ func (a *App) handleSharedLinkAssetAdd(c *gin.Context) {
 	assetID := c.Param("assetId")
 	var link SharedLink
 	if err := a.store.DB.Where("id = ? AND user_id = ?", id, uid).First(&link).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found", "statusCode": 404})
 		return
 	}
 	if link.Type != "ALBUM" || link.AlbumID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "only album links support assets", "statusCode": 400})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "only album links support assets", "statusCode": 400})
 		return
 	}
 	var asset Asset
 	if a.store.DB.Where("id = ?", assetID).First(&asset).Error != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "asset not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "asset not found", "statusCode": 404})
 		return
 	}
 	// add to the underlying album (which is what the link exposes)
@@ -146,11 +146,11 @@ func (a *App) handleSharedLinkAssetRemove(c *gin.Context) {
 	assetID := c.Param("assetId")
 	var link SharedLink
 	if err := a.store.DB.Where("id = ? AND user_id = ?", id, uid).First(&link).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found", "statusCode": 404})
 		return
 	}
 	if link.Type != "ALBUM" || link.AlbumID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "only album links support assets", "statusCode": 400})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "only album links support assets", "statusCode": 400})
 		return
 	}
 	a.store.DB.Where("album_id = ? AND asset_id = ?", link.AlbumID, assetID).Delete(&AlbumAsset{})
