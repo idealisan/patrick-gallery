@@ -166,6 +166,11 @@ func (a *App) handleLibraryScan(c *gin.Context) {
 // it can be exercised without an HTTP context.
 func (a *App) runScan(uid string, lib *Library) (imported, skipped int, err error) {
 	excluded := splitPaths(lib.ExcludedPaths)
+	// Normalize exclusions to slash form so prefix matching works on both
+	// separators (filepath.Walk yields '\'-separated paths on Windows).
+	for i, ex := range excluded {
+		excluded[i] = strings.TrimRight(filepath.ToSlash(ex), "/")
+	}
 	isExternal := lib.Type == "EXTERNAL"
 
 	for _, root := range splitPaths(lib.ImportPaths) {
@@ -174,9 +179,10 @@ func (a *App) runScan(uid string, lib *Library) (imported, skipped int, err erro
 			if e != nil || info == nil || info.IsDir() {
 				return nil
 			}
-			// skip excluded prefixes
+			// skip excluded prefixes (compare slash-normalized paths)
+			slashPath := filepath.ToSlash(path)
 			for _, ex := range excluded {
-				if ex != "" && strings.HasPrefix(path, strings.TrimRight(ex, "/")+"/") {
+				if ex != "" && (slashPath == ex || strings.HasPrefix(slashPath, ex+"/")) {
 					return nil
 				}
 			}
