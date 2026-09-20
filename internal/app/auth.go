@@ -401,7 +401,8 @@ func (a *App) handleChangePassword(c *gin.Context) {
 	u.Password = string(hash)
 	u.ShouldChangePassword = false
 	a.store.DB.Save(&u)
-	c.Status(http.StatusNoContent)
+	// Official changePassword returns 200 with the UserAdminResponseDto.
+	c.JSON(http.StatusOK, a.toAdminUser(u))
 }
 
 func (a *App) handleLogout(c *gin.Context) {

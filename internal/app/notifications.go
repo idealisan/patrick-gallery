@@ -96,23 +96,35 @@ func (a *App) handleListNotifications(c *gin.Context) {
 	c.JSON(http.StatusOK, out)
 }
 
-// handleUpdateNotifications applies a bulk action (e.g. mark-all-read) to the
-// current user's notifications (Immich: PUT /api/notifications).
+// handleUpdateNotifications marks the given notifications as read (Immich:
+// PUT /api/notifications, NotificationUpdateAllDto {ids, readAt}), or applies a
+// bulk action (mark-all-read / archive-all / remove-all) as a convenience
+// extension. Returns 204 per the official contract.
 func (a *App) handleUpdateNotifications(c *gin.Context) {
 	uid := currentUserID(c)
 	var body struct {
-		Action string `json:"action"`
+		Action string     `json:"action"`
+		IDs    []string   `json:"ids"`
+		ReadAt *time.Time `json:"readAt"`
 	}
 	_ = c.ShouldBindJSON(&body)
 	now := time.Now().UTC()
-	switch body.Action {
-	case "read-all":
+	switch {
+	case len(body.IDs) > 0:
+		readAt := now
+		if body.ReadAt != nil {
+			readAt = *body.ReadAt
+		}
+		a.store.DB.Model(&Notification{}).
+			Where("user_id = ? AND id IN ?", uid, body.IDs).
+			Update("read_at", readAt)
+	case body.Action == "read-all":
 		a.store.DB.Model(&Notification{}).Where("user_id = ? AND read_at IS NULL", uid).
 			Update("read_at", now)
-	case "archive-all", "remove-all":
+	case body.Action == "archive-all" || body.Action == "remove-all":
 		a.store.DB.Where("user_id = ?", uid).Delete(&Notification{})
 	}
-	c.Status(http.StatusOK)
+	c.Status(http.StatusNoContent)
 }
 
 // handleDeleteNotification removes a single notification (Immich:

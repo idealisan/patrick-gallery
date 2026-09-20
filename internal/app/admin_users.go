@@ -62,11 +62,11 @@ type userAdminUpdateDto struct {
 	Email                string `json:"email"`
 	Name                 string `json:"name"`
 	Password             string `json:"password"`
-	IsAdmin              bool   `json:"isAdmin"`
+	IsAdmin              *bool  `json:"isAdmin"`
 	AvatarColor          string `json:"avatarColor"`
 	PinCode              string `json:"pinCode"`
 	QuotaSizeInBytes     *int64 `json:"quotaSizeInBytes"`
-	ShouldChangePassword bool   `json:"shouldChangePassword"`
+	ShouldChangePassword *bool  `json:"shouldChangePassword"`
 	StorageLabel         string `json:"storageLabel"`
 }
 
@@ -248,14 +248,19 @@ func (a *App) handleAdminUpdateUser(c *gin.Context) {
 		u.Password = string(hash)
 		u.ShouldChangePassword = false
 	}
-	u.IsAdmin = b.IsAdmin
+	// UserAdminUpdateDto fields are all optional — apply only what was sent.
+	if b.IsAdmin != nil {
+		u.IsAdmin = *b.IsAdmin
+	}
 	if b.AvatarColor != "" {
 		u.AvatarColor = b.AvatarColor
 	}
 	u.PinCode = b.PinCode
 	u.QuotaSizeInBytes = b.QuotaSizeInBytes
 	u.StorageLabel = b.StorageLabel
-	u.ShouldChangePassword = b.ShouldChangePassword
+	if b.ShouldChangePassword != nil {
+		u.ShouldChangePassword = *b.ShouldChangePassword
+	}
 	u.UpdatedAt = time.Now().UTC()
 	if err := a.store.DB.Save(&u).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
