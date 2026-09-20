@@ -152,7 +152,7 @@ func (a *App) handleMemoryCreate(c *gin.Context) {
 		Type    string     `json:"type"`
 	}
 	if err := c.ShouldBindJSON(&b); err != nil || b.Type == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "type required", "statusCode": 400})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "type required", "statusCode": 400})
 		return
 	}
 	memoryAt := time.Now().UTC()
@@ -176,7 +176,7 @@ func (a *App) handleMemoryCreate(c *gin.Context) {
 		UpdatedAt: now,
 	}
 	if err := a.store.DB.Create(&m).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error(), "statusCode": 500})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error(), "statusCode": 500})
 		return
 	}
 	a.replaceMemoryAssets(m.ID, b.AssetIDs)
@@ -189,7 +189,7 @@ func (a *App) handleMemoryGet(c *gin.Context) {
 	id := c.Param("id")
 	var m Memory
 	if err := a.store.DB.Where("id = ? AND owner_id = ?", id, uid).First(&m).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found", "statusCode": 404})
 		return
 	}
 	c.JSON(http.StatusOK, a.toMemoryResponse(&m))
@@ -201,7 +201,7 @@ func (a *App) handleMemoryUpdate(c *gin.Context) {
 	id := c.Param("id")
 	var m Memory
 	if err := a.store.DB.Where("id = ? AND owner_id = ?", id, uid).First(&m).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found", "statusCode": 404})
 		return
 	}
 	var b struct {
@@ -232,11 +232,11 @@ func (a *App) handleMemoryDelete(c *gin.Context) {
 	id := c.Param("id")
 	res := a.store.DB.Where("id = ? AND owner_id = ?", id, uid).Delete(&Memory{})
 	if res.Error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": res.Error.Error(), "statusCode": 500})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": res.Error.Error(), "statusCode": 500})
 		return
 	}
 	if res.RowsAffected == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found", "statusCode": 404})
 		return
 	}
 	a.store.DB.Where("memory_id = ?", id).Delete(&MemoryAsset{})
@@ -257,7 +257,7 @@ func (a *App) handleMemoryAssetsAdd(c *gin.Context) {
 	id := c.Param("id")
 	var m Memory
 	if err := a.store.DB.Where("id = ? AND owner_id = ?", id, uid).First(&m).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found", "statusCode": 404})
 		return
 	}
 	var b struct {
@@ -278,7 +278,7 @@ func (a *App) handleMemoryAssetsRemove(c *gin.Context) {
 	id := c.Param("id")
 	var m Memory
 	if err := a.store.DB.Where("id = ? AND owner_id = ?", id, uid).First(&m).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found", "statusCode": 404})
 		return
 	}
 	var b struct {

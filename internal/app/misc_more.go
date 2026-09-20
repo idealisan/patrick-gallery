@@ -15,7 +15,7 @@ func (a *App) handlePersonThumbnail(c *gin.Context) {
 	id := c.Param("id")
 	var p Person
 	if err := a.store.DB.Where("id = ?", id).First(&p).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found", "statusCode": 404})
 		return
 	}
 	_ = uid
@@ -33,7 +33,7 @@ func (a *App) handleAdminSignUp(c *gin.Context) {
 	var n int64
 	a.store.DB.Model(&User{}).Count(&n)
 	if n > 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "an admin already exists", "statusCode": 400})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "an admin already exists", "statusCode": 400})
 		return
 	}
 	var b struct {
@@ -42,12 +42,12 @@ func (a *App) handleAdminSignUp(c *gin.Context) {
 		Password string `json:"password"`
 	}
 	if err := c.ShouldBindJSON(&b); err != nil || b.Email == "" || b.Name == "" || b.Password == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "email, name and password required", "statusCode": 400})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "email, name and password required", "statusCode": 400})
 		return
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(b.Password), bcrypt.DefaultCost)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error(), "statusCode": 500})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error(), "statusCode": 500})
 		return
 	}
 	now := time.Now().UTC()
@@ -64,7 +64,7 @@ func (a *App) handleAdminSignUp(c *gin.Context) {
 		ProfileChangedAt: now,
 	}
 	if err := a.store.DB.Create(&u).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error(), "statusCode": 500})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error(), "statusCode": 500})
 		return
 	}
 	tok, _ := a.issueToken(u.ID)
@@ -78,7 +78,7 @@ func (a *App) handleGetNotification(c *gin.Context) {
 	id := c.Param("id")
 	var n Notification
 	if err := a.store.DB.Where("id = ? AND user_id = ?", id, uid).First(&n).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found", "statusCode": 404})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -102,11 +102,11 @@ func (a *App) handleUpdateNotification(c *gin.Context) {
 	res := a.store.DB.Model(&Notification{}).Where("id = ? AND user_id = ?", id, uid).
 		Update("read_at", time.Now().UTC())
 	if res.Error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": res.Error.Error(), "statusCode": 500})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": res.Error.Error(), "statusCode": 500})
 		return
 	}
 	if res.RowsAffected == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found", "statusCode": 404})
 		return
 	}
 	c.Status(http.StatusOK)
@@ -120,7 +120,7 @@ func (a *App) handleAssetOcr(c *gin.Context) {
 	id := c.Param("id")
 	var asset Asset
 	if err := a.store.DB.Where("id = ?", id).First(&asset).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found", "statusCode": 404})
 		return
 	}
 	if !a.canView(uid, asset.OwnerID) {

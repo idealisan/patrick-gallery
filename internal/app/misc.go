@@ -45,7 +45,7 @@ func (a *App) handlePartnerCreate(c *gin.Context) {
 	}
 	_ = c.ShouldBindJSON(&b)
 	if b.SharedUserId == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "sharedUserId required"})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "sharedUserId required"})
 		return
 	}
 	p := Partner{SharedByID: uid, SharedWithID: b.SharedUserId}
@@ -390,7 +390,7 @@ func (a *App) handleSharedLinkUpdate(c *gin.Context) {
 	id := c.Param("id")
 	var link SharedLink
 	if err := a.store.DB.First(&link, "id = ? AND user_id = ?", id, uid).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found"})
 		return
 	}
 	var b sharedLinkBody
@@ -429,7 +429,7 @@ func (a *App) handleSharedLinkGet(c *gin.Context) {
 	id := c.Param("id")
 	var link SharedLink
 	if err := a.store.DB.First(&link, "id = ? AND user_id = ?", id, uid).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found"})
 		return
 	}
 	c.JSON(http.StatusOK, a.toSharedLinkResponse(&link))
@@ -477,7 +477,7 @@ func (a *App) handlePersonGet(c *gin.Context) {
 	id := c.Param("id")
 	var p Person
 	if err := a.store.DB.First(&p, "id = ?", id).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found"})
 		return
 	}
 	var total int64
@@ -520,7 +520,7 @@ func (a *App) handlePersonUpdate(c *gin.Context) {
 	id := c.Param("id")
 	var p Person
 	if err := a.store.DB.First(&p, "id = ?", id).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found"})
 		return
 	}
 	var b struct {
@@ -1059,7 +1059,7 @@ func (a *App) handleDownloadArchive(c *gin.Context) {
 		ids = b.AssetIDs
 	}
 	if len(ids) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "assetIds required"})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "assetIds required"})
 		return
 	}
 	c.Writer.Header().Set("Content-Type", "application/zip")

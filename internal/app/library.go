@@ -58,7 +58,7 @@ func (a *App) handleLibraryGet(c *gin.Context) {
 	id := c.Param("id")
 	var lib Library
 	if err := a.store.DB.First(&lib, "id = ? AND owner_id = ?", id, uid).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found"})
 		return
 	}
 	c.JSON(http.StatusOK, lib)
@@ -69,7 +69,7 @@ func (a *App) handleLibraryUpdate(c *gin.Context) {
 	id := c.Param("id")
 	var lib Library
 	if err := a.store.DB.First(&lib, "id = ? AND owner_id = ?", id, uid).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found"})
 		return
 	}
 	var b libraryBody
@@ -130,11 +130,11 @@ func (a *App) handleLibraryScan(c *gin.Context) {
 	id := c.Param("id")
 	var lib Library
 	if err := a.store.DB.First(&lib, "id = ? AND owner_id = ?", id, uid).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found"})
 		return
 	}
 	if lib.ImportPaths == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "library has no import paths"})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "library has no import paths"})
 		return
 	}
 
@@ -149,7 +149,7 @@ func (a *App) handleLibraryScan(c *gin.Context) {
 	a.store.DB.Save(&lib)
 
 	if scanErr != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": scanErr.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": scanErr.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
