@@ -1,0 +1,3217 @@
+{
+ "server-ping": {
+  "res": "pong"
+ },
+ "server-version": {
+  "major": 3,
+  "minor": 1,
+  "patch": 0,
+  "prerelease": null
+ },
+ "server-features": {
+  "smartSearch": false,
+  "facialRecognition": false,
+  "duplicateDetection": false,
+  "map": true,
+  "reverseGeocoding": true,
+  "importFaces": false,
+  "sidecar": true,
+  "search": true,
+  "trash": true,
+  "oauth": false,
+  "oauthAutoLaunch": false,
+  "ocr": false,
+  "passwordLogin": true,
+  "configFile": false,
+  "email": false,
+  "realtimeTranscoding": false
+ },
+ "server-config": {
+  "loginPageMessage": "",
+  "trashDays": 30,
+  "userDeleteDelay": 7,
+  "oauthButtonText": "Login with OAuth",
+  "isInitialized": true,
+  "isOnboarded": false,
+  "externalDomain": "",
+  "publicUsers": true,
+  "mapDarkStyleUrl": "https://tiles.immich.cloud/v1/style/dark.json",
+  "mapLightStyleUrl": "https://tiles.immich.cloud/v1/style/light.json",
+  "maintenanceMode": false,
+  "minFaces": 3
+ },
+ "server-about": {
+  "message": "Authentication required"
+ },
+ "server-media-types": {
+  "video": [
+   ".3gp",
+   ".3gpp",
+   ".avi",
+   ".flv",
+   ".insv",
+   ".m2t",
+   ".m2ts",
+   ".m4v",
+   ".mkv",
+   ".mov",
+   ".mp4",
+   ".mpe",
+   ".mpeg",
+   ".mpg",
+   ".mts",
+   ".mxf",
+   ".ts",
+   ".vob",
+   ".webm",
+   ".wmv"
+  ],
+  "image": [
+   ".avif",
+   ".bmp",
+   ".gif",
+   ".jpeg",
+   ".jpg",
+   ".png",
+   ".webp",
+   ".3fr",
+   ".ari",
+   ".arw",
+   ".cap",
+   ".cin",
+   ".cr2",
+   ".cr3",
+   ".crw",
+   ".dcr",
+   ".dng",
+   ".erf",
+   ".fff",
+   ".iiq",
+   ".k25",
+   ".kdc",
+   ".mrw",
+   ".nef",
+   ".nrw",
+   ".orf",
+   ".ori",
+   ".pef",
+   ".psd",
+   ".raf",
+   ".raw",
+   ".rw2",
+   ".rwl",
+   ".sr2",
+   ".srf",
+   ".srw",
+   ".x3f",
+   ".heic",
+   ".heif",
+   ".hif",
+   ".insp",
+   ".jp2",
+   ".jpe",
+   ".jxl",
+   ".mpo",
+   ".svg",
+   ".tif",
+   ".tiff"
+  ],
+  "sidecar": [
+   ".xmp"
+  ]
+ },
+ "server-theme": {
+  "message": "Cannot GET /api/server/theme"
+ },
+ "server-statistics": {
+  "message": "Authentication required"
+ },
+ "auth-admin-signup-dup": {
+  "message": "The server already has an admin"
+ },
+ "auth-login": {
+  "accessToken": "5C6Ii8zSCSUJWVhrzPAUsaS59iAau5O8qbjd7c0hDE",
+  "userId": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+  "userEmail": "admin@immich.app",
+  "name": "Administrator",
+  "isAdmin": true,
+  "profileImagePath": "",
+  "shouldChangePassword": true,
+  "isOnboarded": false
+ },
+ "auth-validate": {
+  "authStatus": true
+ },
+ "users-me": {
+  "id": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+  "email": "admin@immich.app",
+  "name": "Administrator",
+  "profileImagePath": "",
+  "avatarColor": "yellow",
+  "profileChangedAt": "2026-09-20T07:37:04.072Z",
+  "storageLabel": "admin",
+  "shouldChangePassword": true,
+  "isAdmin": true,
+  "createdAt": "2026-09-20T07:37:04.072Z",
+  "deletedAt": null,
+  "updatedAt": "2026-09-20T08:08:51.200Z",
+  "oauthId": "",
+  "quotaSizeInBytes": null,
+  "quotaUsageInBytes": 6358,
+  "status": "active",
+  "license": null
+ },
+ "users-me-preferences": {
+  "albums": {
+   "defaultAssetOrder": "desc"
+  },
+  "folders": {
+   "enabled": false,
+   "sidebarWeb": false
+  },
+  "memories": {
+   "enabled": false,
+   "duration": 1
+  },
+  "people": {
+   "enabled": false,
+   "sidebarWeb": false,
+   "minimumFaces": 1
+  },
+  "sharedLinks": {
+   "enabled": false,
+   "sidebarWeb": false
+  },
+  "ratings": {
+   "enabled": false
+  },
+  "tags": {
+   "enabled": false,
+   "sidebarWeb": false
+  },
+  "emailNotifications": {
+   "enabled": false,
+   "albumInvite": false,
+   "albumUpdate": false
+  },
+  "download": {
+   "archiveSize": 1,
+   "includeEmbeddedVideos": false
+  },
+  "purchase": {
+   "showSupportBadge": false,
+   "hideBuyButtonUntil": "probe"
+  },
+  "cast": {
+   "gCastEnabled": false
+  },
+  "recentlyAdded": {
+   "sidebarWeb": false
+  }
+ },
+ "users-me-preferences-put": {
+  "albums": {
+   "defaultAssetOrder": "desc"
+  },
+  "folders": {
+   "enabled": false,
+   "sidebarWeb": false
+  },
+  "memories": {
+   "enabled": false,
+   "duration": 1
+  },
+  "people": {
+   "enabled": false,
+   "sidebarWeb": false,
+   "minimumFaces": 1
+  },
+  "sharedLinks": {
+   "enabled": false,
+   "sidebarWeb": false
+  },
+  "ratings": {
+   "enabled": false
+  },
+  "tags": {
+   "enabled": true,
+   "sidebarWeb": false
+  },
+  "emailNotifications": {
+   "enabled": false,
+   "albumInvite": false,
+   "albumUpdate": false
+  },
+  "download": {
+   "archiveSize": 1,
+   "includeEmbeddedVideos": false
+  },
+  "purchase": {
+   "showSupportBadge": false,
+   "hideBuyButtonUntil": "probe"
+  },
+  "cast": {
+   "gCastEnabled": false
+  },
+  "recentlyAdded": {
+   "sidebarWeb": false
+  }
+ },
+ "users-me-statistics": {
+  "message": "Cannot GET /api/users/me/statistics"
+ },
+ "users-all": [
+  {
+   "id": "68849976-866d-418d-8c66-39a353ec4d73",
+   "email": "partner@immich.app",
+   "name": "Partner",
+   "profileImagePath": "",
+   "avatarColor": "purple",
+   "profileChangedAt": "2026-09-20T07:43:47.859Z"
+  },
+  {
+   "id": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+   "email": "admin@immich.app",
+   "name": "Administrator",
+   "profileImagePath": "",
+   "avatarColor": "yellow",
+   "profileChangedAt": "2026-09-20T07:37:04.072Z"
+  }
+ ],
+ "asset-upload": {
+  "status": "duplicate",
+  "id": "f071b539-3a22-4041-bfe8-f3ddd83b8fb7"
+ },
+ "asset-get": {
+  "id": "f071b539-3a22-4041-bfe8-f3ddd83b8fb7",
+  "createdAt": "2026-09-20T08:07:46.820Z",
+  "ownerId": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+  "owner": {
+   "id": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+   "email": "admin@immich.app",
+   "name": "Administrator",
+   "profileImagePath": "",
+   "avatarColor": "yellow",
+   "profileChangedAt": "2026-09-20T07:37:04.072431+00:00"
+  },
+  "libraryId": null,
+  "type": "IMAGE",
+  "originalPath": "/data/upload/f20326f0-8154-4ee4-8e29-c083b0f60ea8/2c/30/2c308385-3d69-49be-aef8-b70d1f773cce.png",
+  "originalFileName": "t1.png",
+  "originalMimeType": "image/png",
+  "thumbhash": "sBiGJQw6+YV4iHtj13CNhfd3B0eHeHB2SA==",
+  "fileCreatedAt": "2021-06-15T10:00:00.000Z",
+  "fileModifiedAt": "2021-06-15T10:00:00.000Z",
+  "localDateTime": "2021-06-15T10:00:00.000Z",
+  "updatedAt": "2026-09-20T08:07:47.086Z",
+  "isFavorite": false,
+  "isArchived": false,
+  "isTrashed": false,
+  "visibility": "timeline",
+  "duration": null,
+  "exifInfo": {
+   "make": null,
+   "model": null,
+   "exifImageWidth": 180,
+   "exifImageHeight": 180,
+   "fileSizeInByte": 6358,
+   "orientation": null,
+   "dateTimeOriginal": "2021-06-15T10:00:00+00:00",
+   "modifyDate": "2021-06-15T10:00:00+00:00",
+   "timeZone": null,
+   "lensModel": null,
+   "fNumber": null,
+   "focalLength": null,
+   "iso": null,
+   "exposureTime": null,
+   "latitude": null,
+   "longitude": null,
+   "city": null,
+   "state": null,
+   "country": null,
+   "description": "",
+   "projectionType": null,
+   "rating": null
+  },
+  "livePhotoVideoId": null,
+  "tags": [],
+  "people": [],
+  "checksum": "CDaMJyNOLqsy98A1tsW5jRvRMLU=",
+  "stack": null,
+  "isOffline": false,
+  "hasMetadata": true,
+  "duplicateId": null,
+  "resized": true,
+  "width": 180,
+  "height": 180,
+  "isEdited": false
+ },
+ "assets-get-all": {
+  "message": "Cannot GET /api/assets?withArchived=true"
+ },
+ "assets-by-device": {
+  "message": "Cannot GET /api/assets/device/probe-device"
+ },
+ "assets-random": {
+  "message": "Validation failed",
+  "errors": [
+   {
+    "origin": "string",
+    "code": "invalid_format",
+    "format": "uuid",
+    "pattern": "/^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$/",
+    "path": [
+     "id"
+    ],
+    "message": "Invalid UUID"
+   }
+  ]
+ },
+ "assets-statistics": {
+  "images": 3,
+  "videos": 0,
+  "total": 3
+ },
+ "timeline-buckets": [
+  {
+   "timeBucket": "2023-01-01",
+   "count": 1
+  },
+  {
+   "timeBucket": "2022-08-01",
+   "count": 1
+  },
+  {
+   "timeBucket": "2021-06-01",
+   "count": 1
+  }
+ ],
+ "timeline-bucket": {
+  "duration": [
+   null
+  ],
+  "id": [
+   "249041c1-7048-45db-a031-439763da7054"
+  ],
+  "visibility": [
+   "timeline"
+  ],
+  "isFavorite": [
+   false
+  ],
+  "isImage": [
+   true
+  ],
+  "isTrashed": [
+   false
+  ],
+  "livePhotoVideoId": [
+   null
+  ],
+  "fileCreatedAt": [
+   "2023-01-05T08:30:00"
+  ],
+  "localOffsetHours": [
+   0
+  ],
+  "createdAt": [
+   "2026-09-20T08:09:35.714622"
+  ],
+  "ownerId": [
+   "f20326f0-8154-4ee4-8e29-c083b0f60ea8"
+  ],
+  "projectionType": [
+   null
+  ],
+  "ratio": [
+   1
+  ],
+  "status": [
+   "active"
+  ],
+  "thumbhash": [
+   "ITmGTRgp7lR7mWA3toCdhfdnFxh2h4FAJw=="
+  ],
+  "city": [
+   null
+  ],
+  "country": [
+   null
+  ]
+ },
+ "timeline-bucket-explicit": {
+  "duration": [
+   null
+  ],
+  "id": [
+   "f071b539-3a22-4041-bfe8-f3ddd83b8fb7"
+  ],
+  "visibility": [
+   "timeline"
+  ],
+  "isFavorite": [
+   false
+  ],
+  "isImage": [
+   true
+  ],
+  "isTrashed": [
+   false
+  ],
+  "livePhotoVideoId": [
+   null
+  ],
+  "fileCreatedAt": [
+   "2021-06-15T10:00:00"
+  ],
+  "localOffsetHours": [
+   0
+  ],
+  "createdAt": [
+   "2026-09-20T08:07:46.820762"
+  ],
+  "ownerId": [
+   "f20326f0-8154-4ee4-8e29-c083b0f60ea8"
+  ],
+  "projectionType": [
+   null
+  ],
+  "ratio": [
+   1
+  ],
+  "status": [
+   "active"
+  ],
+  "thumbhash": [
+   "sBiGJQw6+YV4iHtj13CNhfd3B0eHeHB2SA=="
+  ],
+  "city": [
+   null
+  ],
+  "country": [
+   null
+  ]
+ },
+ "album-create": {
+  "albumName": "Probe Album",
+  "description": "created by probe",
+  "albumThumbnailAssetId": null,
+  "createdAt": "2026-09-20T08:09:35.819Z",
+  "updatedAt": "2026-09-20T08:09:35.819Z",
+  "id": "15fe73a9-1c08-45e1-88b3-76e5ce75f05e",
+  "albumUsers": [
+   {
+    "user": {
+     "id": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+     "email": "admin@immich.app",
+     "name": "Administrator",
+     "profileImagePath": "",
+     "avatarColor": "yellow",
+     "profileChangedAt": "2026-09-20T07:37:04.072431+00:00"
+    },
+    "role": "owner"
+   }
+  ],
+  "shared": false,
+  "hasSharedLink": false,
+  "assetCount": 0,
+  "isActivityEnabled": true,
+  "order": "desc"
+ },
+ "albums-list": [
+  {
+   "albumName": "Probe Album",
+   "description": "created by probe",
+   "albumThumbnailAssetId": null,
+   "createdAt": "2026-09-20T08:09:35.819Z",
+   "updatedAt": "2026-09-20T08:09:35.819Z",
+   "id": "15fe73a9-1c08-45e1-88b3-76e5ce75f05e",
+   "albumUsers": [
+    {
+     "user": {
+      "id": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+      "email": "admin@immich.app",
+      "name": "Administrator",
+      "profileImagePath": "",
+      "avatarColor": "yellow",
+      "profileChangedAt": "2026-09-20T07:37:04.072431+00:00"
+     },
+     "role": "owner"
+    }
+   ],
+   "shared": false,
+   "hasSharedLink": false,
+   "assetCount": 0,
+   "isActivityEnabled": true,
+   "order": "desc"
+  },
+  {
+   "albumName": "Probe Album renamed",
+   "description": "created by probe",
+   "albumThumbnailAssetId": null,
+   "createdAt": "2026-09-20T08:08:41.721Z",
+   "updatedAt": "2026-09-20T08:08:42.605Z",
+   "id": "fdfec6c8-0cdd-45b5-909c-1d79c143ee43",
+   "albumUsers": [
+    {
+     "user": {
+      "id": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+      "email": "admin@immich.app",
+      "name": "Administrator",
+      "profileImagePath": "",
+      "avatarColor": "yellow",
+      "profileChangedAt": "2026-09-20T07:37:04.072431+00:00"
+     },
+     "role": "owner"
+    }
+   ],
+   "shared": true,
+   "hasSharedLink": true,
+   "assetCount": 0,
+   "isActivityEnabled": true,
+   "order": "desc"
+  },
+  {
+   "albumName": "Probe Album renamed",
+   "description": "created by probe",
+   "albumThumbnailAssetId": null,
+   "createdAt": "2026-09-20T08:04:16.203Z",
+   "updatedAt": "2026-09-20T08:08:42.605Z",
+   "id": "8b4a42e7-9ccc-4a73-b0c2-add8424488e1",
+   "albumUsers": [
+    {
+     "user": {
+      "id": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+      "email": "admin@immich.app",
+      "name": "Administrator",
+      "profileImagePath": "",
+      "avatarColor": "yellow",
+      "profileChangedAt": "2026-09-20T07:37:04.072431+00:00"
+     },
+     "role": "owner"
+    }
+   ],
+   "shared": true,
+   "hasSharedLink": true,
+   "assetCount": 0,
+   "isActivityEnabled": true,
+   "order": "desc"
+  },
+  {
+   "albumName": "Probe Album renamed",
+   "description": "created by probe",
+   "albumThumbnailAssetId": null,
+   "createdAt": "2026-09-20T08:02:46.822Z",
+   "updatedAt": "2026-09-20T08:08:42.605Z",
+   "id": "09afbe65-3451-4ec6-9344-55f09a32cc02",
+   "albumUsers": [
+    {
+     "user": {
+      "id": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+      "email": "admin@immich.app",
+      "name": "Administrator",
+      "profileImagePath": "",
+      "avatarColor": "yellow",
+      "profileChangedAt": "2026-09-20T07:37:04.072431+00:00"
+     },
+     "role": "owner"
+    }
+   ],
+   "shared": true,
+   "hasSharedLink": true,
+   "assetCount": 0,
+   "isActivityEnabled": true,
+   "order": "desc"
+  },
+  {
+   "albumName": "Probe Album renamed",
+   "description": "created by probe",
+   "albumThumbnailAssetId": null,
+   "createdAt": "2026-09-20T07:56:28.027Z",
+   "updatedAt": "2026-09-20T08:08:42.605Z",
+   "id": "377607bb-4dc7-4c34-aef9-3337bfd5acc1",
+   "albumUsers": [
+    {
+     "user": {
+      "id": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+      "email": "admin@immich.app",
+      "name": "Administrator",
+      "profileImagePath": "",
+      "avatarColor": "yellow",
+      "profileChangedAt": "2026-09-20T07:37:04.072431+00:00"
+     },
+     "role": "owner"
+    }
+   ],
+   "shared": true,
+   "hasSharedLink": true,
+   "assetCount": 0,
+   "isActivityEnabled": true,
+   "order": "desc"
+  },
+  {
+   "albumName": "Probe Album renamed",
+   "description": "created by probe",
+   "albumThumbnailAssetId": null,
+   "createdAt": "2026-09-20T07:56:02.037Z",
+   "updatedAt": "2026-09-20T08:08:42.605Z",
+   "id": "602597b2-3f38-4734-9df1-3230f9108a0b",
+   "albumUsers": [
+    {
+     "user": {
+      "id": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+      "email": "admin@immich.app",
+      "name": "Administrator",
+      "profileImagePath": "",
+      "avatarColor": "yellow",
+      "profileChangedAt": "2026-09-20T07:37:04.072431+00:00"
+     },
+     "role": "owner"
+    }
+   ],
+   "shared": true,
+   "hasSharedLink": true,
+   "assetCount": 0,
+   "isActivityEnabled": true,
+   "order": "desc"
+  },
+  {
+   "albumName": "Probe Album renamed",
+   "description": "created by probe",
+   "albumThumbnailAssetId": null,
+   "createdAt": "2026-09-20T07:43:47.684Z",
+   "updatedAt": "2026-09-20T08:08:42.605Z",
+   "id": "a6be6d82-ea83-417c-b24a-c02f7283ef31",
+   "albumUsers": [
+    {
+     "user": {
+      "id": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+      "email": "admin@immich.app",
+      "name": "Administrator",
+      "profileImagePath": "",
+      "avatarColor": "yellow",
+      "profileChangedAt": "2026-09-20T07:37:04.072431+00:00"
+     },
+     "role": "owner"
+    }
+   ],
+   "shared": true,
+   "hasSharedLink": true,
+   "assetCount": 0,
+   "isActivityEnabled": true,
+   "order": "desc"
+  }
+ ],
+ "album-get": {
+  "albumName": "Probe Album",
+  "description": "created by probe",
+  "albumThumbnailAssetId": null,
+  "createdAt": "2026-09-20T08:09:35.819Z",
+  "updatedAt": "2026-09-20T08:09:35.819Z",
+  "id": "15fe73a9-1c08-45e1-88b3-76e5ce75f05e",
+  "albumUsers": [
+   {
+    "user": {
+     "id": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+     "email": "admin@immich.app",
+     "name": "Administrator",
+     "profileImagePath": "",
+     "avatarColor": "yellow",
+     "profileChangedAt": "2026-09-20T07:37:04.072431+00:00"
+    },
+    "role": "owner"
+   }
+  ],
+  "shared": false,
+  "hasSharedLink": false,
+  "assetCount": 0,
+  "isActivityEnabled": true,
+  "order": "desc"
+ },
+ "album-patch": {
+  "albumName": "Probe Album renamed",
+  "description": "created by probe",
+  "albumThumbnailAssetId": null,
+  "createdAt": "2026-09-20T08:09:35.819Z",
+  "updatedAt": "2026-09-20T08:09:35.839Z",
+  "id": "15fe73a9-1c08-45e1-88b3-76e5ce75f05e",
+  "albumUsers": [
+   {
+    "user": {
+     "id": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+     "email": "admin@immich.app",
+     "name": "Administrator",
+     "profileImagePath": "",
+     "avatarColor": "yellow",
+     "profileChangedAt": "2026-09-20T07:37:04.072431+00:00"
+    },
+    "role": "owner"
+   }
+  ],
+  "shared": false,
+  "hasSharedLink": false,
+  "assetCount": 0,
+  "isActivityEnabled": true,
+  "order": "desc"
+ },
+ "album-add-assets": [
+  {
+   "id": "f071b539-3a22-4041-bfe8-f3ddd83b8fb7",
+   "success": true
+  },
+  {
+   "id": "607f2ea5-7669-4880-9dfe-ca85170f3cf7",
+   "success": true
+  }
+ ],
+ "album-assets": {
+  "message": "Cannot GET /api/albums/15fe73a9-1c08-45e1-88b3-76e5ce75f05e/assets"
+ },
+ "albums-bulk-add": {
+  "success": true
+ },
+ "albums-statistics": {
+  "owned": 7,
+  "shared": 6,
+  "notShared": 1
+ },
+ "album-statistics": {
+  "message": "Cannot GET /api/albums/15fe73a9-1c08-45e1-88b3-76e5ce75f05e/statistics"
+ },
+ "activities-list": [],
+ "activity-create": {
+  "message": "Validation failed",
+  "errors": [
+   {
+    "code": "invalid_value",
+    "values": [
+     "comment",
+     "like"
+    ],
+    "path": [
+     "type"
+    ],
+    "message": "Invalid option: expected one of \"comment\"|\"like\""
+   }
+  ]
+ },
+ "activities-statistics": {
+  "comments": 0,
+  "likes": 0
+ },
+ "tag-create": {
+  "message": "A tag with that name already exists"
+ },
+ "tags-list": [
+  {
+   "id": "8c830806-77bf-434f-a51b-02df4e5a9a6c",
+   "name": "Tag",
+   "value": "Probe/Tag",
+   "createdAt": "2026-09-20T08:08:41.791Z",
+   "updatedAt": "2026-09-20T08:08:41.791Z",
+   "color": "#ff0000"
+  }
+ ],
+ "memory-create": {
+  "id": "ab4cd55a-3fbc-46c0-bdf3-ef421c64facc",
+  "createdAt": "2026-09-20T08:09:35.885Z",
+  "updatedAt": "2026-09-20T08:09:35.885Z",
+  "memoryAt": "2021-06-15T09:00:00.000Z",
+  "ownerId": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+  "type": "on_this_day",
+  "data": {
+   "year": 2021
+  },
+  "isSaved": false,
+  "assets": [
+   {
+    "id": "f071b539-3a22-4041-bfe8-f3ddd83b8fb7",
+    "createdAt": "2026-09-20T08:07:46.820762+00:00",
+    "ownerId": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+    "libraryId": null,
+    "type": "IMAGE",
+    "originalPath": "/data/upload/f20326f0-8154-4ee4-8e29-c083b0f60ea8/2c/30/2c308385-3d69-49be-aef8-b70d1f773cce.png",
+    "originalFileName": "t1.png",
+    "originalMimeType": "image/png",
+    "thumbhash": "sBiGJQw6+YV4iHtj13CNhfd3B0eHeHB2SA==",
+    "fileCreatedAt": "2021-06-15T10:00:00+00:00",
+    "fileModifiedAt": "2021-06-15T10:00:00+00:00",
+    "localDateTime": "2021-06-15T10:00:00+00:00",
+    "updatedAt": "2026-09-20T08:07:47.086579+00:00",
+    "isFavorite": false,
+    "isArchived": false,
+    "isTrashed": false,
+    "visibility": "timeline",
+    "duration": null,
+    "livePhotoVideoId": null,
+    "people": [],
+    "checksum": "CDaMJyNOLqsy98A1tsW5jRvRMLU=",
+    "isOffline": false,
+    "hasMetadata": true,
+    "duplicateId": null,
+    "resized": true,
+    "width": 180,
+    "height": 180,
+    "isEdited": false
+   }
+  ]
+ },
+ "memories-list": [
+  {
+   "id": "ab4cd55a-3fbc-46c0-bdf3-ef421c64facc",
+   "createdAt": "2026-09-20T08:09:35.885Z",
+   "updatedAt": "2026-09-20T08:09:35.885Z",
+   "memoryAt": "2021-06-15T09:00:00.000Z",
+   "ownerId": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+   "type": "on_this_day",
+   "data": {
+    "year": 2021
+   },
+   "isSaved": false,
+   "assets": [
+    {
+     "id": "f071b539-3a22-4041-bfe8-f3ddd83b8fb7",
+     "createdAt": "2026-09-20T08:07:46.820762+00:00",
+     "ownerId": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+     "libraryId": null,
+     "type": "IMAGE",
+     "originalPath": "/data/upload/f20326f0-8154-4ee4-8e29-c083b0f60ea8/2c/30/2c308385-3d69-49be-aef8-b70d1f773cce.png",
+     "originalFileName": "t1.png",
+     "originalMimeType": "image/png",
+     "thumbhash": "sBiGJQw6+YV4iHtj13CNhfd3B0eHeHB2SA==",
+     "fileCreatedAt": "2021-06-15T10:00:00+00:00",
+     "fileModifiedAt": "2021-06-15T10:00:00+00:00",
+     "localDateTime": "2021-06-15T10:00:00+00:00",
+     "updatedAt": "2026-09-20T08:07:47.086579+00:00",
+     "isFavorite": false,
+     "isArchived": false,
+     "isTrashed": false,
+     "visibility": "timeline",
+     "duration": null,
+     "livePhotoVideoId": null,
+     "people": [],
+     "checksum": "CDaMJyNOLqsy98A1tsW5jRvRMLU=",
+     "isOffline": false,
+     "hasMetadata": true,
+     "duplicateId": null,
+     "resized": true,
+     "width": 180,
+     "height": 180,
+     "isEdited": false
+    }
+   ]
+  }
+ ],
+ "memory-get": {
+  "id": "ab4cd55a-3fbc-46c0-bdf3-ef421c64facc",
+  "createdAt": "2026-09-20T08:09:35.885Z",
+  "updatedAt": "2026-09-20T08:09:35.885Z",
+  "memoryAt": "2021-06-15T09:00:00.000Z",
+  "ownerId": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+  "type": "on_this_day",
+  "data": {
+   "year": 2021
+  },
+  "isSaved": false,
+  "assets": [
+   {
+    "id": "f071b539-3a22-4041-bfe8-f3ddd83b8fb7",
+    "createdAt": "2026-09-20T08:07:46.820762+00:00",
+    "ownerId": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+    "libraryId": null,
+    "type": "IMAGE",
+    "originalPath": "/data/upload/f20326f0-8154-4ee4-8e29-c083b0f60ea8/2c/30/2c308385-3d69-49be-aef8-b70d1f773cce.png",
+    "originalFileName": "t1.png",
+    "originalMimeType": "image/png",
+    "thumbhash": "sBiGJQw6+YV4iHtj13CNhfd3B0eHeHB2SA==",
+    "fileCreatedAt": "2021-06-15T10:00:00+00:00",
+    "fileModifiedAt": "2021-06-15T10:00:00+00:00",
+    "localDateTime": "2021-06-15T10:00:00+00:00",
+    "updatedAt": "2026-09-20T08:07:47.086579+00:00",
+    "isFavorite": false,
+    "isArchived": false,
+    "isTrashed": false,
+    "visibility": "timeline",
+    "duration": null,
+    "livePhotoVideoId": null,
+    "people": [],
+    "checksum": "CDaMJyNOLqsy98A1tsW5jRvRMLU=",
+    "isOffline": false,
+    "hasMetadata": true,
+    "duplicateId": null,
+    "resized": true,
+    "width": 180,
+    "height": 180,
+    "isEdited": false
+   }
+  ]
+ },
+ "memory-update": {
+  "id": "ab4cd55a-3fbc-46c0-bdf3-ef421c64facc",
+  "createdAt": "2026-09-20T08:09:35.885Z",
+  "updatedAt": "2026-09-20T08:09:35.903Z",
+  "memoryAt": "2021-06-15T09:00:00.000Z",
+  "ownerId": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+  "type": "on_this_day",
+  "data": {
+   "year": 2021
+  },
+  "isSaved": true,
+  "assets": [
+   {
+    "id": "f071b539-3a22-4041-bfe8-f3ddd83b8fb7",
+    "createdAt": "2026-09-20T08:07:46.820762+00:00",
+    "ownerId": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+    "libraryId": null,
+    "type": "IMAGE",
+    "originalPath": "/data/upload/f20326f0-8154-4ee4-8e29-c083b0f60ea8/2c/30/2c308385-3d69-49be-aef8-b70d1f773cce.png",
+    "originalFileName": "t1.png",
+    "originalMimeType": "image/png",
+    "thumbhash": "sBiGJQw6+YV4iHtj13CNhfd3B0eHeHB2SA==",
+    "fileCreatedAt": "2021-06-15T10:00:00+00:00",
+    "fileModifiedAt": "2021-06-15T10:00:00+00:00",
+    "localDateTime": "2021-06-15T10:00:00+00:00",
+    "updatedAt": "2026-09-20T08:07:47.086579+00:00",
+    "isFavorite": false,
+    "isArchived": false,
+    "isTrashed": false,
+    "visibility": "timeline",
+    "duration": null,
+    "livePhotoVideoId": null,
+    "people": [],
+    "checksum": "CDaMJyNOLqsy98A1tsW5jRvRMLU=",
+    "isOffline": false,
+    "hasMetadata": true,
+    "duplicateId": null,
+    "resized": true,
+    "width": 180,
+    "height": 180,
+    "isEdited": false
+   }
+  ]
+ },
+ "memory-add-assets": [
+  {
+   "id": "607f2ea5-7669-4880-9dfe-ca85170f3cf7",
+   "success": true
+  }
+ ],
+ "stack-create": {
+  "id": "f2a7eb2c-6378-44f8-99fe-f4cb23e6016e",
+  "primaryAssetId": "f071b539-3a22-4041-bfe8-f3ddd83b8fb7",
+  "assets": [
+   {
+    "id": "f071b539-3a22-4041-bfe8-f3ddd83b8fb7",
+    "createdAt": "2026-09-20T08:07:46.820762+00:00",
+    "ownerId": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+    "libraryId": null,
+    "type": "IMAGE",
+    "originalPath": "/data/upload/f20326f0-8154-4ee4-8e29-c083b0f60ea8/2c/30/2c308385-3d69-49be-aef8-b70d1f773cce.png",
+    "originalFileName": "t1.png",
+    "originalMimeType": "image/png",
+    "thumbhash": "sBiGJQw6+YV4iHtj13CNhfd3B0eHeHB2SA==",
+    "fileCreatedAt": "2021-06-15T10:00:00+00:00",
+    "fileModifiedAt": "2021-06-15T10:00:00+00:00",
+    "localDateTime": "2021-06-15T10:00:00+00:00",
+    "updatedAt": "2026-09-20T08:09:35.920565+00:00",
+    "isFavorite": false,
+    "isArchived": false,
+    "isTrashed": false,
+    "visibility": "timeline",
+    "duration": null,
+    "exifInfo": {
+     "make": null,
+     "model": null,
+     "exifImageWidth": 180,
+     "exifImageHeight": 180,
+     "fileSizeInByte": 6358,
+     "orientation": null,
+     "dateTimeOriginal": "2021-06-15T10:00:00+00:00",
+     "modifyDate": "2021-06-15T10:00:00+00:00",
+     "timeZone": null,
+     "lensModel": null,
+     "fNumber": null,
+     "focalLength": null,
+     "iso": null,
+     "exposureTime": null,
+     "latitude": null,
+     "longitude": null,
+     "city": null,
+     "state": null,
+     "country": null,
+     "description": "",
+     "projectionType": null,
+     "rating": null
+    },
+    "livePhotoVideoId": null,
+    "people": [],
+    "checksum": "CDaMJyNOLqsy98A1tsW5jRvRMLU=",
+    "isOffline": false,
+    "hasMetadata": true,
+    "duplicateId": null,
+    "resized": true,
+    "width": 180,
+    "height": 180,
+    "isEdited": false
+   },
+   {
+    "id": "249041c1-7048-45db-a031-439763da7054",
+    "createdAt": "2026-09-20T08:09:35.714622+00:00",
+    "ownerId": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+    "libraryId": null,
+    "type": "IMAGE",
+    "originalPath": "/data/upload/f20326f0-8154-4ee4-8e29-c083b0f60ea8/c2/ee/c2ee660e-ecff-4e9b-aa33-779e2704e647.png",
+    "originalFileName": "a3.png",
+    "originalMimeType": "image/png",
+    "thumbhash": "ITmGTRgp7lR7mWA3toCdhfdnFxh2h4FAJw==",
+    "fileCreatedAt": "2023-01-05T08:30:00+00:00",
+    "fileModifiedAt": "2023-01-05T08:30:00+00:00",
+    "localDateTime": "2023-01-05T08:30:00+00:00",
+    "updatedAt": "2026-09-20T08:09:35.920785+00:00",
+    "isFavorite": false,
+    "isArchived": false,
+    "isTrashed": false,
+    "visibility": "timeline",
+    "duration": null,
+    "exifInfo": {
+     "make": null,
+     "model": null,
+     "exifImageWidth": 96,
+     "exifImageHeight": 96,
+     "fileSizeInByte": 3446,
+     "orientation": null,
+     "dateTimeOriginal": "2023-01-05T08:30:00+00:00",
+     "modifyDate": "2023-01-05T08:30:00+00:00",
+     "timeZone": null,
+     "lensModel": null,
+     "fNumber": null,
+     "focalLength": null,
+     "iso": null,
+     "exposureTime": null,
+     "latitude": null,
+     "longitude": null,
+     "city": null,
+     "state": null,
+     "country": null,
+     "description": "",
+     "projectionType": null,
+     "rating": null
+    },
+    "livePhotoVideoId": null,
+    "people": [],
+    "checksum": "17Gv823WLwJhGONME0mShdnVNo4=",
+    "isOffline": false,
+    "hasMetadata": true,
+    "duplicateId": null,
+    "resized": true,
+    "width": 96,
+    "height": 96,
+    "isEdited": false
+   }
+  ]
+ },
+ "stacks-list": [
+  {
+   "id": "f2a7eb2c-6378-44f8-99fe-f4cb23e6016e",
+   "primaryAssetId": "f071b539-3a22-4041-bfe8-f3ddd83b8fb7",
+   "assets": [
+    {
+     "id": "f071b539-3a22-4041-bfe8-f3ddd83b8fb7",
+     "createdAt": "2026-09-20T08:07:46.820762+00:00",
+     "ownerId": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+     "libraryId": null,
+     "type": "IMAGE",
+     "originalPath": "/data/upload/f20326f0-8154-4ee4-8e29-c083b0f60ea8/2c/30/2c308385-3d69-49be-aef8-b70d1f773cce.png",
+     "originalFileName": "t1.png",
+     "originalMimeType": "image/png",
+     "thumbhash": "sBiGJQw6+YV4iHtj13CNhfd3B0eHeHB2SA==",
+     "fileCreatedAt": "2021-06-15T10:00:00+00:00",
+     "fileModifiedAt": "2021-06-15T10:00:00+00:00",
+     "localDateTime": "2021-06-15T10:00:00+00:00",
+     "updatedAt": "2026-09-20T08:09:35.920565+00:00",
+     "isFavorite": false,
+     "isArchived": false,
+     "isTrashed": false,
+     "visibility": "timeline",
+     "duration": null,
+     "exifInfo": {
+      "make": null,
+      "model": null,
+      "exifImageWidth": 180,
+      "exifImageHeight": 180,
+      "fileSizeInByte": 6358,
+      "orientation": null,
+      "dateTimeOriginal": "2021-06-15T10:00:00+00:00",
+      "modifyDate": "2021-06-15T10:00:00+00:00",
+      "timeZone": null,
+      "lensModel": null,
+      "fNumber": null,
+      "focalLength": null,
+      "iso": null,
+      "exposureTime": null,
+      "latitude": null,
+      "longitude": null,
+      "city": null,
+      "state": null,
+      "country": null,
+      "description": "",
+      "projectionType": null,
+      "rating": null
+     },
+     "livePhotoVideoId": null,
+     "people": [],
+     "checksum": "CDaMJyNOLqsy98A1tsW5jRvRMLU=",
+     "isOffline": false,
+     "hasMetadata": true,
+     "duplicateId": null,
+     "resized": true,
+     "width": 180,
+     "height": 180,
+     "isEdited": false
+    },
+    {
+     "id": "249041c1-7048-45db-a031-439763da7054",
+     "createdAt": "2026-09-20T08:09:35.714622+00:00",
+     "ownerId": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+     "libraryId": null,
+     "type": "IMAGE",
+     "originalPath": "/data/upload/f20326f0-8154-4ee4-8e29-c083b0f60ea8/c2/ee/c2ee660e-ecff-4e9b-aa33-779e2704e647.png",
+     "originalFileName": "a3.png",
+     "originalMimeType": "image/png",
+     "thumbhash": "ITmGTRgp7lR7mWA3toCdhfdnFxh2h4FAJw==",
+     "fileCreatedAt": "2023-01-05T08:30:00+00:00",
+     "fileModifiedAt": "2023-01-05T08:30:00+00:00",
+     "localDateTime": "2023-01-05T08:30:00+00:00",
+     "updatedAt": "2026-09-20T08:09:35.920785+00:00",
+     "isFavorite": false,
+     "isArchived": false,
+     "isTrashed": false,
+     "visibility": "timeline",
+     "duration": null,
+     "exifInfo": {
+      "make": null,
+      "model": null,
+      "exifImageWidth": 96,
+      "exifImageHeight": 96,
+      "fileSizeInByte": 3446,
+      "orientation": null,
+      "dateTimeOriginal": "2023-01-05T08:30:00+00:00",
+      "modifyDate": "2023-01-05T08:30:00+00:00",
+      "timeZone": null,
+      "lensModel": null,
+      "fNumber": null,
+      "focalLength": null,
+      "iso": null,
+      "exposureTime": null,
+      "latitude": null,
+      "longitude": null,
+      "city": null,
+      "state": null,
+      "country": null,
+      "description": "",
+      "projectionType": null,
+      "rating": null
+     },
+     "livePhotoVideoId": null,
+     "people": [],
+     "checksum": "17Gv823WLwJhGONME0mShdnVNo4=",
+     "isOffline": false,
+     "hasMetadata": true,
+     "duplicateId": null,
+     "resized": true,
+     "width": 96,
+     "height": 96,
+     "isEdited": false
+    }
+   ]
+  }
+ ],
+ "stack-get": {
+  "id": "f2a7eb2c-6378-44f8-99fe-f4cb23e6016e",
+  "primaryAssetId": "f071b539-3a22-4041-bfe8-f3ddd83b8fb7",
+  "assets": [
+   {
+    "id": "f071b539-3a22-4041-bfe8-f3ddd83b8fb7",
+    "createdAt": "2026-09-20T08:07:46.820762+00:00",
+    "ownerId": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+    "libraryId": null,
+    "type": "IMAGE",
+    "originalPath": "/data/upload/f20326f0-8154-4ee4-8e29-c083b0f60ea8/2c/30/2c308385-3d69-49be-aef8-b70d1f773cce.png",
+    "originalFileName": "t1.png",
+    "originalMimeType": "image/png",
+    "thumbhash": "sBiGJQw6+YV4iHtj13CNhfd3B0eHeHB2SA==",
+    "fileCreatedAt": "2021-06-15T10:00:00+00:00",
+    "fileModifiedAt": "2021-06-15T10:00:00+00:00",
+    "localDateTime": "2021-06-15T10:00:00+00:00",
+    "updatedAt": "2026-09-20T08:09:35.920565+00:00",
+    "isFavorite": false,
+    "isArchived": false,
+    "isTrashed": false,
+    "visibility": "timeline",
+    "duration": null,
+    "exifInfo": {
+     "make": null,
+     "model": null,
+     "exifImageWidth": 180,
+     "exifImageHeight": 180,
+     "fileSizeInByte": 6358,
+     "orientation": null,
+     "dateTimeOriginal": "2021-06-15T10:00:00+00:00",
+     "modifyDate": "2021-06-15T10:00:00+00:00",
+     "timeZone": null,
+     "lensModel": null,
+     "fNumber": null,
+     "focalLength": null,
+     "iso": null,
+     "exposureTime": null,
+     "latitude": null,
+     "longitude": null,
+     "city": null,
+     "state": null,
+     "country": null,
+     "description": "",
+     "projectionType": null,
+     "rating": null
+    },
+    "livePhotoVideoId": null,
+    "tags": [],
+    "people": [],
+    "checksum": "CDaMJyNOLqsy98A1tsW5jRvRMLU=",
+    "isOffline": false,
+    "hasMetadata": true,
+    "duplicateId": null,
+    "resized": true,
+    "width": 180,
+    "height": 180,
+    "isEdited": false
+   },
+   {
+    "id": "249041c1-7048-45db-a031-439763da7054",
+    "createdAt": "2026-09-20T08:09:35.714622+00:00",
+    "ownerId": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+    "libraryId": null,
+    "type": "IMAGE",
+    "originalPath": "/data/upload/f20326f0-8154-4ee4-8e29-c083b0f60ea8/c2/ee/c2ee660e-ecff-4e9b-aa33-779e2704e647.png",
+    "originalFileName": "a3.png",
+    "originalMimeType": "image/png",
+    "thumbhash": "ITmGTRgp7lR7mWA3toCdhfdnFxh2h4FAJw==",
+    "fileCreatedAt": "2023-01-05T08:30:00+00:00",
+    "fileModifiedAt": "2023-01-05T08:30:00+00:00",
+    "localDateTime": "2023-01-05T08:30:00+00:00",
+    "updatedAt": "2026-09-20T08:09:35.920785+00:00",
+    "isFavorite": false,
+    "isArchived": false,
+    "isTrashed": false,
+    "visibility": "timeline",
+    "duration": null,
+    "exifInfo": {
+     "make": null,
+     "model": null,
+     "exifImageWidth": 96,
+     "exifImageHeight": 96,
+     "fileSizeInByte": 3446,
+     "orientation": null,
+     "dateTimeOriginal": "2023-01-05T08:30:00+00:00",
+     "modifyDate": "2023-01-05T08:30:00+00:00",
+     "timeZone": null,
+     "lensModel": null,
+     "fNumber": null,
+     "focalLength": null,
+     "iso": null,
+     "exposureTime": null,
+     "latitude": null,
+     "longitude": null,
+     "city": null,
+     "state": null,
+     "country": null,
+     "description": "",
+     "projectionType": null,
+     "rating": null
+    },
+    "livePhotoVideoId": null,
+    "tags": [],
+    "people": [],
+    "checksum": "17Gv823WLwJhGONME0mShdnVNo4=",
+    "isOffline": false,
+    "hasMetadata": true,
+    "duplicateId": null,
+    "resized": true,
+    "width": 96,
+    "height": 96,
+    "isEdited": false
+   }
+  ]
+ },
+ "stack-update": {
+  "id": "f2a7eb2c-6378-44f8-99fe-f4cb23e6016e",
+  "primaryAssetId": "249041c1-7048-45db-a031-439763da7054",
+  "assets": [
+   {
+    "id": "249041c1-7048-45db-a031-439763da7054",
+    "createdAt": "2026-09-20T08:09:35.714622+00:00",
+    "ownerId": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+    "libraryId": null,
+    "type": "IMAGE",
+    "originalPath": "/data/upload/f20326f0-8154-4ee4-8e29-c083b0f60ea8/c2/ee/c2ee660e-ecff-4e9b-aa33-779e2704e647.png",
+    "originalFileName": "a3.png",
+    "originalMimeType": "image/png",
+    "thumbhash": "ITmGTRgp7lR7mWA3toCdhfdnFxh2h4FAJw==",
+    "fileCreatedAt": "2023-01-05T08:30:00+00:00",
+    "fileModifiedAt": "2023-01-05T08:30:00+00:00",
+    "localDateTime": "2023-01-05T08:30:00+00:00",
+    "updatedAt": "2026-09-20T08:09:35.920785+00:00",
+    "isFavorite": false,
+    "isArchived": false,
+    "isTrashed": false,
+    "visibility": "timeline",
+    "duration": null,
+    "exifInfo": {
+     "make": null,
+     "model": null,
+     "exifImageWidth": 96,
+     "exifImageHeight": 96,
+     "fileSizeInByte": 3446,
+     "orientation": null,
+     "dateTimeOriginal": "2023-01-05T08:30:00+00:00",
+     "modifyDate": "2023-01-05T08:30:00+00:00",
+     "timeZone": null,
+     "lensModel": null,
+     "fNumber": null,
+     "focalLength": null,
+     "iso": null,
+     "exposureTime": null,
+     "latitude": null,
+     "longitude": null,
+     "city": null,
+     "state": null,
+     "country": null,
+     "description": "",
+     "projectionType": null,
+     "rating": null
+    },
+    "livePhotoVideoId": null,
+    "tags": [],
+    "people": [],
+    "checksum": "17Gv823WLwJhGONME0mShdnVNo4=",
+    "isOffline": false,
+    "hasMetadata": true,
+    "duplicateId": null,
+    "resized": true,
+    "width": 96,
+    "height": 96,
+    "isEdited": false
+   },
+   {
+    "id": "f071b539-3a22-4041-bfe8-f3ddd83b8fb7",
+    "createdAt": "2026-09-20T08:07:46.820762+00:00",
+    "ownerId": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+    "libraryId": null,
+    "type": "IMAGE",
+    "originalPath": "/data/upload/f20326f0-8154-4ee4-8e29-c083b0f60ea8/2c/30/2c308385-3d69-49be-aef8-b70d1f773cce.png",
+    "originalFileName": "t1.png",
+    "originalMimeType": "image/png",
+    "thumbhash": "sBiGJQw6+YV4iHtj13CNhfd3B0eHeHB2SA==",
+    "fileCreatedAt": "2021-06-15T10:00:00+00:00",
+    "fileModifiedAt": "2021-06-15T10:00:00+00:00",
+    "localDateTime": "2021-06-15T10:00:00+00:00",
+    "updatedAt": "2026-09-20T08:09:35.920565+00:00",
+    "isFavorite": false,
+    "isArchived": false,
+    "isTrashed": false,
+    "visibility": "timeline",
+    "duration": null,
+    "exifInfo": {
+     "make": null,
+     "model": null,
+     "exifImageWidth": 180,
+     "exifImageHeight": 180,
+     "fileSizeInByte": 6358,
+     "orientation": null,
+     "dateTimeOriginal": "2021-06-15T10:00:00+00:00",
+     "modifyDate": "2021-06-15T10:00:00+00:00",
+     "timeZone": null,
+     "lensModel": null,
+     "fNumber": null,
+     "focalLength": null,
+     "iso": null,
+     "exposureTime": null,
+     "latitude": null,
+     "longitude": null,
+     "city": null,
+     "state": null,
+     "country": null,
+     "description": "",
+     "projectionType": null,
+     "rating": null
+    },
+    "livePhotoVideoId": null,
+    "tags": [],
+    "people": [],
+    "checksum": "CDaMJyNOLqsy98A1tsW5jRvRMLU=",
+    "isOffline": false,
+    "hasMetadata": true,
+    "duplicateId": null,
+    "resized": true,
+    "width": 180,
+    "height": 180,
+    "isEdited": false
+   }
+  ]
+ },
+ "admin-create-user": {
+  "message": "Email is not available"
+ },
+ "auth-login-partner": {
+  "accessToken": "mODITT7CJz2y11eCvfUewqItAv8WjOm4j44QrpKP8",
+  "userId": "68849976-866d-418d-8c66-39a353ec4d73",
+  "userEmail": "partner@immich.app",
+  "name": "Partner",
+  "isAdmin": false,
+  "profileImagePath": "",
+  "shouldChangePassword": false,
+  "isOnboarded": false
+ },
+ "partners-list": {
+  "message": "Validation failed",
+  "errors": [
+   {
+    "code": "invalid_value",
+    "values": [
+     "shared-by",
+     "shared-with"
+    ],
+    "path": [
+     "direction"
+    ],
+    "message": "Invalid option: expected one of \"shared-by\"|\"shared-with\""
+   }
+  ]
+ },
+ "partners-list-partner": {
+  "message": "Validation failed",
+  "errors": [
+   {
+    "code": "invalid_value",
+    "values": [
+     "shared-by",
+     "shared-with"
+    ],
+    "path": [
+     "direction"
+    ],
+    "message": "Invalid option: expected one of \"shared-by\"|\"shared-with\""
+   }
+  ]
+ },
+ "shared-link-create": {
+  "id": "f04f9364-5172-499e-b651-c1ec2e803357",
+  "description": "probe",
+  "password": null,
+  "userId": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+  "key": "hI17jx0Rj3OnUWZfBMC06aEFbwikrFcrSEGrhV1nnb8jXZXnr8XRWe5tXDOi97uwo-o",
+  "type": "ALBUM",
+  "createdAt": "2026-09-20T08:09:36.006Z",
+  "expiresAt": null,
+  "assets": [],
+  "allowUpload": false,
+  "allowDownload": true,
+  "showMetadata": true,
+  "slug": null
+ },
+ "shared-links-list": [
+  {
+   "id": "f04f9364-5172-499e-b651-c1ec2e803357",
+   "description": "probe",
+   "password": null,
+   "userId": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+   "key": "hI17jx0Rj3OnUWZfBMC06aEFbwikrFcrSEGrhV1nnb8jXZXnr8XRWe5tXDOi97uwo-o",
+   "type": "ALBUM",
+   "createdAt": "2026-09-20T08:09:36.006Z",
+   "expiresAt": null,
+   "assets": [],
+   "album": {
+    "albumName": "Probe Album renamed",
+    "description": "created by probe",
+    "albumThumbnailAssetId": "f071b539-3a22-4041-bfe8-f3ddd83b8fb7",
+    "createdAt": "2026-09-20T08:09:35.819736+00:00",
+    "updatedAt": "2026-09-20T08:09:35.86143+00:00",
+    "id": "15fe73a9-1c08-45e1-88b3-76e5ce75f05e",
+    "albumUsers": [],
+    "shared": true,
+    "hasSharedLink": true,
+    "assetCount": 0,
+    "isActivityEnabled": true,
+    "order": "desc"
+   },
+   "allowUpload": false,
+   "allowDownload": true,
+   "showMetadata": true,
+   "slug": null
+  },
+  {
+   "id": "7facefc1-c26c-40f2-bd83-cad126187721",
+   "description": "renamed",
+   "password": null,
+   "userId": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+   "key": "qEGZPifyHZmxivretoiJy2VsW0vGUQnEt3mTronJ0RaXespXyxExBPx1bIyNv964gJQ",
+   "type": "ALBUM",
+   "createdAt": "2026-09-20T08:08:41.892Z",
+   "expiresAt": null,
+   "assets": [],
+   "album": {
+    "albumName": "Probe Album renamed",
+    "description": "created by probe",
+    "albumThumbnailAssetId": null,
+    "createdAt": "2026-09-20T08:08:41.721324+00:00",
+    "updatedAt": "2026-09-20T08:08:42.605932+00:00",
+    "id": "fdfec6c8-0cdd-45b5-909c-1d79c143ee43",
+    "albumUsers": [],
+    "shared": true,
+    "hasSharedLink": true,
+    "assetCount": 0,
+    "isActivityEnabled": true,
+    "order": "desc"
+   },
+   "allowUpload": false,
+   "allowDownload": true,
+   "showMetadata": true,
+   "slug": null
+  },
+  {
+   "id": "7efc77e5-9c5d-4cd3-9680-1ab3965c0b05",
+   "description": "renamed",
+   "password": null,
+   "userId": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+   "key": "B0yPIpdBlesof_usH5QTp7NZ8Y3Oq3Uk-8gEvbiAliKEbdhstFQrbQ_1FlH12F5-mJ4",
+   "type": "ALBUM",
+   "createdAt": "2026-09-20T08:04:16.337Z",
+   "expiresAt": null,
+   "assets": [],
+   "album": {
+    "albumName": "Probe Album renamed",
+    "description": "created by probe",
+    "albumThumbnailAssetId": null,
+    "createdAt": "2026-09-20T08:04:16.203916+00:00",
+    "updatedAt": "2026-09-20T08:08:42.605924+00:00",
+    "id": "8b4a42e7-9ccc-4a73-b0c2-add8424488e1",
+    "albumUsers": [],
+    "shared": true,
+    "hasSharedLink": true,
+    "assetCount": 0,
+    "isActivityEnabled": true,
+    "order": "desc"
+   },
+   "allowUpload": false,
+   "allowDownload": true,
+   "showMetadata": true,
+   "slug": null
+  },
+  {
+   "id": "7ccdfb6a-ffa8-4761-aa06-bafc1e20832a",
+   "description": "renamed",
+   "password": null,
+   "userId": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+   "key": "JTbVcLeT0Q_Di59T3iF9QRrIk49xRY6LHD325tNHHVpin-Rh8E8OrlgSwiUgXq1fmpc",
+   "type": "ALBUM",
+   "createdAt": "2026-09-20T08:02:46.956Z",
+   "expiresAt": null,
+   "assets": [],
+   "album": {
+    "albumName": "Probe Album renamed",
+    "description": "created by probe",
+    "albumThumbnailAssetId": null,
+    "createdAt": "2026-09-20T08:02:46.822871+00:00",
+    "updatedAt": "2026-09-20T08:08:42.605917+00:00",
+    "id": "09afbe65-3451-4ec6-9344-55f09a32cc02",
+    "albumUsers": [],
+    "shared": true,
+    "hasSharedLink": true,
+    "assetCount": 0,
+    "isActivityEnabled": true,
+    "order": "desc"
+   },
+   "allowUpload": false,
+   "allowDownload": true,
+   "showMetadata": true,
+   "slug": null
+  },
+  {
+   "id": "89c44651-a78d-43cd-95ff-e4c680942632",
+   "description": "renamed",
+   "password": null,
+   "userId": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+   "key": "VuqL1L9puwQhVlHv6GMqfpQyYwg7EgbZ94v4uAlSPsUr6apo8bfPg8W7LfwlxiGBx-s",
+   "type": "ALBUM",
+   "createdAt": "2026-09-20T07:56:28.243Z",
+   "expiresAt": null,
+   "assets": [],
+   "album": {
+    "albumName": "Probe Album renamed",
+    "description": "created by probe",
+    "albumThumbnailAssetId": null,
+    "createdAt": "2026-09-20T07:56:28.02762+00:00",
+    "updatedAt": "2026-09-20T08:08:42.60591+00:00",
+    "id": "377607bb-4dc7-4c34-aef9-3337bfd5acc1",
+    "albumUsers": [],
+    "shared": true,
+    "hasSharedLink": true,
+    "assetCount": 0,
+    "isActivityEnabled": true,
+    "order": "desc"
+   },
+   "allowUpload": false,
+   "allowDownload": true,
+   "showMetadata": true,
+   "slug": null
+  },
+  {
+   "id": "d07cc662-3b72-4e90-8140-691f01bb2a4c",
+   "description": "renamed",
+   "password": null,
+   "userId": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+   "key": "Lnhd764f6EKZRi3QfnrT3MOxvZMkJSAh0ngOyNbBAm1EsoAY8MwLMcEUrtXMZ232vH4",
+   "type": "ALBUM",
+   "createdAt": "2026-09-20T07:56:02.237Z",
+   "expiresAt": null,
+   "assets": [],
+   "album": {
+    "albumName": "Probe Album renamed",
+    "description": "created by probe",
+    "albumThumbnailAssetId": null,
+    "createdAt": "2026-09-20T07:56:02.037505+00:00",
+    "updatedAt": "2026-09-20T08:08:42.6059+00:00",
+    "id": "602597b2-3f38-4734-9df1-3230f9108a0b",
+    "albumUsers": [],
+    "shared": true,
+    "hasSharedLink": true,
+    "assetCount": 0,
+    "isActivityEnabled": true,
+    "order": "desc"
+   },
+   "allowUpload": false,
+   "allowDownload": true,
+   "showMetadata": true,
+   "slug": null
+  },
+  {
+   "id": "74313dd7-10ce-4a08-9836-2f8c1147df2b",
+   "description": "renamed",
+   "password": null,
+   "userId": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+   "key": "Ralof1LodI3LeaUowy-Jn3OGbAte2y6rgZhiJ99KLdsrZ71qAH21IACSdG8NGuvJzCc",
+   "type": "ALBUM",
+   "createdAt": "2026-09-20T07:43:47.948Z",
+   "expiresAt": null,
+   "assets": [],
+   "album": {
+    "albumName": "Probe Album renamed",
+    "description": "created by probe",
+    "albumThumbnailAssetId": null,
+    "createdAt": "2026-09-20T07:43:47.684114+00:00",
+    "updatedAt": "2026-09-20T08:08:42.605846+00:00",
+    "id": "a6be6d82-ea83-417c-b24a-c02f7283ef31",
+    "albumUsers": [],
+    "shared": true,
+    "hasSharedLink": true,
+    "assetCount": 0,
+    "isActivityEnabled": true,
+    "order": "desc"
+   },
+   "allowUpload": false,
+   "allowDownload": true,
+   "showMetadata": true,
+   "slug": null
+  }
+ ],
+ "shared-link-get": {
+  "id": "f04f9364-5172-499e-b651-c1ec2e803357",
+  "description": "probe",
+  "password": null,
+  "userId": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+  "key": "hI17jx0Rj3OnUWZfBMC06aEFbwikrFcrSEGrhV1nnb8jXZXnr8XRWe5tXDOi97uwo-o",
+  "type": "ALBUM",
+  "createdAt": "2026-09-20T08:09:36.006Z",
+  "expiresAt": null,
+  "assets": [],
+  "album": {
+   "albumName": "Probe Album renamed",
+   "description": "created by probe",
+   "albumThumbnailAssetId": "f071b539-3a22-4041-bfe8-f3ddd83b8fb7",
+   "createdAt": "2026-09-20T08:09:35.819736+00:00",
+   "updatedAt": "2026-09-20T08:09:35.86143+00:00",
+   "id": "15fe73a9-1c08-45e1-88b3-76e5ce75f05e",
+   "albumUsers": [],
+   "shared": true,
+   "hasSharedLink": true,
+   "startDate": "2021-06-15T10:00:00+00:00",
+   "endDate": "2023-01-05T08:30:00+00:00",
+   "assetCount": 3,
+   "isActivityEnabled": true,
+   "order": "desc"
+  },
+  "allowUpload": false,
+  "allowDownload": true,
+  "showMetadata": true,
+  "slug": null
+ },
+ "shared-link-patch": {
+  "id": "f04f9364-5172-499e-b651-c1ec2e803357",
+  "description": "renamed",
+  "password": null,
+  "userId": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+  "key": "hI17jx0Rj3OnUWZfBMC06aEFbwikrFcrSEGrhV1nnb8jXZXnr8XRWe5tXDOi97uwo-o",
+  "type": "ALBUM",
+  "createdAt": "2026-09-20T08:09:36.006Z",
+  "expiresAt": null,
+  "assets": [],
+  "allowUpload": false,
+  "allowDownload": true,
+  "showMetadata": true,
+  "slug": null
+ },
+ "share-public": {
+  "message": "Cannot GET /api/share/hI17jx0Rj3OnUWZfBMC06aEFbwikrFcrSEGrhV1nnb8jXZXnr8XRWe5tXDOi97uwo-o"
+ },
+ "trash-list": {
+  "message": "Cannot GET /api/trash"
+ },
+ "trash-restore-assets": {
+  "message": "Cannot PUT /api/trash/restore/assets"
+ },
+ "search-metadata": {
+  "message": "Cannot GET /api/search/metadata?isFavorite=true"
+ },
+ "search-metadata-post": {
+  "albums": {
+   "total": 0,
+   "count": 0,
+   "items": [],
+   "facets": []
+  },
+  "assets": {
+   "total": 3,
+   "count": 3,
+   "items": [
+    {
+     "id": "249041c1-7048-45db-a031-439763da7054",
+     "createdAt": "2026-09-20T08:09:35.714Z",
+     "ownerId": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+     "libraryId": null,
+     "type": "IMAGE",
+     "originalPath": "/data/upload/f20326f0-8154-4ee4-8e29-c083b0f60ea8/c2/ee/c2ee660e-ecff-4e9b-aa33-779e2704e647.png",
+     "originalFileName": "a3.png",
+     "originalMimeType": "image/png",
+     "thumbhash": "ITmGTRgp7lR7mWA3toCdhfdnFxh2h4FAJw==",
+     "fileCreatedAt": "2023-01-05T08:30:00.000Z",
+     "fileModifiedAt": "2023-01-05T08:30:00.000Z",
+     "localDateTime": "2023-01-05T08:30:00.000Z",
+     "updatedAt": "2026-09-20T08:09:35.920Z",
+     "isFavorite": false,
+     "isArchived": false,
+     "isTrashed": false,
+     "visibility": "timeline",
+     "duration": null,
+     "livePhotoVideoId": null,
+     "people": [],
+     "checksum": "17Gv823WLwJhGONME0mShdnVNo4=",
+     "isOffline": false,
+     "hasMetadata": true,
+     "duplicateId": null,
+     "resized": true,
+     "width": 96,
+     "height": 96,
+     "isEdited": false
+    },
+    {
+     "id": "607f2ea5-7669-4880-9dfe-ca85170f3cf7",
+     "createdAt": "2026-09-20T08:09:35.694Z",
+     "ownerId": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+     "libraryId": null,
+     "type": "IMAGE",
+     "originalPath": "/data/upload/f20326f0-8154-4ee4-8e29-c083b0f60ea8/64/d1/64d1dd6b-15b8-45db-823a-239e2b6cd605.png",
+     "originalFileName": "a2.png",
+     "originalMimeType": "image/png",
+     "thumbhash": "ivcBBwAHBwiIiHeAeHh3CId4gH/4+IcP",
+     "fileCreatedAt": "2022-08-20T12:00:00.000Z",
+     "fileModifiedAt": "2022-08-20T12:00:00.000Z",
+     "localDateTime": "2022-08-20T12:00:00.000Z",
+     "updatedAt": "2026-09-20T08:09:35.806Z",
+     "isFavorite": true,
+     "isArchived": false,
+     "isTrashed": false,
+     "visibility": "timeline",
+     "duration": null,
+     "livePhotoVideoId": null,
+     "people": [],
+     "checksum": "3XAlMbhpIN1un1rscrfHmy3tpKI=",
+     "isOffline": false,
+     "hasMetadata": true,
+     "duplicateId": null,
+     "resized": true,
+     "width": 474,
+     "height": 474,
+     "isEdited": false
+    },
+    {
+     "id": "f071b539-3a22-4041-bfe8-f3ddd83b8fb7",
+     "createdAt": "2026-09-20T08:07:46.820Z",
+     "ownerId": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+     "libraryId": null,
+     "type": "IMAGE",
+     "originalPath": "/data/upload/f20326f0-8154-4ee4-8e29-c083b0f60ea8/2c/30/2c308385-3d69-49be-aef8-b70d1f773cce.png",
+     "originalFileName": "t1.png",
+     "originalMimeType": "image/png",
+     "thumbhash": "sBiGJQw6+YV4iHtj13CNhfd3B0eHeHB2SA==",
+     "fileCreatedAt": "2021-06-15T10:00:00.000Z",
+     "fileModifiedAt": "2021-06-15T10:00:00.000Z",
+     "localDateTime": "2021-06-15T10:00:00.000Z",
+     "updatedAt": "2026-09-20T08:09:35.920Z",
+     "isFavorite": false,
+     "isArchived": false,
+     "isTrashed": false,
+     "visibility": "timeline",
+     "duration": null,
+     "livePhotoVideoId": null,
+     "people": [],
+     "checksum": "CDaMJyNOLqsy98A1tsW5jRvRMLU=",
+     "isOffline": false,
+     "hasMetadata": true,
+     "duplicateId": null,
+     "resized": true,
+     "width": 180,
+     "height": 180,
+     "isEdited": false
+    }
+   ],
+   "facets": [],
+   "nextPage": null
+  }
+ },
+ "search-explore": [
+  {
+   "fieldName": "exifInfo.city",
+   "items": []
+  },
+  {
+   "fieldName": "createdAt",
+   "items": [
+    {
+     "value": "2026-09-20T08:09:35.694Z",
+     "data": {
+      "id": "607f2ea5-7669-4880-9dfe-ca85170f3cf7",
+      "createdAt": "2026-09-20T08:09:35.694Z",
+      "ownerId": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+      "libraryId": null,
+      "type": "IMAGE",
+      "originalPath": "/data/upload/f20326f0-8154-4ee4-8e29-c083b0f60ea8/64/d1/64d1dd6b-15b8-45db-823a-239e2b6cd605.png",
+      "originalFileName": "a2.png",
+      "originalMimeType": "image/png",
+      "thumbhash": "ivcBBwAHBwiIiHeAeHh3CId4gH/4+IcP",
+      "fileCreatedAt": "2022-08-20T12:00:00.000Z",
+      "fileModifiedAt": "2022-08-20T12:00:00.000Z",
+      "localDateTime": "2022-08-20T12:00:00.000Z",
+      "updatedAt": "2026-09-20T08:09:35.806Z",
+      "isFavorite": true,
+      "isArchived": false,
+      "isTrashed": false,
+      "visibility": "timeline",
+      "duration": null,
+      "exifInfo": {
+       "make": null,
+       "model": null,
+       "exifImageWidth": 474,
+       "exifImageHeight": 474,
+       "fileSizeInByte": 4988,
+       "orientation": null,
+       "dateTimeOriginal": "2022-08-20T12:00:00+00:00",
+       "modifyDate": "2022-08-20T12:00:00+00:00",
+       "timeZone": null,
+       "lensModel": null,
+       "fNumber": null,
+       "focalLength": null,
+       "iso": null,
+       "exposureTime": null,
+       "latitude": null,
+       "longitude": null,
+       "city": null,
+       "state": null,
+       "country": null,
+       "description": "",
+       "projectionType": null,
+       "rating": null
+      },
+      "livePhotoVideoId": null,
+      "tags": [],
+      "people": [],
+      "checksum": "3XAlMbhpIN1un1rscrfHmy3tpKI=",
+      "isOffline": false,
+      "hasMetadata": true,
+      "duplicateId": null,
+      "resized": true,
+      "width": 474,
+      "height": 474,
+      "isEdited": false
+     }
+    },
+    {
+     "value": "2026-09-20T08:07:46.820Z",
+     "data": {
+      "id": "f071b539-3a22-4041-bfe8-f3ddd83b8fb7",
+      "createdAt": "2026-09-20T08:07:46.820Z",
+      "ownerId": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+      "libraryId": null,
+      "type": "IMAGE",
+      "originalPath": "/data/upload/f20326f0-8154-4ee4-8e29-c083b0f60ea8/2c/30/2c308385-3d69-49be-aef8-b70d1f773cce.png",
+      "originalFileName": "t1.png",
+      "originalMimeType": "image/png",
+      "thumbhash": "sBiGJQw6+YV4iHtj13CNhfd3B0eHeHB2SA==",
+      "fileCreatedAt": "2021-06-15T10:00:00.000Z",
+      "fileModifiedAt": "2021-06-15T10:00:00.000Z",
+      "localDateTime": "2021-06-15T10:00:00.000Z",
+      "updatedAt": "2026-09-20T08:09:35.920Z",
+      "isFavorite": false,
+      "isArchived": false,
+      "isTrashed": false,
+      "visibility": "timeline",
+      "duration": null,
+      "exifInfo": {
+       "make": null,
+       "model": null,
+       "exifImageWidth": 180,
+       "exifImageHeight": 180,
+       "fileSizeInByte": 6358,
+       "orientation": null,
+       "dateTimeOriginal": "2021-06-15T10:00:00+00:00",
+       "modifyDate": "2021-06-15T10:00:00+00:00",
+       "timeZone": null,
+       "lensModel": null,
+       "fNumber": null,
+       "focalLength": null,
+       "iso": null,
+       "exposureTime": null,
+       "latitude": null,
+       "longitude": null,
+       "city": null,
+       "state": null,
+       "country": null,
+       "description": "",
+       "projectionType": null,
+       "rating": null
+      },
+      "livePhotoVideoId": null,
+      "tags": [],
+      "people": [],
+      "checksum": "CDaMJyNOLqsy98A1tsW5jRvRMLU=",
+      "isOffline": false,
+      "hasMetadata": true,
+      "duplicateId": null,
+      "resized": true,
+      "width": 180,
+      "height": 180,
+      "isEdited": false
+     }
+    },
+    {
+     "value": "2026-09-20T08:09:35.714Z",
+     "data": {
+      "id": "249041c1-7048-45db-a031-439763da7054",
+      "createdAt": "2026-09-20T08:09:35.714Z",
+      "ownerId": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+      "libraryId": null,
+      "type": "IMAGE",
+      "originalPath": "/data/upload/f20326f0-8154-4ee4-8e29-c083b0f60ea8/c2/ee/c2ee660e-ecff-4e9b-aa33-779e2704e647.png",
+      "originalFileName": "a3.png",
+      "originalMimeType": "image/png",
+      "thumbhash": "ITmGTRgp7lR7mWA3toCdhfdnFxh2h4FAJw==",
+      "fileCreatedAt": "2023-01-05T08:30:00.000Z",
+      "fileModifiedAt": "2023-01-05T08:30:00.000Z",
+      "localDateTime": "2023-01-05T08:30:00.000Z",
+      "updatedAt": "2026-09-20T08:09:36.048Z",
+      "isFavorite": false,
+      "isArchived": false,
+      "isTrashed": false,
+      "visibility": "timeline",
+      "duration": null,
+      "exifInfo": {
+       "make": null,
+       "model": null,
+       "exifImageWidth": 96,
+       "exifImageHeight": 96,
+       "fileSizeInByte": 3446,
+       "orientation": null,
+       "dateTimeOriginal": "2023-01-05T08:30:00+00:00",
+       "modifyDate": "2023-01-05T08:30:00+00:00",
+       "timeZone": null,
+       "lensModel": null,
+       "fNumber": null,
+       "focalLength": null,
+       "iso": null,
+       "exposureTime": null,
+       "latitude": null,
+       "longitude": null,
+       "city": null,
+       "state": null,
+       "country": null,
+       "description": "",
+       "projectionType": null,
+       "rating": null
+      },
+      "livePhotoVideoId": null,
+      "tags": [],
+      "people": [],
+      "checksum": "17Gv823WLwJhGONME0mShdnVNo4=",
+      "isOffline": false,
+      "hasMetadata": true,
+      "duplicateId": null,
+      "resized": true,
+      "width": 96,
+      "height": 96,
+      "isEdited": false
+     }
+    }
+   ]
+  }
+ ],
+ "search-suggestions": {
+  "message": "Validation failed",
+  "errors": [
+   {
+    "code": "invalid_value",
+    "values": [
+     "country",
+     "state",
+     "city",
+     "camera-make",
+     "camera-model",
+     "camera-lens-model"
+    ],
+    "path": [
+     "type"
+    ],
+    "message": "Invalid option: expected one of \"country\"|\"state\"|\"city\"|\"camera-make\"|\"camera-model\"|\"camera-lens-model\""
+   }
+  ]
+ },
+ "search-cities": [
+  {
+   "id": "249041c1-7048-45db-a031-439763da7054",
+   "createdAt": "2026-09-20T08:09:35.714Z",
+   "ownerId": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+   "libraryId": null,
+   "type": "IMAGE",
+   "originalPath": "/data/upload/f20326f0-8154-4ee4-8e29-c083b0f60ea8/c2/ee/c2ee660e-ecff-4e9b-aa33-779e2704e647.png",
+   "originalFileName": "a3.png",
+   "originalMimeType": "image/png",
+   "thumbhash": "ITmGTRgp7lR7mWA3toCdhfdnFxh2h4FAJw==",
+   "fileCreatedAt": "2023-01-05T08:30:00.000Z",
+   "fileModifiedAt": "2023-01-05T08:30:00.000Z",
+   "localDateTime": "2023-01-05T08:30:00.000Z",
+   "updatedAt": "2026-09-20T08:09:36.048Z",
+   "isFavorite": false,
+   "isArchived": false,
+   "isTrashed": false,
+   "visibility": "timeline",
+   "duration": null,
+   "exifInfo": {
+    "make": null,
+    "model": null,
+    "exifImageWidth": 96,
+    "exifImageHeight": 96,
+    "fileSizeInByte": 3446,
+    "orientation": null,
+    "dateTimeOriginal": "2023-01-05T08:30:00+00:00",
+    "modifyDate": "2023-01-05T08:30:00+00:00",
+    "timeZone": null,
+    "lensModel": null,
+    "fNumber": null,
+    "focalLength": null,
+    "iso": null,
+    "exposureTime": null,
+    "latitude": null,
+    "longitude": null,
+    "city": null,
+    "state": null,
+    "country": null,
+    "description": "",
+    "projectionType": null,
+    "rating": null
+   },
+   "livePhotoVideoId": null,
+   "people": [],
+   "checksum": "17Gv823WLwJhGONME0mShdnVNo4=",
+   "isOffline": false,
+   "hasMetadata": true,
+   "duplicateId": null,
+   "resized": true,
+   "width": 96,
+   "height": 96,
+   "isEdited": false
+  }
+ ],
+ "search-places": {
+  "message": "Cannot POST /api/search/places"
+ },
+ "map-markers": [],
+ "map-reverse-geocode": [
+  {
+   "country": "Japan",
+   "state": "Tokyo",
+   "city": "Tokyo"
+  }
+ ],
+ "jobs-all": {
+  "thumbnailGeneration": {
+   "queueStatus": {
+    "isPaused": false,
+    "isActive": false
+   },
+   "jobCounts": {
+    "active": 0,
+    "completed": 0,
+    "failed": 0,
+    "delayed": 0,
+    "waiting": 0,
+    "paused": 0
+   }
+  },
+  "metadataExtraction": {
+   "queueStatus": {
+    "isPaused": false,
+    "isActive": false
+   },
+   "jobCounts": {
+    "active": 0,
+    "completed": 0,
+    "failed": 0,
+    "delayed": 0,
+    "waiting": 0,
+    "paused": 0
+   }
+  },
+  "videoConversion": {
+   "queueStatus": {
+    "isPaused": false,
+    "isActive": false
+   },
+   "jobCounts": {
+    "active": 0,
+    "completed": 0,
+    "failed": 0,
+    "delayed": 0,
+    "waiting": 0,
+    "paused": 0
+   }
+  },
+  "faceDetection": {
+   "queueStatus": {
+    "isPaused": false,
+    "isActive": false
+   },
+   "jobCounts": {
+    "active": 0,
+    "completed": 0,
+    "failed": 0,
+    "delayed": 0,
+    "waiting": 0,
+    "paused": 0
+   }
+  },
+  "facialRecognition": {
+   "queueStatus": {
+    "isPaused": false,
+    "isActive": false
+   },
+   "jobCounts": {
+    "active": 0,
+    "completed": 0,
+    "failed": 0,
+    "delayed": 0,
+    "waiting": 0,
+    "paused": 0
+   }
+  },
+  "smartSearch": {
+   "queueStatus": {
+    "isPaused": false,
+    "isActive": false
+   },
+   "jobCounts": {
+    "active": 0,
+    "completed": 0,
+    "failed": 0,
+    "delayed": 0,
+    "waiting": 0,
+    "paused": 0
+   }
+  },
+  "duplicateDetection": {
+   "queueStatus": {
+    "isPaused": false,
+    "isActive": false
+   },
+   "jobCounts": {
+    "active": 0,
+    "completed": 0,
+    "failed": 0,
+    "delayed": 0,
+    "waiting": 0,
+    "paused": 0
+   }
+  },
+  "backgroundTask": {
+   "queueStatus": {
+    "isPaused": false,
+    "isActive": false
+   },
+   "jobCounts": {
+    "active": 0,
+    "completed": 0,
+    "failed": 0,
+    "delayed": 0,
+    "waiting": 0,
+    "paused": 0
+   }
+  },
+  "storageTemplateMigration": {
+   "queueStatus": {
+    "isPaused": false,
+    "isActive": false
+   },
+   "jobCounts": {
+    "active": 0,
+    "completed": 0,
+    "failed": 0,
+    "delayed": 0,
+    "waiting": 0,
+    "paused": 0
+   }
+  },
+  "migration": {
+   "queueStatus": {
+    "isPaused": false,
+    "isActive": false
+   },
+   "jobCounts": {
+    "active": 0,
+    "completed": 0,
+    "failed": 0,
+    "delayed": 0,
+    "waiting": 0,
+    "paused": 0
+   }
+  },
+  "search": {
+   "queueStatus": {
+    "isPaused": false,
+    "isActive": false
+   },
+   "jobCounts": {
+    "active": 0,
+    "completed": 0,
+    "failed": 0,
+    "delayed": 0,
+    "waiting": 0,
+    "paused": 0
+   }
+  },
+  "sidecar": {
+   "queueStatus": {
+    "isPaused": false,
+    "isActive": false
+   },
+   "jobCounts": {
+    "active": 0,
+    "completed": 0,
+    "failed": 0,
+    "delayed": 0,
+    "waiting": 0,
+    "paused": 0
+   }
+  },
+  "library": {
+   "queueStatus": {
+    "isPaused": false,
+    "isActive": false
+   },
+   "jobCounts": {
+    "active": 0,
+    "completed": 0,
+    "failed": 0,
+    "delayed": 0,
+    "waiting": 0,
+    "paused": 0
+   }
+  },
+  "notifications": {
+   "queueStatus": {
+    "isPaused": false,
+    "isActive": false
+   },
+   "jobCounts": {
+    "active": 0,
+    "completed": 0,
+    "failed": 0,
+    "delayed": 0,
+    "waiting": 0,
+    "paused": 0
+   }
+  },
+  "backupDatabase": {
+   "queueStatus": {
+    "isPaused": false,
+    "isActive": false
+   },
+   "jobCounts": {
+    "active": 0,
+    "completed": 0,
+    "failed": 0,
+    "delayed": 0,
+    "waiting": 0,
+    "paused": 0
+   }
+  },
+  "ocr": {
+   "queueStatus": {
+    "isPaused": false,
+    "isActive": false
+   },
+   "jobCounts": {
+    "active": 0,
+    "completed": 0,
+    "failed": 0,
+    "delayed": 0,
+    "waiting": 0,
+    "paused": 0
+   }
+  },
+  "workflow": {
+   "queueStatus": {
+    "isPaused": false,
+    "isActive": false
+   },
+   "jobCounts": {
+    "active": 0,
+    "completed": 0,
+    "failed": 0,
+    "delayed": 0,
+    "waiting": 0,
+    "paused": 0
+   }
+  },
+  "integrityCheck": {
+   "queueStatus": {
+    "isPaused": false,
+    "isActive": false
+   },
+   "jobCounts": {
+    "active": 0,
+    "completed": 0,
+    "failed": 0,
+    "delayed": 0,
+    "waiting": 0,
+    "paused": 0
+   }
+  },
+  "editor": {
+   "queueStatus": {
+    "isPaused": false,
+    "isActive": false
+   },
+   "jobCounts": {
+    "active": 0,
+    "completed": 0,
+    "failed": 0,
+    "delayed": 0,
+    "waiting": 0,
+    "paused": 0
+   }
+  }
+ },
+ "jobs-start": {
+  "queueStatus": {
+   "isPaused": false,
+   "isActive": false
+  },
+  "jobCounts": {
+   "active": 0,
+   "completed": 0,
+   "failed": 0,
+   "delayed": 0,
+   "waiting": 1,
+   "paused": 0
+  }
+ },
+ "system-config": {
+  "backup": {
+   "database": {
+    "enabled": true,
+    "cronExpression": "0 02 * * *",
+    "keepLastAmount": 14
+   }
+  },
+  "ffmpeg": {
+   "crf": 23,
+   "threads": 0,
+   "preset": "ultrafast",
+   "targetVideoCodec": "h264",
+   "acceptedVideoCodecs": [
+    "h264"
+   ],
+   "targetAudioCodec": "aac",
+   "acceptedAudioCodecs": [
+    "aac",
+    "mp3",
+    "opus"
+   ],
+   "acceptedContainers": [
+    "mov",
+    "ogg",
+    "webm"
+   ],
+   "targetResolution": "720",
+   "maxBitrate": "0",
+   "bframes": -1,
+   "refs": 0,
+   "gopSize": 0,
+   "temporalAQ": false,
+   "cqMode": "auto",
+   "twoPass": false,
+   "preferredHwDevice": "auto",
+   "transcode": "required",
+   "accel": "disabled",
+   "accelDecode": true,
+   "tonemap": "hable",
+   "realtime": {
+    "enabled": false,
+    "videoCodecs": [
+     "h264",
+     "hevc"
+    ],
+    "resolutions": [
+     480,
+     720,
+     1080
+    ]
+   }
+  },
+  "logging": {
+   "enabled": true,
+   "level": "log"
+  },
+  "machineLearning": {
+   "enabled": false,
+   "urls": [
+    "http://immich-machine-learning:3003"
+   ],
+   "availabilityChecks": {
+    "enabled": true,
+    "timeout": 2000,
+    "interval": 30000
+   },
+   "clip": {
+    "enabled": true,
+    "modelName": "ViT-B-32__openai"
+   },
+   "duplicateDetection": {
+    "enabled": true,
+    "maxDistance": 0.01
+   },
+   "facialRecognition": {
+    "enabled": true,
+    "modelName": "buffalo_l",
+    "minScore": 0.7,
+    "maxDistance": 0.5,
+    "minFaces": 3
+   },
+   "ocr": {
+    "enabled": true,
+    "modelName": "PP-OCRv5_mobile",
+    "maxResolution": 736,
+    "minDetectionScore": 0.5,
+    "minRecognitionScore": 0.8
+   }
+  },
+  "map": {
+   "enabled": true,
+   "lightStyle": "https://tiles.immich.cloud/v1/style/light.json",
+   "darkStyle": "https://tiles.immich.cloud/v1/style/dark.json"
+  },
+  "newVersionCheck": {
+   "enabled": true,
+   "channel": "stable"
+  },
+  "nightlyTasks": {
+   "startTime": "00:00",
+   "databaseCleanup": true,
+   "missingThumbnails": true,
+   "clusterNewFaces": true,
+   "generateMemories": true,
+   "syncQuotaUsage": true
+  },
+  "oauth": {
+   "autoLaunch": false,
+   "autoRegister": true,
+   "buttonText": "Login with OAuth",
+   "clientId": "",
+   "clientSecret": "",
+   "tokenEndpointAuthMethod": "client_secret_post",
+   "timeout": 30000,
+   "allowInsecureRequests": false,
+   "defaultStorageQuota": null,
+   "enabled": false,
+   "issuerUrl": "",
+   "scope": "openid email profile",
+   "prompt": "",
+   "endSessionEndpoint": "",
+   "signingAlgorithm": "RS256",
+   "profileSigningAlgorithm": "none",
+   "storageLabelClaim": "preferred_username",
+   "storageQuotaClaim": "immich_quota",
+   "roleClaim": "immich_role",
+   "mobileOverrideEnabled": false,
+   "mobileRedirectUri": ""
+  },
+  "passwordLogin": {
+   "enabled": true
+  },
+  "reverseGeocoding": {
+   "enabled": true
+  },
+  "metadata": {
+   "faces": {
+    "import": false
+   }
+  },
+  "storageTemplate": {
+   "enabled": false,
+   "hashVerificationEnabled": true,
+   "template": "{{y}}/{{y}}-{{MM}}-{{dd}}/{{filename}}"
+  },
+  "job": {
+   "thumbnailGeneration": {
+    "concurrency": 3
+   },
+   "metadataExtraction": {
+    "concurrency": 5
+   },
+   "videoConversion": {
+    "concurrency": 1
+   },
+   "faceDetection": {
+    "concurrency": 2
+   },
+   "smartSearch": {
+    "concurrency": 2
+   },
+   "backgroundTask": {
+    "concurrency": 5
+   },
+   "migration": {
+    "concurrency": 5
+   },
+   "search": {
+    "concurrency": 5
+   },
+   "sidecar": {
+    "concurrency": 5
+   },
+   "library": {
+    "concurrency": 5
+   },
+   "notifications": {
+    "concurrency": 5
+   },
+   "ocr": {
+    "concurrency": 1
+   },
+   "workflow": {
+    "concurrency": 5
+   },
+   "editor": {
+    "concurrency": 2
+   },
+   "integrityCheck": {
+    "concurrency": 1
+   }
+  },
+  "image": {
+   "thumbnail": {
+    "format": "webp",
+    "quality": 80,
+    "size": 250,
+    "progressive": false
+   },
+   "preview": {
+    "format": "jpeg",
+    "quality": 80,
+    "size": 1440,
+    "progressive": false
+   },
+   "fullsize": {
+    "enabled": false,
+    "format": "jpeg",
+    "quality": 80,
+    "progressive": false
+   },
+   "colorspace": "p3",
+   "extractEmbedded": false
+  },
+  "trash": {
+   "enabled": true,
+   "days": 30
+  },
+  "theme": {
+   "customCss": ""
+  },
+  "library": {
+   "scan": {
+    "enabled": true,
+    "cronExpression": "0 0 * * *"
+   },
+   "watch": {
+    "enabled": false
+   }
+  },
+  "notifications": {
+   "smtp": {
+    "enabled": false,
+    "from": "",
+    "replyTo": "",
+    "transport": {
+     "ignoreCert": false,
+     "host": "",
+     "port": 587,
+     "secure": false,
+     "username": "",
+     "password": ""
+    }
+   }
+  },
+  "templates": {
+   "email": {
+    "albumInviteTemplate": "",
+    "welcomeTemplate": "",
+    "albumUpdateTemplate": ""
+   }
+  },
+  "server": {
+   "externalDomain": "",
+   "loginPageMessage": "",
+   "publicUsers": true
+  },
+  "user": {
+   "deleteDelay": 7
+  },
+  "integrityChecks": {
+   "missingFiles": {
+    "enabled": true,
+    "cronExpression": "0 03 * * *"
+   },
+   "untrackedFiles": {
+    "enabled": true,
+    "cronExpression": "0 03 * * *"
+   },
+   "checksumFiles": {
+    "enabled": true,
+    "cronExpression": "0 03 * * *",
+    "timeLimit": 3600000,
+    "percentageLimit": 1
+   }
+  }
+ },
+ "system-config-defaults": {
+  "backup": {
+   "database": {
+    "enabled": true,
+    "cronExpression": "0 02 * * *",
+    "keepLastAmount": 14
+   }
+  },
+  "ffmpeg": {
+   "crf": 23,
+   "threads": 0,
+   "preset": "ultrafast",
+   "targetVideoCodec": "h264",
+   "acceptedVideoCodecs": [
+    "h264"
+   ],
+   "targetAudioCodec": "aac",
+   "acceptedAudioCodecs": [
+    "aac",
+    "mp3",
+    "opus"
+   ],
+   "acceptedContainers": [
+    "mov",
+    "ogg",
+    "webm"
+   ],
+   "targetResolution": "720",
+   "maxBitrate": "0",
+   "bframes": -1,
+   "refs": 0,
+   "gopSize": 0,
+   "temporalAQ": false,
+   "cqMode": "auto",
+   "twoPass": false,
+   "preferredHwDevice": "auto",
+   "transcode": "required",
+   "tonemap": "hable",
+   "accel": "disabled",
+   "accelDecode": true,
+   "realtime": {
+    "enabled": false,
+    "videoCodecs": [
+     "h264",
+     "hevc"
+    ],
+    "resolutions": [
+     480,
+     720,
+     1080
+    ]
+   }
+  },
+  "integrityChecks": {
+   "missingFiles": {
+    "enabled": true,
+    "cronExpression": "0 03 * * *"
+   },
+   "untrackedFiles": {
+    "enabled": true,
+    "cronExpression": "0 03 * * *"
+   },
+   "checksumFiles": {
+    "enabled": true,
+    "cronExpression": "0 03 * * *",
+    "timeLimit": 3600000,
+    "percentageLimit": 1
+   }
+  },
+  "job": {
+   "backgroundTask": {
+    "concurrency": 5
+   },
+   "smartSearch": {
+    "concurrency": 2
+   },
+   "metadataExtraction": {
+    "concurrency": 5
+   },
+   "faceDetection": {
+    "concurrency": 2
+   },
+   "search": {
+    "concurrency": 5
+   },
+   "sidecar": {
+    "concurrency": 5
+   },
+   "library": {
+    "concurrency": 5
+   },
+   "migration": {
+    "concurrency": 5
+   },
+   "thumbnailGeneration": {
+    "concurrency": 3
+   },
+   "videoConversion": {
+    "concurrency": 1
+   },
+   "notifications": {
+    "concurrency": 5
+   },
+   "ocr": {
+    "concurrency": 1
+   },
+   "workflow": {
+    "concurrency": 5
+   },
+   "integrityCheck": {
+    "concurrency": 1
+   },
+   "editor": {
+    "concurrency": 2
+   }
+  },
+  "logging": {
+   "enabled": true,
+   "level": "log"
+  },
+  "machineLearning": {
+   "enabled": false,
+   "urls": [
+    "http://immich-machine-learning:3003"
+   ],
+   "availabilityChecks": {
+    "enabled": true,
+    "timeout": 2000,
+    "interval": 30000
+   },
+   "clip": {
+    "enabled": true,
+    "modelName": "ViT-B-32__openai"
+   },
+   "duplicateDetection": {
+    "enabled": true,
+    "maxDistance": 0.01
+   },
+   "facialRecognition": {
+    "enabled": true,
+    "modelName": "buffalo_l",
+    "minScore": 0.7,
+    "maxDistance": 0.5,
+    "minFaces": 3
+   },
+   "ocr": {
+    "enabled": true,
+    "modelName": "PP-OCRv5_mobile",
+    "minDetectionScore": 0.5,
+    "minRecognitionScore": 0.8,
+    "maxResolution": 736
+   }
+  },
+  "map": {
+   "enabled": true,
+   "lightStyle": "https://tiles.immich.cloud/v1/style/light.json",
+   "darkStyle": "https://tiles.immich.cloud/v1/style/dark.json"
+  },
+  "reverseGeocoding": {
+   "enabled": true
+  },
+  "metadata": {
+   "faces": {
+    "import": false
+   }
+  },
+  "oauth": {
+   "autoLaunch": false,
+   "autoRegister": true,
+   "buttonText": "Login with OAuth",
+   "clientId": "",
+   "clientSecret": "",
+   "defaultStorageQuota": null,
+   "enabled": false,
+   "issuerUrl": "",
+   "endSessionEndpoint": "",
+   "mobileOverrideEnabled": false,
+   "mobileRedirectUri": "",
+   "prompt": "",
+   "scope": "openid email profile",
+   "signingAlgorithm": "RS256",
+   "profileSigningAlgorithm": "none",
+   "storageLabelClaim": "preferred_username",
+   "storageQuotaClaim": "immich_quota",
+   "roleClaim": "immich_role",
+   "tokenEndpointAuthMethod": "client_secret_post",
+   "timeout": 30000,
+   "allowInsecureRequests": false
+  },
+  "passwordLogin": {
+   "enabled": true
+  },
+  "storageTemplate": {
+   "enabled": false,
+   "hashVerificationEnabled": true,
+   "template": "{{y}}/{{y}}-{{MM}}-{{dd}}/{{filename}}"
+  },
+  "image": {
+   "thumbnail": {
+    "format": "webp",
+    "size": 250,
+    "quality": 80,
+    "progressive": false
+   },
+   "preview": {
+    "format": "jpeg",
+    "size": 1440,
+    "quality": 80,
+    "progressive": false
+   },
+   "colorspace": "p3",
+   "extractEmbedded": false,
+   "fullsize": {
+    "enabled": false,
+    "format": "jpeg",
+    "quality": 80,
+    "progressive": false
+   }
+  },
+  "newVersionCheck": {
+   "enabled": true,
+   "channel": "stable"
+  },
+  "nightlyTasks": {
+   "startTime": "00:00",
+   "databaseCleanup": true,
+   "generateMemories": true,
+   "syncQuotaUsage": true,
+   "missingThumbnails": true,
+   "clusterNewFaces": true
+  },
+  "trash": {
+   "enabled": true,
+   "days": 30
+  },
+  "theme": {
+   "customCss": ""
+  },
+  "library": {
+   "scan": {
+    "enabled": true,
+    "cronExpression": "0 0 * * *"
+   },
+   "watch": {
+    "enabled": false
+   }
+  },
+  "server": {
+   "externalDomain": "",
+   "loginPageMessage": "",
+   "publicUsers": true
+  },
+  "notifications": {
+   "smtp": {
+    "enabled": false,
+    "from": "",
+    "replyTo": "",
+    "transport": {
+     "ignoreCert": false,
+     "host": "",
+     "port": 587,
+     "secure": false,
+     "username": "",
+     "password": ""
+    }
+   }
+  },
+  "templates": {
+   "email": {
+    "welcomeTemplate": "",
+    "albumInviteTemplate": "",
+    "albumUpdateTemplate": ""
+   }
+  },
+  "user": {
+   "deleteDelay": 7
+  }
+ },
+ "admin-users-list": [
+  {
+   "id": "68849976-866d-418d-8c66-39a353ec4d73",
+   "email": "partner@immich.app",
+   "name": "Partner",
+   "profileImagePath": "",
+   "avatarColor": "purple",
+   "profileChangedAt": "2026-09-20T07:43:47.859Z",
+   "storageLabel": null,
+   "shouldChangePassword": false,
+   "isAdmin": false,
+   "createdAt": "2026-09-20T07:43:47.859Z",
+   "deletedAt": null,
+   "updatedAt": "2026-09-20T08:08:42.084Z",
+   "oauthId": "",
+   "quotaSizeInBytes": null,
+   "quotaUsageInBytes": 0,
+   "status": "active",
+   "license": null
+  },
+  {
+   "id": "f20326f0-8154-4ee4-8e29-c083b0f60ea8",
+   "email": "admin@immich.app",
+   "name": "Administrator",
+   "profileImagePath": "",
+   "avatarColor": "yellow",
+   "profileChangedAt": "2026-09-20T07:37:04.072Z",
+   "storageLabel": "admin",
+   "shouldChangePassword": true,
+   "isAdmin": true,
+   "createdAt": "2026-09-20T07:37:04.072Z",
+   "deletedAt": null,
+   "updatedAt": "2026-09-20T08:09:35.722Z",
+   "oauthId": "",
+   "quotaSizeInBytes": null,
+   "quotaUsageInBytes": 14792,
+   "status": "active",
+   "license": null
+  }
+ ],
+ "admin-notifications-list": {
+  "message": "Cannot GET /api/admin/notifications"
+ },
+ "sessions-list": [
+  {
+   "id": "ccf65b57-aba1-4ea1-b537-292bb431061f",
+   "createdAt": "2026-09-20T08:09:35.649Z",
+   "updatedAt": "2026-09-20T08:09:35.649Z",
+   "current": true,
+   "appVersion": null,
+   "deviceOS": "",
+   "deviceType": "",
+   "isPendingSyncReset": false
+  },
+  {
+   "id": "417c0e67-34e8-4d71-90fa-0209f0b0c5b2",
+   "createdAt": "2026-09-20T08:08:42.901Z",
+   "updatedAt": "2026-09-20T08:08:51.197Z",
+   "current": false,
+   "appVersion": null,
+   "deviceOS": "",
+   "deviceType": "",
+   "isPendingSyncReset": false
+  }
+ ],
+ "api-key-create": {
+  "secret": "qrqHpOTBUMoOZvvhzN9T25D4Lq6oXIj7uogV2q5iDE",
+  "apiKey": {
+   "id": "4bf371ac-11d0-4586-8b5f-28051d6cc022",
+   "name": "probe-key",
+   "createdAt": "2026-09-20T08:09:36.115Z",
+   "updatedAt": "2026-09-20T08:09:36.115Z",
+   "permissions": [
+    "asset.read",
+    "asset.update"
+   ]
+  }
+ },
+ "api-keys-list": [
+  {
+   "id": "4bf371ac-11d0-4586-8b5f-28051d6cc022",
+   "name": "probe-key",
+   "createdAt": "2026-09-20T08:09:36.115Z",
+   "updatedAt": "2026-09-20T08:09:36.115Z",
+   "permissions": [
+    "asset.read",
+    "asset.update"
+   ]
+  },
+  {
+   "id": "4d424df1-13ae-49f8-a05e-a3b60d5941fd",
+   "name": "probe-key",
+   "createdAt": "2026-09-20T08:08:42.004Z",
+   "updatedAt": "2026-09-20T08:08:42.004Z",
+   "permissions": [
+    "asset.read",
+    "asset.update"
+   ]
+  }
+ ],
+ "library-create": {
+  "message": "Validation failed",
+  "errors": [
+   {
+    "expected": "string",
+    "code": "invalid_type",
+    "path": [
+     "ownerId"
+    ],
+    "message": "Invalid input: expected string, received undefined"
+   }
+  ]
+ },
+ "libraries-list": [],
+ "notifications-list": [],
+ "notifications-update": {
+  "message": "Validation failed",
+  "errors": [
+   {
+    "origin": "array",
+    "code": "too_small",
+    "minimum": 1,
+    "inclusive": true,
+    "path": [
+     "ids"
+    ],
+    "message": "Too small: expected array to have >=1 items"
+   }
+  ]
+ },
+ "people-list": {
+  "people": [],
+  "hasNextPage": false,
+  "total": 0,
+  "hidden": 0
+ },
+ "people-statistics": {
+  "message": "Validation failed",
+  "errors": [
+   {
+    "origin": "string",
+    "code": "invalid_format",
+    "format": "uuid",
+    "pattern": "/^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$/",
+    "path": [
+     "id"
+    ],
+    "message": "Invalid UUID"
+   }
+  ]
+ },
+ "duplicates-list": {
+  "message": "Validation failed",
+  "errors": [
+   {
+    "origin": "string",
+    "code": "invalid_format",
+    "format": "uuid",
+    "pattern": "/^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$/",
+    "path": [
+     "id"
+    ],
+    "message": "Invalid UUID"
+   }
+  ]
+ },
+ "oauth-config": {
+  "message": "Cannot GET /api/oauth/config"
+ },
+ "license-get": {
+  "message": "Not Found"
+ },
+ "pin-get": {
+  "message": "Cannot GET /api/auth/pin-code"
+ },
+ "sync-stream": {
+  "message": "Validation failed",
+  "errors": [
+   {
+    "expected": "object",
+    "code": "invalid_type",
+    "path": [],
+    "message": "Invalid input: expected object, received array"
+   }
+  ]
+ },
+ "sync-ack": [],
+ "download-info": {
+  "totalSize": 6358,
+  "archives": [
+   {
+    "size": 6358,
+    "assetIds": [
+     "f071b539-3a22-4041-bfe8-f3ddd83b8fb7"
+    ]
+   }
+  ]
+ },
+ "users-me-partner": {
+  "id": "68849976-866d-418d-8c66-39a353ec4d73",
+  "email": "partner@immich.app",
+  "name": "Partner",
+  "profileImagePath": "",
+  "avatarColor": "purple",
+  "profileChangedAt": "2026-09-20T07:43:47.859Z",
+  "storageLabel": null,
+  "shouldChangePassword": false,
+  "isAdmin": false,
+  "createdAt": "2026-09-20T07:43:47.859Z",
+  "deletedAt": null,
+  "updatedAt": "2026-09-20T08:08:42.084Z",
+  "oauthId": "",
+  "quotaSizeInBytes": null,
+  "quotaUsageInBytes": 0,
+  "status": "active",
+  "license": null
+ }
+}

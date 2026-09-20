@@ -1,0 +1,1533 @@
+{
+ "total": 254,
+ "covered": 253,
+ "uncovered": [
+  "GET /oauth/mobile-redirect"
+ ],
+ "byOperation": [
+  {
+   "method": "GET",
+   "path": "/activities",
+   "operationId": "getActivities",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/activities",
+   "operationId": "createActivity",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/activities/statistics",
+   "operationId": "getActivityStatistics",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/activities/{id}",
+   "operationId": "deleteActivity",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/admin/auth/unlink-all",
+   "operationId": "unlinkAllOAuthAccountsAdmin",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/admin/database-backups",
+   "operationId": "deleteDatabaseBackup",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/admin/database-backups",
+   "operationId": "listDatabaseBackups",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/admin/database-backups/start-restore",
+   "operationId": "startDatabaseRestoreFlow",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/admin/database-backups/upload",
+   "operationId": "uploadDatabaseBackup",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/admin/database-backups/{filename}",
+   "operationId": "downloadDatabaseBackup",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/admin/integrity/report",
+   "operationId": "getIntegrityReport",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/admin/integrity/report/{id}",
+   "operationId": "deleteIntegrityReport",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/admin/integrity/report/{id}/file",
+   "operationId": "getIntegrityReportFile",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/admin/integrity/report/{type}/csv",
+   "operationId": "getIntegrityReportCsv",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/admin/integrity/summary",
+   "operationId": "getIntegrityReportSummary",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/admin/maintenance",
+   "operationId": "setMaintenanceMode",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/admin/maintenance/detect-install",
+   "operationId": "detectPriorInstall",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/admin/maintenance/login",
+   "operationId": "maintenanceLogin",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/admin/maintenance/status",
+   "operationId": "getMaintenanceStatus",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/admin/notifications",
+   "operationId": "createNotification",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/admin/notifications/templates/{name}",
+   "operationId": "getNotificationTemplateAdmin",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/admin/notifications/test-email",
+   "operationId": "sendTestEmailAdmin",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/admin/users",
+   "operationId": "searchUsersAdmin",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/admin/users",
+   "operationId": "createUserAdmin",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/admin/users/{id}",
+   "operationId": "deleteUserAdmin",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/admin/users/{id}",
+   "operationId": "getUserAdmin",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/admin/users/{id}",
+   "operationId": "updateUserAdmin",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/admin/users/{id}/calendar-heatmap",
+   "operationId": "getUserCalendarHeatmapAdmin",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/admin/users/{id}/preferences",
+   "operationId": "getUserPreferencesAdmin",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/admin/users/{id}/preferences",
+   "operationId": "updateUserPreferencesAdmin",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/admin/users/{id}/restore",
+   "operationId": "restoreUserAdmin",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/admin/users/{id}/sessions",
+   "operationId": "getUserSessionsAdmin",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/admin/users/{id}/statistics",
+   "operationId": "getUserStatisticsAdmin",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/albums",
+   "operationId": "getAllAlbums",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/albums",
+   "operationId": "createAlbum",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/albums/assets",
+   "operationId": "addAssetsToAlbums",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/albums/statistics",
+   "operationId": "getAlbumStatistics",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/albums/{id}",
+   "operationId": "deleteAlbum",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/albums/{id}",
+   "operationId": "getAlbumInfo",
+   "covered": true
+  },
+  {
+   "method": "PATCH",
+   "path": "/albums/{id}",
+   "operationId": "updateAlbumInfo",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/albums/{id}/assets",
+   "operationId": "removeAssetFromAlbum",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/albums/{id}/assets",
+   "operationId": "addAssetsToAlbum",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/albums/{id}/map-markers",
+   "operationId": "getAlbumMapMarkers",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/albums/{id}/user/{userId}",
+   "operationId": "removeUserFromAlbum",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/albums/{id}/user/{userId}",
+   "operationId": "updateAlbumUser",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/albums/{id}/users",
+   "operationId": "addUsersToAlbum",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/api-keys",
+   "operationId": "getApiKeys",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/api-keys",
+   "operationId": "createApiKey",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/api-keys/me",
+   "operationId": "getMyApiKey",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/api-keys/{id}",
+   "operationId": "deleteApiKey",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/api-keys/{id}",
+   "operationId": "getApiKey",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/api-keys/{id}",
+   "operationId": "updateApiKey",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/assets",
+   "operationId": "deleteAssets",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/assets",
+   "operationId": "uploadAsset",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/assets",
+   "operationId": "updateAssets",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/assets/bulk-upload-check",
+   "operationId": "checkBulkUpload",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/assets/copy",
+   "operationId": "copyAsset",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/assets/jobs",
+   "operationId": "runAssetJobs",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/assets/metadata",
+   "operationId": "deleteBulkAssetMetadata",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/assets/metadata",
+   "operationId": "updateBulkAssetMetadata",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/assets/statistics",
+   "operationId": "getAssetStatistics",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/assets/{id}",
+   "operationId": "getAssetInfo",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/assets/{id}",
+   "operationId": "updateAsset",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/assets/{id}/edits",
+   "operationId": "removeAssetEdits",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/assets/{id}/edits",
+   "operationId": "getAssetEdits",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/assets/{id}/edits",
+   "operationId": "editAsset",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/assets/{id}/metadata",
+   "operationId": "getAssetMetadata",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/assets/{id}/metadata",
+   "operationId": "updateAssetMetadata",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/assets/{id}/metadata/{key}",
+   "operationId": "deleteAssetMetadata",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/assets/{id}/metadata/{key}",
+   "operationId": "getAssetMetadataByKey",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/assets/{id}/ocr",
+   "operationId": "getAssetOcr",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/assets/{id}/original",
+   "operationId": "downloadAsset",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/assets/{id}/thumbnail",
+   "operationId": "viewAsset",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/assets/{id}/video/playback",
+   "operationId": "playAssetVideo",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/assets/{id}/video/stream/main.m3u8",
+   "operationId": "getMainPlaylist",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/assets/{id}/video/stream/{sessionId}",
+   "operationId": "endSession",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/assets/{id}/video/stream/{sessionId}/{variantIndex}/playlist.m3u8",
+   "operationId": "getMediaPlaylist",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/assets/{id}/video/stream/{sessionId}/{variantIndex}/{filename}",
+   "operationId": "getSegment",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/auth/admin-sign-up",
+   "operationId": "signUpAdmin",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/auth/change-password",
+   "operationId": "changePassword",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/auth/login",
+   "operationId": "login",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/auth/logout",
+   "operationId": "logout",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/auth/pin-code",
+   "operationId": "resetPinCode",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/auth/pin-code",
+   "operationId": "setupPinCode",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/auth/pin-code",
+   "operationId": "changePinCode",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/auth/session/lock",
+   "operationId": "lockAuthSession",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/auth/session/unlock",
+   "operationId": "unlockAuthSession",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/auth/status",
+   "operationId": "getAuthStatus",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/auth/validateToken",
+   "operationId": "validateAccessToken",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/download/archive",
+   "operationId": "downloadArchive",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/download/info",
+   "operationId": "getDownloadInfo",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/duplicates",
+   "operationId": "deleteDuplicates",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/duplicates",
+   "operationId": "getAssetDuplicates",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/duplicates/resolve",
+   "operationId": "resolveDuplicates",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/duplicates/{id}",
+   "operationId": "deleteDuplicate",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/faces",
+   "operationId": "getFaces",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/faces",
+   "operationId": "createFace",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/faces/{id}",
+   "operationId": "deleteFace",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/faces/{id}",
+   "operationId": "reassignFacesById",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/jobs",
+   "operationId": "getQueuesLegacy",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/jobs",
+   "operationId": "createJob",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/jobs/{name}",
+   "operationId": "runQueueCommandLegacy",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/libraries",
+   "operationId": "getAllLibraries",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/libraries",
+   "operationId": "createLibrary",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/libraries/{id}",
+   "operationId": "deleteLibrary",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/libraries/{id}",
+   "operationId": "getLibrary",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/libraries/{id}",
+   "operationId": "updateLibrary",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/libraries/{id}/scan",
+   "operationId": "scanLibrary",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/libraries/{id}/statistics",
+   "operationId": "getLibraryStatistics",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/libraries/{id}/validate",
+   "operationId": "validate",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/map/markers",
+   "operationId": "getMapMarkers",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/map/reverse-geocode",
+   "operationId": "reverseGeocode",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/memories",
+   "operationId": "searchMemories",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/memories",
+   "operationId": "createMemory",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/memories/statistics",
+   "operationId": "memoriesStatistics",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/memories/{id}",
+   "operationId": "deleteMemory",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/memories/{id}",
+   "operationId": "getMemory",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/memories/{id}",
+   "operationId": "updateMemory",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/memories/{id}/assets",
+   "operationId": "removeMemoryAssets",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/memories/{id}/assets",
+   "operationId": "addMemoryAssets",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/notifications",
+   "operationId": "deleteNotifications",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/notifications",
+   "operationId": "getNotifications",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/notifications",
+   "operationId": "updateNotifications",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/notifications/{id}",
+   "operationId": "deleteNotification",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/notifications/{id}",
+   "operationId": "getNotification",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/notifications/{id}",
+   "operationId": "updateNotification",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/oauth/authorize",
+   "operationId": "startOAuth",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/oauth/backchannel-logout",
+   "operationId": "logoutOAuth",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/oauth/callback",
+   "operationId": "finishOAuth",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/oauth/link",
+   "operationId": "linkOAuthAccount",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/oauth/mobile-redirect",
+   "operationId": "redirectOAuthToMobile",
+   "covered": false
+  },
+  {
+   "method": "POST",
+   "path": "/oauth/unlink",
+   "operationId": "unlinkOAuthAccount",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/partners",
+   "operationId": "getPartners",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/partners",
+   "operationId": "createPartner",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/partners/{id}",
+   "operationId": "removePartner",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/partners/{id}",
+   "operationId": "createPartnerDeprecated",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/partners/{id}",
+   "operationId": "updatePartner",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/people",
+   "operationId": "deletePeople",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/people",
+   "operationId": "getAllPeople",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/people",
+   "operationId": "createPerson",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/people",
+   "operationId": "updatePeople",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/people/{id}",
+   "operationId": "deletePerson",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/people/{id}",
+   "operationId": "getPerson",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/people/{id}",
+   "operationId": "updatePerson",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/people/{id}/merge",
+   "operationId": "mergePerson",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/people/{id}/reassign",
+   "operationId": "reassignFaces",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/people/{id}/statistics",
+   "operationId": "getPersonStatistics",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/people/{id}/thumbnail",
+   "operationId": "getPersonThumbnail",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/plugins",
+   "operationId": "searchPlugins",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/plugins/methods",
+   "operationId": "searchPluginMethods",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/plugins/templates",
+   "operationId": "searchPluginTemplates",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/plugins/{id}",
+   "operationId": "getPlugin",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/queues",
+   "operationId": "getQueues",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/queues/{name}",
+   "operationId": "getQueue",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/queues/{name}",
+   "operationId": "updateQueue",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/queues/{name}/jobs",
+   "operationId": "emptyQueue",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/queues/{name}/jobs",
+   "operationId": "getQueueJobs",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/search/cities",
+   "operationId": "getAssetsByCity",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/search/explore",
+   "operationId": "getExploreData",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/search/large-assets",
+   "operationId": "searchLargeAssets",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/search/metadata",
+   "operationId": "searchAssets",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/search/person",
+   "operationId": "searchPerson",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/search/places",
+   "operationId": "searchPlaces",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/search/random",
+   "operationId": "searchRandom",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/search/smart",
+   "operationId": "searchSmart",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/search/statistics",
+   "operationId": "searchAssetStatistics",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/search/suggestions",
+   "operationId": "getSearchSuggestions",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/server/about",
+   "operationId": "getAboutInfo",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/server/apk-links",
+   "operationId": "getApkLinks",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/server/config",
+   "operationId": "getServerConfig",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/server/features",
+   "operationId": "getServerFeatures",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/server/license",
+   "operationId": "deleteServerLicense",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/server/license",
+   "operationId": "getServerLicense",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/server/license",
+   "operationId": "setServerLicense",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/server/media-types",
+   "operationId": "getSupportedMediaTypes",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/server/ping",
+   "operationId": "pingServer",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/server/statistics",
+   "operationId": "getServerStatistics",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/server/storage",
+   "operationId": "getStorage",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/server/version",
+   "operationId": "getServerVersion",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/server/version-check",
+   "operationId": "getVersionCheck",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/server/version-history",
+   "operationId": "getVersionHistory",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/sessions",
+   "operationId": "deleteAllSessions",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/sessions",
+   "operationId": "getSessions",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/sessions",
+   "operationId": "createSession",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/sessions/{id}",
+   "operationId": "deleteSession",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/sessions/{id}",
+   "operationId": "updateSession",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/sessions/{id}/lock",
+   "operationId": "lockSession",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/shared-links",
+   "operationId": "getAllSharedLinks",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/shared-links",
+   "operationId": "createSharedLink",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/shared-links/login",
+   "operationId": "sharedLinkLogin",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/shared-links/me",
+   "operationId": "getMySharedLink",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/shared-links/{id}",
+   "operationId": "removeSharedLink",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/shared-links/{id}",
+   "operationId": "getSharedLinkById",
+   "covered": true
+  },
+  {
+   "method": "PATCH",
+   "path": "/shared-links/{id}",
+   "operationId": "updateSharedLink",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/shared-links/{id}/assets",
+   "operationId": "removeSharedLinkAssets",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/shared-links/{id}/assets",
+   "operationId": "addSharedLinkAssets",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/stacks",
+   "operationId": "deleteStacks",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/stacks",
+   "operationId": "searchStacks",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/stacks",
+   "operationId": "createStack",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/stacks/{id}",
+   "operationId": "deleteStack",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/stacks/{id}",
+   "operationId": "getStack",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/stacks/{id}",
+   "operationId": "updateStack",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/stacks/{id}/assets/{assetId}",
+   "operationId": "removeAssetFromStack",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/sync/ack",
+   "operationId": "deleteSyncAck",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/sync/ack",
+   "operationId": "getSyncAck",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/sync/ack",
+   "operationId": "sendSyncAck",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/sync/stream",
+   "operationId": "getSyncStream",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/system-config",
+   "operationId": "getConfig",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/system-config",
+   "operationId": "updateConfig",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/system-config/defaults",
+   "operationId": "getConfigDefaults",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/system-config/storage-template-options",
+   "operationId": "getStorageTemplateOptions",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/system-metadata/admin-onboarding",
+   "operationId": "getAdminOnboarding",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/system-metadata/admin-onboarding",
+   "operationId": "updateAdminOnboarding",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/system-metadata/reverse-geocoding-state",
+   "operationId": "getReverseGeocodingState",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/system-metadata/version-check-state",
+   "operationId": "getVersionCheckState",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/tags",
+   "operationId": "getAllTags",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/tags",
+   "operationId": "createTag",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/tags",
+   "operationId": "upsertTags",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/tags/assets",
+   "operationId": "bulkTagAssets",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/tags/{id}",
+   "operationId": "deleteTag",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/tags/{id}",
+   "operationId": "getTagById",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/tags/{id}",
+   "operationId": "updateTag",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/tags/{id}/assets",
+   "operationId": "untagAssets",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/tags/{id}/assets",
+   "operationId": "tagAssets",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/timeline/bucket",
+   "operationId": "getTimeBucket",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/timeline/buckets",
+   "operationId": "getTimeBuckets",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/trash/empty",
+   "operationId": "emptyTrash",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/trash/restore",
+   "operationId": "restoreTrash",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/trash/restore/assets",
+   "operationId": "restoreAssets",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/users",
+   "operationId": "searchUsers",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/users/me",
+   "operationId": "getMyUser",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/users/me",
+   "operationId": "updateMyUser",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/users/me/calendar-heatmap",
+   "operationId": "getMyCalendarHeatmap",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/users/me/license",
+   "operationId": "deleteUserLicense",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/users/me/license",
+   "operationId": "getUserLicense",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/users/me/license",
+   "operationId": "setUserLicense",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/users/me/onboarding",
+   "operationId": "deleteUserOnboarding",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/users/me/onboarding",
+   "operationId": "getUserOnboarding",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/users/me/onboarding",
+   "operationId": "setUserOnboarding",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/users/me/preferences",
+   "operationId": "getMyPreferences",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/users/me/preferences",
+   "operationId": "updateMyPreferences",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/users/profile-image",
+   "operationId": "deleteProfileImage",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/users/profile-image",
+   "operationId": "createProfileImage",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/users/{id}",
+   "operationId": "getUser",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/users/{id}/profile-image",
+   "operationId": "getProfileImage",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/view/folder",
+   "operationId": "getAssetsByOriginalPath",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/view/folder/unique-paths",
+   "operationId": "getUniqueOriginalPaths",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/workflows",
+   "operationId": "searchWorkflows",
+   "covered": true
+  },
+  {
+   "method": "POST",
+   "path": "/workflows",
+   "operationId": "createWorkflow",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/workflows/triggers",
+   "operationId": "getWorkflowTriggers",
+   "covered": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/workflows/{id}",
+   "operationId": "deleteWorkflow",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/workflows/{id}",
+   "operationId": "getWorkflow",
+   "covered": true
+  },
+  {
+   "method": "PUT",
+   "path": "/workflows/{id}",
+   "operationId": "updateWorkflow",
+   "covered": true
+  },
+  {
+   "method": "GET",
+   "path": "/workflows/{id}/share",
+   "operationId": "getWorkflowForShare",
+   "covered": true
+  }
+ ]
+}
