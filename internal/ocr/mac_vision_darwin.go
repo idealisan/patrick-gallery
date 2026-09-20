@@ -13,8 +13,8 @@ import (
 )
 
 type macVisionLibrary struct {
-	recognize func(data uintptr, length uintptr, language uintptr, result *uintptr, resultLength *uintptr) int
-	free      func(ptr uintptr)
+	recognize func(data unsafe.Pointer, length uintptr, language unsafe.Pointer, result *unsafe.Pointer, resultLength *uintptr) int
+	free      func(ptr unsafe.Pointer)
 }
 
 // NewMacVision loads the separately built Vision shim. It does not link
@@ -38,24 +38,23 @@ func NewMacVision(path string) (Processor, error) {
 
 func (b *macVisionLibrary) Name() string { return "macos-vision" }
 func (b *macVisionLibrary) Recognize(req Request) (Result, error) {
-	var ptr, length uintptr
-	language := uintptr(0)
+	var ptr unsafe.Pointer
+	var length uintptr
+	language := unsafe.Pointer(nil)
 	var languageBytes []byte
 	if req.Language != "" {
 		languageBytes = append([]byte(req.Language), 0)
-		language = uintptr(unsafe.Pointer(&languageBytes[0]))
+		language = unsafe.Pointer(&languageBytes[0])
 	}
 	if len(req.Data) == 0 {
 		return Result{}, fmt.Errorf("%w: empty image", ErrInvalidResult)
 	}
-	var data unsafe.Pointer
-	data = unsafe.Pointer(&req.Data[0])
-	code := b.recognize(uintptr(data), uintptr(len(req.Data)), language, &ptr, &length)
+	code := b.recognize(unsafe.Pointer(&req.Data[0]), uintptr(len(req.Data)), language, &ptr, &length)
 	if code != 0 {
 		return Result{}, fmt.Errorf("mac vision recognize failed: code=%d", code)
 	}
 	defer b.free(ptr)
-	raw := unsafe.Slice((*byte)(unsafe.Pointer(ptr)), length)
+	raw := unsafe.Slice((*byte)(ptr), length)
 	var result Result
 	if err := json.Unmarshal(raw, &result); err != nil {
 		return Result{}, fmt.Errorf("mac vision decode: %w", err)
