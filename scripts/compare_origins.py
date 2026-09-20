@@ -9,7 +9,7 @@
 
 本脚本只做“对比报告”，不裁决通过/失败（裁决由 scripts/schemathesis_check.py 负责）。
 
-前置：两个服务都已启动且可登录；本机已 `pip install schemathesis==4.24.3`。
+前置：两个服务都已启动且可登录；本机已 `pip install schemathesis==4.27.5`。
 典型用法（见 docs/SIDE_BY_SIDE.md）：
   # 原版 Immich 用 docker-compose.yml 起在 :2283，immich-go 起在 :8081
   python3 scripts/compare_origins.py \
@@ -28,7 +28,7 @@ import xml.etree.ElementTree as ET
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 SPEC = os.path.join(ROOT, "open-api", "immich-openapi-specs.json")
-SCHEMA_THESIS_VER = "4.24.3"
+SCHEMA_THESIS_VER = "4.27.5"
 ADMIN_EMAIL = "admin@immich.app"
 ADMIN_PASS = "password"
 

@@ -31,7 +31,7 @@ Usage
   --base-url URL       base url when --no-server (default http://localhost:8099/api)
   --token TOKEN        bearer token when --no-server
 
-Prereqs: go (to build), python3 + `schemathesis` (pip install schemathesis==4.24.3).
+Prereqs: go (to build), python3 + `schemathesis` (pip install schemathesis==4.27.5 hypothesis==6.168.0).
 """
 import argparse
 import glob
@@ -49,7 +49,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 SPEC_DEFAULT = os.path.join(ROOT, "open-api", "immich-openapi-specs.json")
 ALLOWLIST = os.path.join(HERE, "schemathesis-allowlist.txt")
-SCHEMA_THESIS_VER = "4.24.3"
+SCHEMA_THESIS_VER = "4.27.5"
+# Pinned together with schemathesis: an incompatible hypothesis makes the
+# examples phase crash with "CanonicalSchema has no attribute is_satisfiable",
+# which silently turns operations into errors the gate would ignore.
+HYPOTHESIS_VER = "6.168.0"
 ADMIN_EMAIL = "admin@immich.app"
 ADMIN_PASS = "password"
 
@@ -66,11 +70,13 @@ def log(msg, *a):
 def ensure_schemathesis():
     try:
         import schemathesis  # noqa: F401
+        import hypothesis  # noqa: F401
         return
     except Exception:
-        log("schemathesis not importable; installing schemathesis==%s", SCHEMA_THESIS_VER)
+        log("installing schemathesis==%s + hypothesis==%s", SCHEMA_THESIS_VER, HYPOTHESIS_VER)
         subprocess.check_call(
-            [sys.executable, "-m", "pip", "install", "--quiet", f"schemathesis=={SCHEMA_THESIS_VER}"]
+            [sys.executable, "-m", "pip", "install", "--quiet",
+             f"schemathesis=={SCHEMA_THESIS_VER}", f"hypothesis=={HYPOTHESIS_VER}"]
         )
 
 

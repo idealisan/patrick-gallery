@@ -62,7 +62,7 @@ jobs:
           python-version: "3.x"
 
       - name: Install Schemathesis
-        run: python3 -m pip install --quiet "schemathesis==4.24.3"
+        run: python3 -m pip install --quiet "schemathesis==4.27.5" "hypothesis==6.168.0"
 
       - name: Run contract regression gate
         # Builds immich-go, starts it, logs in, runs Schemathesis against the
