@@ -44,7 +44,9 @@ func TestMemoriesOnThisDay(t *testing.T) {
 		t.Fatalf("/api/memories -> %d: %s", w.Code, w.Body.String())
 	}
 	var groups []struct {
-		Years  []int `json:"years"`
+		Data struct {
+			Year int `json:"year"`
+		} `json:"data"`
 		Assets []struct {
 			ID string `json:"id"`
 		} `json:"assets"`
@@ -64,20 +66,26 @@ func TestMemoriesOnThisDay(t *testing.T) {
 		t.Fatalf("expected 1 memory asset, got %d", total)
 	}
 
-	// year filter narrows to the right group.
+	// year filter narrows to the right group. The response is the official
+	// MemoryResponseDto, whose on_this_day payload is data:{year} (OnThisDayDto)
+	// — not the legacy top-level `years` array.
 	w2 := do(r, "GET", "/api/memories?day="+day+"&year=2021", token, nil, "")
 	if w2.Code != http.StatusOK {
 		t.Fatalf("/api/memories(year) -> %d", w2.Code)
 	}
 	var groups2 []struct {
-		Years  []int `json:"years"`
+		Data struct {
+			Year int `json:"year"`
+		} `json:"data"`
 		Assets []struct {
 			ID string `json:"id"`
 		} `json:"assets"`
 	}
-	_ = json.Unmarshal(w2.Body.Bytes(), &groups2)
-	if len(groups2) != 1 || groups2[0].Years[0] != 2021 {
-		t.Fatalf("year filter: expected single 2021 group, got %+v", groups2)
+	if err := json.Unmarshal(w2.Body.Bytes(), &groups2); err != nil {
+		t.Fatalf("decode: %v (body=%s)", err, w2.Body.String())
+	}
+	if len(groups2) != 1 || groups2[0].Data.Year != 2021 {
+		t.Fatalf("year filter: expected single 2021 group (data.year=2021), got %+v", groups2)
 	}
 }
 

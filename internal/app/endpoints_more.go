@@ -504,7 +504,9 @@ func (a *App) handleStackGet(c *gin.Context) {
 	c.JSON(http.StatusOK, a.stackToResponse(stack, assets))
 }
 
-func (a *App) handleStackDelete(c *gin.Context) {
+// handleStacksDelete implements DELETE /stacks (deleteStacks): it deletes the
+// stacks named in the request body and dissolves their asset associations.
+func (a *App) handleStacksDelete(c *gin.Context) {
 	uid := currentUserID(c)
 	var b struct {
 		IDs []string `json:"ids"`
@@ -515,14 +517,27 @@ func (a *App) handleStackDelete(c *gin.Context) {
 		return
 	}
 	for _, id := range b.IDs {
-		var stack Stack
-		if err := a.store.DB.First(&stack, "id = ? AND owner_id = ?", id, uid).Error; err != nil {
-			continue
-		}
-		a.store.DB.Where("stack_id = ?", id).Delete(&StackAsset{})
-		a.store.DB.Delete(&stack)
+		a.deleteStackByID(uid, id)
 	}
 	c.Status(http.StatusNoContent)
+}
+
+// handleStackDelete implements DELETE /stacks/:id (deleteStack).
+func (a *App) handleStackDelete(c *gin.Context) {
+	uid := currentUserID(c)
+	a.deleteStackByID(uid, c.Param("id"))
+	c.Status(http.StatusNoContent)
+}
+
+// deleteStackByID removes a stack and its member links. Unknown ids are ignored
+// so the operation stays idempotent (the official contract returns 204).
+func (a *App) deleteStackByID(uid, id string) {
+	var stack Stack
+	if err := a.store.DB.First(&stack, "id = ? AND owner_id = ?", id, uid).Error; err != nil {
+		return
+	}
+	a.store.DB.Where("stack_id = ?", id).Delete(&StackAsset{})
+	a.store.DB.Delete(&stack)
 }
 
 func (a *App) stackAssets(stackID string) []Asset {

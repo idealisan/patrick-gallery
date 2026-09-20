@@ -25,7 +25,7 @@ func (a *App) handleMemories(c *gin.Context) {
 	// Synthesize on_this_day memories from asset dates when the user has no
 	// curated memories yet, so the feature is never empty.
 	if len(memories) == 0 && (typ == "" || typ == "on_this_day") {
-		memories = append(memories, a.synthesizeOnThisDay(uid)...)
+		memories = append(memories, a.synthesizeOnThisDay(uid, c.Query("day"), c.Query("year"))...)
 	}
 	c.JSON(http.StatusOK, memories)
 }
@@ -50,26 +50,51 @@ func (a *App) loadMemories(uid, typ, isSaved, forParam string) []gin.H {
 	return out
 }
 
-// synthesizeOnThisDay builds one on_this_day memory per distinct month/day
-// group across the user's assets (mirrors Immich's auto memories). The assets
-// in each memory are the ones captured on that month/day across all years.
-func (a *App) synthesizeOnThisDay(uid string) []gin.H {
+// synthesizeOnThisDay builds one on_this_day memory per (month/day, year) group
+// across the user's assets (mirrors Immich's auto memories: each memory carries
+// a single OnThisDayDto year). The optional `day` (MM-DD) and `year` queries
+// narrow the result — legacy convenience filters that complement the official
+// `type`/`isSaved`/`for` params.
+func (a *App) synthesizeOnThisDay(uid, day, yearStr string) []gin.H {
 	var assets []Asset
 	a.store.DB.Where("owner_id = ? AND is_trash = ?", uid, false).
 		Order("file_created_at DESC").Find(&assets)
 
-	type key struct{ m, d int }
+	wantMonth, wantDay := 0, 0
+	if day != "" {
+		if m, d, ok := parseMonthDay(day); ok {
+			wantMonth, wantDay = int(m), d
+		}
+	}
+	wantYear := 0
+	if yearStr != "" {
+		if y, err := strconv.Atoi(strings.TrimSpace(yearStr)); err == nil {
+			wantYear = y
+		}
+	}
+
+	type key struct{ m, d, y int }
 	groups := map[key][]Asset{}
 	var order []key
 	for _, as := range assets {
-		k := key{int(as.FileCreatedAt.Month()), as.FileCreatedAt.Day()}
+		m, d, y := int(as.FileCreatedAt.Month()), as.FileCreatedAt.Day(), as.FileCreatedAt.Year()
+		if wantMonth != 0 && (m != wantMonth || d != wantDay) {
+			continue
+		}
+		if wantYear != 0 && y != wantYear {
+			continue
+		}
+		k := key{m, d, y}
 		if _, ok := groups[k]; !ok {
 			order = append(order, k)
 		}
 		groups[k] = append(groups[k], as)
 	}
-	// newest month/day first
+	// newest year first, then newest month/day
 	sort.SliceStable(order, func(i, j int) bool {
+		if order[i].y != order[j].y {
+			return order[i].y > order[j].y
+		}
 		if order[i].m != order[j].m {
 			return order[i].m > order[j].m
 		}
@@ -77,27 +102,38 @@ func (a *App) synthesizeOnThisDay(uid string) []gin.H {
 	})
 	out := make([]gin.H, 0, len(order))
 	for _, k := range order {
-		year := 0
-		if len(groups[k]) > 0 {
-			year = groups[k][0].FileCreatedAt.Year()
-		}
 		assetsOut := make([]AssetResponse, 0, len(groups[k]))
 		for _, as := range groups[k] {
 			assetsOut = append(assetsOut, a.toResponse(as))
 		}
 		out = append(out, gin.H{
-			"id":         "onthisday-" + strconv.Itoa(k.m) + "-" + strconv.Itoa(k.d),
-			"ownerId":    uid,
-			"type":       "on_this_day",
-			"memoryAt":   time.Date(year, time.Month(k.m), k.d, 0, 0, 0, 0, time.UTC).Format(time.RFC3339),
-			"isSaved":    false,
-			"createdAt":  time.Time{}.Format(time.RFC3339),
-			"updatedAt":  time.Time{}.Format(time.RFC3339),
-			"data":       gin.H{"year": year},
-			"assets":     assetsOut,
+			"id":        "onthisday-" + strconv.Itoa(k.y) + "-" + strconv.Itoa(k.m) + "-" + strconv.Itoa(k.d),
+			"ownerId":   uid,
+			"type":      "on_this_day",
+			"memoryAt":  time.Date(k.y, time.Month(k.m), k.d, 0, 0, 0, 0, time.UTC).Format(time.RFC3339),
+			"isSaved":   false,
+			"createdAt": time.Time{}.Format(time.RFC3339),
+			"updatedAt": time.Time{}.Format(time.RFC3339),
+			"data":      gin.H{"year": k.y},
+			"assets":    assetsOut,
 		})
 	}
 	return out
+}
+
+// parseMonthDay parses an "MM-DD" string into month/day. It returns ok=false on
+// any malformed input so callers can ignore the filter.
+func parseMonthDay(s string) (time.Month, int, bool) {
+	parts := strings.SplitN(strings.TrimSpace(s), "-", 2)
+	if len(parts) != 2 {
+		return 0, 0, false
+	}
+	mm, err1 := strconv.Atoi(parts[0])
+	dd, err2 := strconv.Atoi(parts[1])
+	if err1 != nil || err2 != nil || mm < 1 || mm > 12 || dd < 1 || dd > 31 {
+		return 0, 0, false
+	}
+	return time.Month(mm), dd, true
 }
 
 // handleMemoryCreate implements POST /api/memories (createMemory).

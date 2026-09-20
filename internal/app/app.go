@@ -258,6 +258,7 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.POST("/stacks", a.handleStackCreate)
 		api.GET("/stacks/:id", a.handleStackGet)
 		api.PUT("/stacks/:id", a.handleStackUpdate)
+		api.DELETE("/stacks", a.handleStacksDelete)
 		api.DELETE("/stacks/:id", a.handleStackDelete)
 		api.GET("/stacks/:id/assets/:assetId", a.handleStackAssetGet)
 		api.PUT("/stacks/:id/assets/:assetId", a.handleStackAssetUpdate)
