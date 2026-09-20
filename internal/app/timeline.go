@@ -207,7 +207,7 @@ func (a *App) handleTimelineBuckets(c *gin.Context) {
 		}
 		bucket, _ := time.Parse(layout, k)
 		out = append(out, gin.H{
-			"timeBucket": bucket.UTC().Format("2006-01-02T00:00:00.000Z"),
+			"timeBucket": bucket.UTC().Format("2006-01-02"),
 			"count":      counts[k],
 		})
 	}
@@ -269,27 +269,30 @@ func (a *App) handleTimelineBucketAssets(c *gin.Context) {
 // timeBucketAssetsResponse mirrors Immich's TimeBucketAssetResponseDto: every
 // field is a parallel array holding that property for each asset in the bucket
 // (all index-aligned). Fields are always emitted (no omitempty) so an empty
-// bucket still satisfies the schema's required-array contract.
+// bucket still satisfies the schema's required-array contract. Verified live
+// against the official v3.1.0 server: the response carries exactly city,
+// country, createdAt, duration, fileCreatedAt, id, isFavorite, isImage,
+// isTrashed, livePhotoVideoId, localOffsetHours, createdAt, ownerId,
+// projectionType, ratio, status, thumbhash, visibility — no latitude,
+// longitude or stack (those live in exifInfo / the single-asset DTO).
 type timeBucketAssetsResponse struct {
-	City             []string   `json:"city"`
-	Country          []string   `json:"country"`
-	CreatedAt        []string   `json:"createdAt"`
-	Duration         []int      `json:"duration"`
-	FileCreatedAt    []string   `json:"fileCreatedAt"`
-	ID               []string   `json:"id"`
-	IsFavorite       []bool     `json:"isFavorite"`
-	IsImage          []bool     `json:"isImage"`
-	IsTrashed        []bool     `json:"isTrashed"`
-	Latitude         []float64  `json:"latitude"`
-	LivePhotoVideoID []string   `json:"livePhotoVideoId"`
-	LocalOffsetHours []float64  `json:"localOffsetHours"`
-	Longitude        []float64  `json:"longitude"`
-	OwnerID          []string   `json:"ownerId"`
-	ProjectionType   []string   `json:"projectionType"`
-	Ratio            []float64  `json:"ratio"`
-	Stack            [][]string `json:"stack"`
-	Thumbhash        []string   `json:"thumbhash"`
-	Visibility       []string   `json:"visibility"`
+	City             []string  `json:"city"`
+	Country          []string  `json:"country"`
+	CreatedAt        []string  `json:"createdAt"`
+	Duration         []any     `json:"duration"`
+	FileCreatedAt    []string  `json:"fileCreatedAt"`
+	ID               []string  `json:"id"`
+	IsFavorite       []bool    `json:"isFavorite"`
+	IsImage          []bool    `json:"isImage"`
+	IsTrashed        []bool    `json:"isTrashed"`
+	LivePhotoVideoID []string  `json:"livePhotoVideoId"`
+	LocalOffsetHours []float64 `json:"localOffsetHours"`
+	OwnerID          []string  `json:"ownerId"`
+	ProjectionType   []string  `json:"projectionType"`
+	Ratio            []float64 `json:"ratio"`
+	Status           []string  `json:"status"`
+	Thumbhash        []string  `json:"thumbhash"`
+	Visibility       []string  `json:"visibility"`
 }
 
 func (a *App) buildTimeBucketAssets(assets []Asset) timeBucketAssetsResponse {
@@ -298,20 +301,18 @@ func (a *App) buildTimeBucketAssets(assets []Asset) timeBucketAssetsResponse {
 		City:             make([]string, n),
 		Country:          make([]string, n),
 		CreatedAt:        make([]string, n),
-		Duration:         make([]int, n),
+		Duration:         make([]any, n),
 		FileCreatedAt:    make([]string, n),
 		ID:               make([]string, n),
 		IsFavorite:       make([]bool, n),
 		IsImage:          make([]bool, n),
 		IsTrashed:        make([]bool, n),
-		Latitude:         make([]float64, n),
 		LivePhotoVideoID: make([]string, n),
 		LocalOffsetHours: make([]float64, n),
-		Longitude:        make([]float64, n),
 		OwnerID:          make([]string, n),
 		ProjectionType:   make([]string, n),
 		Ratio:            make([]float64, n),
-		Stack:            make([][]string, n),
+		Status:           make([]string, n),
 		Thumbhash:        make([]string, n),
 		Visibility:       make([]string, n),
 	}
@@ -337,10 +338,14 @@ func (a *App) buildTimeBucketAssets(assets []Asset) timeBucketAssetsResponse {
 		r.OwnerID[i] = as.OwnerID
 		r.CreatedAt[i] = as.CreatedAt.UTC().Format(time.RFC3339Nano)
 		r.FileCreatedAt[i] = as.FileCreatedAt.UTC().Format(time.RFC3339Nano)
-		// as.Duration is now stored in milliseconds (see handleAssetUpload /
-		// assetDurationResponse), matching the official AssetResponseDto
-		// contract, so the bucket mirrors it directly.
-		r.Duration[i] = parseDurationInt(as.Duration)
+		// Official contract (verified live on v3.1.0): the parallel
+		// `duration` slot is `null` for assets without a duration (still
+		// photos); only videos carry a value.
+		if as.Duration == "" {
+			r.Duration[i] = nil
+		} else {
+			r.Duration[i] = parseDurationInt(as.Duration)
+		}
 		r.IsFavorite[i] = as.IsFavorite
 		r.IsImage[i] = as.Type == "IMAGE"
 		r.IsTrashed[i] = as.IsTrash
@@ -358,19 +363,17 @@ func (a *App) buildTimeBucketAssets(assets []Asset) timeBucketAssetsResponse {
 		}
 		// local offset (hours) between the photo's local time and its UTC stamp
 		r.LocalOffsetHours[i] = as.LocalDateTime.Sub(as.FileCreatedAt).Hours()
-		// Stacking is unsupported. The official server emits `null` (not an
-		// empty array) for a non-stacked asset's slot in the parallel `stack`
-		// array. The web reconstructs `asset.stack` from this slot and, for a
-		// truthy (non-null) value, does `Number.parseInt(slot[1])`. An empty
-		// array `[]` is truthy in JS, slot[1] is undefined, and the parse yields
-		// NaN, which the thumbnail renders as the literal text "NaN". Leaving the
-		// slice element nil makes it serialize to `null`, matching the contract.
-		r.Stack[i] = nil
+		// Official contract (verified live on v3.1.0): the bucket response
+		// carries a parallel `status` array ("active" | "trashed") and has
+		// no latitude/longitude/stack slots at all.
+		if as.IsTrash {
+			r.Status[i] = "trashed"
+		} else {
+			r.Status[i] = "active"
+		}
 		if e, ok := exifByID[as.ExifID]; ok {
 			r.City[i] = e.City
 			r.Country[i] = e.Country
-			r.Latitude[i] = e.Latitude
-			r.Longitude[i] = e.Longitude
 		}
 	}
 	return r

@@ -2,26 +2,23 @@ package app
 
 import (
 	"encoding/json"
-	"strings"
 	"testing"
 )
 
-// TestBuildTimeBucketAssetsStackIsNullNotEmptyArray is a regression test for
-// BUG-004 (the "NaN" text rendered above every thumbnail on the timeline).
+// The official v3.1.0 bucket response (verified live against a running
+// immich/immich-server:v3.1.0) is a parallel-array object with EXACTLY these
+// keys: city, country, createdAt, duration, fileCreatedAt, id, isFavorite,
+// isImage, isTrashed, livePhotoVideoId, localOffsetHours, ownerId,
+// projectionType, ratio, status, thumbhash, visibility.
 //
-// Root cause: immich-go emitted an empty array `[]` for each asset's slot in
-// the parallel `stack` array. The official web (`timeline-month.svelte.ts`)
-// treats a truthy slot as a stacked asset and computes
-// `assetCount: Number.parseInt(slot[1])`. An empty `[]` is truthy in JS, the
-// slot has no element [1] (undefined), and the parse yields NaN — which the
-// thumbnail renders verbatim as "NaN". The official server emits `null` for a
-// non-stacked asset, which the web treats as "not stacked" (no badge, no NaN).
+// In particular it has NO stack, latitude or longitude slots. That also
+// retires the historical BUG-004 ("NaN" badge on the timeline): the web never
+// sees a stack slot in this response, so a malformed one can no longer be
+// rendered as "NaN".
 //
-// This test asserts the bucket response serializes each non-stacked slot as
-// `null`, never as `[]`.
-func TestBuildTimeBucketAssetsStackIsNullNotEmptyArray(t *testing.T) {
-	// No ExifID on the asset, so buildTimeBucketAssets skips the store query
-	// and can run without a live DB.
+// Duration slots are `null` for assets without a duration (still photos);
+// status is "active" (or "trashed").
+func TestBuildTimeBucketAssetsMatchesOfficialShape(t *testing.T) {
 	assets := []Asset{
 		{ID: "a1", Type: "IMAGE"},
 		{ID: "a2", Type: "IMAGE"},
@@ -32,32 +29,57 @@ func TestBuildTimeBucketAssetsStackIsNullNotEmptyArray(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	out := string(b)
+	var m map[string]any
+	if err := json.Unmarshal(b, &m); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
 
-	if strings.Contains(out, `"stack":[[]]`) || strings.Contains(out, `"stack":[]`) && !strings.Contains(out, "null") {
-		t.Fatalf("stack must not be an empty inner array; got: %s", out)
+	for _, gone := range []string{"stack", "latitude", "longitude"} {
+		if _, ok := m[gone]; ok {
+			t.Fatalf("official v3.1.0 bucket response has no %q key; got: %s", gone, b)
+		}
 	}
-	// Each slot must serialize as null (the contract for "not stacked").
-	if !strings.Contains(out, `"stack":[null,null]`) {
-		t.Fatalf("expected each stack slot to be null; got: %s", out)
+	for _, want := range []string{"status", "city", "country", "id", "ownerId", "visibility"} {
+		if _, ok := m[want]; !ok {
+			t.Fatalf("official v3.1.0 bucket response must carry %q; got: %s", want, b)
+		}
 	}
-	// And never an empty inner array per slot.
-	if strings.Contains(out, "[[]]") {
-		t.Fatalf("stack slot must not be an empty array; got: %s", out)
+
+	status, ok := m["status"].([]any)
+	if !ok || len(status) != 2 || status[0] != "active" || status[1] != "active" {
+		t.Fatalf("status slots must be [active active]; got: %v", m["status"])
+	}
+	dur, ok := m["duration"].([]any)
+	if !ok || len(dur) != 2 || dur[0] != nil || dur[1] != nil {
+		t.Fatalf("duration slots for still photos must be null; got: %v", m["duration"])
 	}
 }
 
-// TestBuildTimeBucketAssetsEmptyBucket keeps the parallel-array response
-// contract intact (all arrays present, even when empty) while ensuring the
-// stack array is `[]` (no slots) rather than containing empty-array slots.
+// An empty bucket must still serialize every parallel array (the schema
+// requires them), with no leftover stack/latitude/longitude keys.
 func TestBuildTimeBucketAssetsEmptyBucket(t *testing.T) {
 	resp := (&App{}).buildTimeBucketAssets(nil)
 	b, err := json.Marshal(resp)
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	out := string(b)
-	if !strings.Contains(out, `"stack":[]`) {
-		t.Fatalf("empty bucket must still emit a stack array; got: %s", out)
+	var m map[string]any
+	if err := json.Unmarshal(b, &m); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(m) == 0 {
+		t.Fatalf("empty bucket must still emit the parallel arrays; got: %s", b)
+	}
+	for k, v := range m {
+		arr, ok := v.([]any)
+		if !ok {
+			t.Fatalf("field %s must be an array; got %T", k, v)
+		}
+		if len(arr) != 0 {
+			t.Fatalf("empty bucket: %s must be empty; got %d slots", k, len(arr))
+		}
+	}
+	if _, ok := m["stack"]; ok {
+		t.Fatalf("official v3.1.0 bucket response has no stack key; got: %s", b)
 	}
 }

@@ -2,6 +2,8 @@ package app
 
 import (
 	"bytes"
+	"crypto/sha1"
+	"encoding/hex"
 	"fmt"
 	"image"
 	"image/color"
@@ -34,8 +36,6 @@ type AssetResponse struct {
 	OriginalPath     string        `json:"originalPath"`
 	OriginalFileName string        `json:"originalFileName"`
 	OriginalMimeType string        `json:"originalMimeType,omitempty"`
-	ResizePath       string        `json:"resizePath"`
-	EncodedVideoPath string        `json:"encodedVideoPath"`
 	Checksum         string        `json:"checksum"`
 	FileCreatedAt    time.Time     `json:"fileCreatedAt"`
 	FileModifiedAt   time.Time     `json:"fileModifiedAt"`
@@ -44,17 +44,15 @@ type AssetResponse struct {
 	IsFavorite       bool          `json:"isFavorite"`
 	IsArchived       bool          `json:"isArchived"`
 	IsTrashed        bool          `json:"isTrashed"`
-	IsExternal       bool          `json:"isExternal"`
 	LibraryId        string        `json:"libraryId"`
-	HasThumbnail     bool          `json:"hasThumbnail"`
 	Resized          bool          `json:"resized"`
 	HasMetadata      bool          `json:"hasMetadata"`
 	Visibility       string        `json:"visibility,omitempty"`
-	StackID          string        `json:"stackId,omitempty"`
+	Stack            *assetStackResponse `json:"stack"`
 	Thumbhash        string        `json:"thumbhash,omitempty"`
 	Width            int           `json:"width,omitempty"`
 	Height           int           `json:"height,omitempty"`
-	DuplicateID      string        `json:"duplicateId,omitempty"`
+	DuplicateID      *string       `json:"duplicateId"`
 	IsEdited         bool          `json:"isEdited"`
 	IsOffline        bool          `json:"isOffline"`
 	LivePhotoVideoID string        `json:"livePhotoVideoId,omitempty"`
@@ -64,6 +62,15 @@ type AssetResponse struct {
 	People           []any         `json:"people"`
 	Tags             []any         `json:"tags"`
 	Owner            *UserResponse `json:"owner,omitempty"`
+}
+
+// assetStackResponse mirrors the official `stack` object on the asset DTO
+// (verified live on v3.1.0): {id, primaryAssetId, assetCount}. Unstacked
+// assets serialize it as `null`.
+type assetStackResponse struct {
+	ID             string `json:"id"`
+	PrimaryAssetID string `json:"primaryAssetId"`
+	AssetCount     int    `json:"assetCount"`
 }
 
 // UserResponse mirrors Immich's UserResponseDto (subset) used by the asset
@@ -85,8 +92,6 @@ func (a *App) toResponse(asset Asset) AssetResponse {
 		Type:             asset.Type,
 		OriginalPath:     asset.OriginalPath,
 		OriginalFileName: asset.OriginalFileName,
-		ResizePath:       asset.ResizePath,
-		EncodedVideoPath: asset.EncodedVideoPath,
 		Checksum:         asset.Checksum,
 		FileCreatedAt:    asset.FileCreatedAt,
 		FileModifiedAt:   asset.FileModifiedAt,
@@ -95,9 +100,7 @@ func (a *App) toResponse(asset Asset) AssetResponse {
 		IsFavorite:       asset.IsFavorite,
 		IsArchived:       asset.IsArchived,
 		IsTrashed:        asset.IsTrash,
-		IsExternal:       asset.IsExternal,
 		LibraryId:        asset.LibraryId,
-		HasThumbnail:     asset.HasThumbnail,
 		Resized:          asset.HasThumbnail,
 		HasMetadata:      asset.ExifID != "",
 		Visibility:       visibilityOf(asset),
@@ -113,10 +116,15 @@ func (a *App) toResponse(asset Asset) AssetResponse {
 	}
 	// Real per-asset extras (not placeholders): duplicate group, edit flag, stack.
 	dupID, isEdited, stackID := a.assetExtras(asset.ID)
-	r.DuplicateID = dupID
+	if dupID != "" {
+		d := dupID
+		r.DuplicateID = &d
+	}
 	r.IsEdited = isEdited
 	r.IsOffline = false // immich-go has no offline asset concept
-	r.StackID = stackID
+	if stackID != "" {
+		r.Stack = a.buildStackResponse(stackID)
+	}
 	if asset.OwnerID != "" {
 		var owner User
 		if a.store.DB.First(&owner, "id = ?", asset.OwnerID).Error == nil {
@@ -183,6 +191,19 @@ func (a *App) assetExtras(id string) (duplicateID string, isEdited bool, stackID
 		stackID = sa.StackID
 	}
 	return
+}
+
+// buildStackResponse loads the asset DTO's `stack` object: the official
+// contract (verified live on v3.1.0) is {id, primaryAssetId, assetCount},
+// with `stack: null` for unstacked assets.
+func (a *App) buildStackResponse(stackID string) *assetStackResponse {
+	var s Stack
+	if err := a.store.DB.First(&s, "id = ?", stackID).Error; err != nil {
+		return nil
+	}
+	var members []StackAsset
+	a.store.DB.Where("stack_id = ?", stackID).Find(&members)
+	return &assetStackResponse{ID: s.ID, PrimaryAssetID: s.PrimaryAssetID, AssetCount: len(members)}
 }
 
 // parseDurationInt converts the stored duration (seconds, possibly empty or a
@@ -305,18 +326,29 @@ func (a *App) handleAssetUpload(c *gin.Context) {
 
 	fh, err := c.FormFile("assetData")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing assetData", "statusCode": 400})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "missing assetData", "statusCode": 400})
 		return
 	}
 	src, err := fh.Open()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
 	raw, err := io.ReadAll(src)
 	src.Close()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+		return
+	}
+
+	// Duplicate detection (official contract): an asset with the same
+	// owner+checksum already existing answers 200 {status:"duplicate", id}
+	// instead of creating a second copy.
+	sum := sha1.Sum(raw)
+	checksum := hex.EncodeToString(sum[:])
+	var dup Asset
+	if err := a.store.DB.Where("owner_id = ? AND checksum = ?", uid, checksum).First(&dup).Error; err == nil {
+		c.JSON(http.StatusOK, gin.H{"id": dup.ID, "status": "duplicate"})
 		return
 	}
 
@@ -347,7 +379,7 @@ func (a *App) handleAssetUpload(c *gin.Context) {
 	_ = os.MkdirAll(upDir, 0o755)
 	origPath := filepath.Join(upDir, newUUID()+ext)
 	if werr := os.WriteFile(origPath, raw, 0o644); werr != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": werr.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": werr.Error()})
 		return
 	}
 
@@ -364,7 +396,7 @@ func (a *App) handleAssetUpload(c *gin.Context) {
 		LocalDate:    localDateTime,
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
 
@@ -501,11 +533,11 @@ func (a *App) handleAssetGet(c *gin.Context) {
 	id := c.Param("id")
 	var asset Asset
 	if err := a.store.DB.First(&asset, "id = ?", id).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found", "statusCode": 404})
 		return
 	}
 	if !a.canView(uid, asset.OwnerID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+		c.JSON(http.StatusForbidden, gin.H{"message": "forbidden"})
 		return
 	}
 	c.JSON(http.StatusOK, a.toResponse(asset))
@@ -525,11 +557,11 @@ func (a *App) handleAssetUpdate(c *gin.Context) {
 	id := c.Param("id")
 	var asset Asset
 	if err := a.store.DB.First(&asset, "id = ?", id).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found"})
 		return
 	}
 	if asset.OwnerID != uid && !a.isAdmin(uid) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+		c.JSON(http.StatusForbidden, gin.H{"message": "forbidden"})
 		return
 	}
 	var b assetUpdateBody
