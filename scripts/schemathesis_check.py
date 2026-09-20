@@ -40,6 +40,7 @@ import os
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -65,6 +66,12 @@ def log(msg, *a):
         except Exception:
             pass
     print("[schemathesis_check]", msg, flush=True)
+
+
+# Loopback HTTP must never go through an ambient http_proxy (developer shells
+# and corporate environments often have one): build a proxy-free opener and
+# use it for every localhost call the gate makes.
+DIRECT = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 
 def ensure_schemathesis():
@@ -106,7 +113,7 @@ def start_server(bin_path, port, workdir):
         if p.poll() is not None:
             raise RuntimeError("server exited early (code %s)" % p.returncode)
         try:
-            with urllib.request.urlopen(url, timeout=2) as r:
+            with DIRECT.open(url, timeout=2) as r:
                 if r.status == 200:
                     log("server ready on :%d", port)
                     return p
@@ -121,7 +128,7 @@ def login(port):
     url = f"http://127.0.0.1:{port}/api/auth/login"
     data = json.dumps({"email": ADMIN_EMAIL, "password": ADMIN_PASS}).encode()
     req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=15) as r:
+    with DIRECT.open(req, timeout=15) as r:
         body = json.load(r)
     tok = body.get("accessToken") or body.get("token")
     if not tok:
@@ -148,8 +155,16 @@ def run_schemathesis(spec, port, token, report_dir, max_examples):
         "--report-dir", report_dir,
     ]
     log("running schemathesis: %s", " ".join(cmd))
+    # Schemathesis (httpx) honors ambient *_proxy env vars; a developer shell
+    # behind a corporate proxy would route the localhost calls through it and
+    # everything would time out. Strip proxies for the loopback run.
+    env = dict(os.environ)
+    for k in list(env):
+        if k.lower() in ("http_proxy", "https_proxy", "all_proxy", "no_proxy"):
+            env.pop(k)
+    env["NO_PROXY"] = "*"
     # Ignore schemathesis' own exit code; we gate on classified failures.
-    subprocess.run(cmd, check=False)
+    subprocess.run(cmd, check=False, env=env)
     # Schemathesis names the report junit-<timestamp>.xml; pick the newest.
     candidates = sorted(glob.glob(os.path.join(report_dir, "junit*.xml")), key=os.path.getmtime)
     return candidates[-1] if candidates else None
@@ -227,7 +242,11 @@ def main():
             bin_path = args.bin or os.path.join(tmp, "immich-go")
             if not args.bin:
                 build_binary(bin_path)
-            proc = start_server(bin_path, args.port, os.path.join(tmp, "data"))
+            # Fresh throwaway DB per run: earlier runs mutate state (example
+            # bodies rename users / change passwords), and the gate must
+            # always probe the seeded known state.
+            workdir = tempfile.mkdtemp(prefix="immich-gate-")
+            proc = start_server(bin_path, args.port, workdir)
             token = login(args.port)
 
         junit = run_schemathesis(args.spec, args.port, token, args.report_dir, args.max_examples)

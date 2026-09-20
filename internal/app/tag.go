@@ -40,7 +40,7 @@ func (a *App) handleTagGet(c *gin.Context) {
 	id := c.Param("id")
 	var t Tag
 	if err := a.store.DB.First(&t, "id = ? AND user_id = ?", id, uid).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found"})
 		return
 	}
 	c.JSON(http.StatusOK, t)
@@ -51,7 +51,7 @@ func (a *App) handleTagUpdate(c *gin.Context) {
 	id := c.Param("id")
 	var t Tag
 	if err := a.store.DB.First(&t, "id = ? AND user_id = ?", id, uid).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found"})
 		return
 	}
 	var b tagBody
@@ -79,7 +79,7 @@ func (a *App) handleTagAddAssets(c *gin.Context) {
 	id := c.Param("id")
 	var t Tag
 	if err := a.store.DB.First(&t, "id = ? AND user_id = ?", id, uid).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found"})
 		return
 	}
 	var b struct {
@@ -104,7 +104,7 @@ func (a *App) handleTagRemoveAsset(c *gin.Context) {
 	aid := c.Param("assetId")
 	var t Tag
 	if err := a.store.DB.First(&t, "id = ? AND user_id = ?", id, uid).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found"})
 		return
 	}
 	a.store.DB.Where("asset_id = ? AND tag_id = ?", aid, id).Delete(&AssetTag{})
@@ -146,7 +146,7 @@ func (a *App) handleTagRemoveAssets(c *gin.Context) {
 	id := c.Param("id")
 	var t Tag
 	if err := a.store.DB.First(&t, "id = ? AND user_id = ?", id, uid).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found"})
 		return
 	}
 	var b struct {

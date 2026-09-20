@@ -18,7 +18,7 @@ func (a *App) handleMe(c *gin.Context) {
 	uid := currentUserID(c)
 	var u User
 	if err := a.store.DB.First(&u, "id = ?", uid).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found"})
 		return
 	}
 	// Populate quota usage so the web storage meter renders correctly
@@ -38,7 +38,7 @@ func (a *App) handleUpdateMe(c *gin.Context) {
 	uid := currentUserID(c)
 	var u User
 	if err := a.store.DB.First(&u, "id = ?", uid).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found"})
 		return
 	}
 	var b updateMeBody
@@ -76,13 +76,13 @@ func (a *App) handlePreferences(c *gin.Context) {
 	existing := a.loadPreferences(uid)
 	var patch map[string]json.RawMessage
 	if err := c.ShouldBindJSON(&patch); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid body", "statusCode": 400})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid body", "statusCode": 400})
 		return
 	}
 	merged := mergePreferences(patch, existing)
 	data, err := json.Marshal(merged)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
 	upd := UserPreferences{UserID: uid, Data: string(data)}
@@ -94,7 +94,7 @@ func (a *App) handleGetUser(c *gin.Context) {
 	id := c.Param("id")
 	var u User
 	if err := a.store.DB.First(&u, "id = ?", id).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found"})
 		return
 	}
 	c.JSON(http.StatusOK, u)
@@ -104,7 +104,7 @@ func (a *App) handleUpdateUser(c *gin.Context) {
 	id := c.Param("id")
 	var u User
 	if err := a.store.DB.First(&u, "id = ?", id).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found"})
 		return
 	}
 	var b updateMeBody
@@ -130,7 +130,7 @@ func (a *App) handleUserThumb(c *gin.Context) {
 	id := c.Param("id")
 	var u User
 	if err := a.store.DB.First(&u, "id = ?", id).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found"})
 		return
 	}
 	path := filepath.Join(a.cfg.ResourceDir, "profile", id)

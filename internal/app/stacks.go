@@ -14,7 +14,7 @@ func (a *App) handleStacksList(c *gin.Context) {
 	uid := currentUserID(c)
 	var stacks []Stack
 	if err := a.store.DB.Where("owner_id = ?", uid).Order("created_at DESC").Find(&stacks).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error(), "statusCode": 500})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error(), "statusCode": 500})
 		return
 	}
 	out := make([]map[string]any, 0, len(stacks))
@@ -55,17 +55,17 @@ func (a *App) handleStackUpdate(c *gin.Context) {
 		PrimaryAssetID string `json:"primaryAssetId"`
 	}
 	if err := c.ShouldBindJSON(&b); err != nil || b.PrimaryAssetID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "primaryAssetId required", "statusCode": 400})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "primaryAssetId required", "statusCode": 400})
 		return
 	}
 	var s Stack
 	if err := a.store.DB.Where("id = ? AND owner_id = ?", id, uid).First(&s).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found", "statusCode": 404})
 		return
 	}
 	var primary Asset
 	if a.store.DB.Where("id = ? AND owner_id = ?", b.PrimaryAssetID, uid).First(&primary).Error != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "primary asset not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "primary asset not found", "statusCode": 404})
 		return
 	}
 
@@ -100,17 +100,17 @@ func (a *App) handleStackAssetGet(c *gin.Context) {
 	assetID := c.Param("assetId")
 	var s Stack
 	if err := a.store.DB.Where("id = ? AND owner_id = ?", id, uid).First(&s).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found", "statusCode": 404})
 		return
 	}
 	var m StackAsset
 	if err := a.store.DB.Where("stack_id = ? AND asset_id = ?", s.ID, assetID).First(&m).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found", "statusCode": 404})
 		return
 	}
 	var asset Asset
 	if a.store.DB.Where("id = ?", assetID).First(&asset).Error != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "asset not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "asset not found", "statusCode": 404})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"id": asset.ID, "type": asset.Type, "duplicateId": nil})
@@ -125,11 +125,11 @@ func (a *App) handleStackAssetUpdate(c *gin.Context) {
 	assetID := c.Param("assetId")
 	var s Stack
 	if err := a.store.DB.Where("id = ? AND owner_id = ?", id, uid).First(&s).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found", "statusCode": 404})
 		return
 	}
 	if a.store.DB.Where("stack_id = ? AND asset_id = ?", s.ID, assetID).Delete(&StackAsset{}).RowsAffected == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found", "statusCode": 404})
 		return
 	}
 	// If it was the primary, promote the first remaining member to primary.
