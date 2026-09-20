@@ -52,7 +52,7 @@ func (a *App) handleAssetEditsGet(c *gin.Context) {
 	uid := currentUserID(c)
 	out, err := a.loadAssetEdits(c.Param("id"), uid)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "asset not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "asset not found", "statusCode": 404})
 		return
 	}
 	c.JSON(http.StatusOK, out)
@@ -63,7 +63,7 @@ func (a *App) handleAssetEditsUpdate(c *gin.Context) {
 	assetID := c.Param("id")
 	var as Asset
 	if err := a.store.DB.First(&as, "id = ? AND owner_id = ?", assetID, uid).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "asset not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "asset not found", "statusCode": 404})
 		return
 	}
 	var body struct {
@@ -73,7 +73,7 @@ func (a *App) handleAssetEditsUpdate(c *gin.Context) {
 		} `json:"edits"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil || len(body.Edits) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "edits required", "statusCode": 400})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "edits required", "statusCode": 400})
 		return
 	}
 	valid := map[string]bool{"crop": true, "rotate": true, "mirror": true}
@@ -83,7 +83,7 @@ func (a *App) handleAssetEditsUpdate(c *gin.Context) {
 	for i, e := range body.Edits {
 		if !valid[e.Action] {
 			a.store.DB.Where("asset_id = ?", assetID).Delete(&AssetEdit{})
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid edit action: " + e.Action, "statusCode": 400})
+			c.JSON(http.StatusBadRequest, gin.H{"message": "invalid edit action: " + e.Action, "statusCode": 400})
 			return
 		}
 		params := e.Parameters
@@ -108,7 +108,7 @@ func (a *App) handleAssetEditsDelete(c *gin.Context) {
 	assetID := c.Param("id")
 	var as Asset
 	if err := a.store.DB.First(&as, "id = ? AND owner_id = ?", assetID, uid).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "asset not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "asset not found", "statusCode": 404})
 		return
 	}
 	a.store.DB.Where("asset_id = ?", assetID).Delete(&AssetEdit{})
@@ -126,7 +126,7 @@ func (a *App) handlePartnerUpdate(c *gin.Context) {
 	_ = c.ShouldBindJSON(&b)
 	var p Partner
 	if err := a.store.DB.Where("(shared_by_id = ? AND shared_with_id = ?) OR (shared_with_id = ? AND shared_by_id = ?)", uid, other, uid, other).First(&p).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "partner not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "partner not found", "statusCode": 404})
 		return
 	}
 	inTimeline := p.InTimeline
@@ -155,7 +155,7 @@ func (a *App) handleLibraryValidate(c *gin.Context) {
 	id := c.Param("id")
 	var lib Library
 	if err := a.store.DB.First(&lib, "id = ?", id).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "library not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "library not found", "statusCode": 404})
 		return
 	}
 	var b struct {
@@ -195,7 +195,7 @@ func (a *App) handleTagBulkAssets(c *gin.Context) {
 	}
 	_ = c.ShouldBindJSON(&b)
 	if len(b.TagIDs) == 0 || len(b.AssetIDs) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tagIds and assetIds required", "statusCode": 400})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "tagIds and assetIds required", "statusCode": 400})
 		return
 	}
 	count := 0
@@ -226,12 +226,12 @@ func (a *App) handleProfileImageCreate(c *gin.Context) {
 	uid := currentUserID(c)
 	file, err := c.FormFile("file")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "file required", "statusCode": 400})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "file required", "statusCode": 400})
 		return
 	}
 	dir := filepath.Join(a.cfg.ResourceDir, "profile", uid)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
 	ext := filepath.Ext(file.Filename)
@@ -241,7 +241,7 @@ func (a *App) handleProfileImageCreate(c *gin.Context) {
 	fname := newUUID() + ext
 	dst := filepath.Join(dir, fname)
 	if err := c.SaveUploadedFile(file, dst); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
 	rel := filepath.Join("profile", uid, fname)
@@ -261,7 +261,7 @@ func (a *App) handleProfileImageGet(c *gin.Context) {
 	id := c.Param("id")
 	var u User
 	if err := a.store.DB.First(&u, "id = ?", id).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found", "statusCode": 404})
 		return
 	}
 	if u.ProfileImagePath == "" {
@@ -277,7 +277,7 @@ func (a *App) handleProfileImageDelete(c *gin.Context) {
 	uid := currentUserID(c)
 	var u User
 	if err := a.store.DB.First(&u, "id = ?", uid).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found", "statusCode": 404})
 		return
 	}
 	if u.ProfileImagePath != "" {
@@ -302,13 +302,13 @@ func (a *App) handlePinCodeSetup(c *gin.Context) {
 	}
 	_ = c.ShouldBindJSON(&b)
 	if !pinRegexp.MatchString(b.PinCode) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "pinCode must be 6 digits", "statusCode": 400})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "pinCode must be 6 digits", "statusCode": 400})
 		return
 	}
 	var u User
 	a.store.DB.First(&u, "id = ?", uid)
 	if u.PinCode != "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "pin code already set", "statusCode": 400})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "pin code already set", "statusCode": 400})
 		return
 	}
 	hash, _ := bcrypt.GenerateFromPassword([]byte(b.PinCode), bcrypt.DefaultCost)
@@ -326,17 +326,17 @@ func (a *App) handlePinCodeChange(c *gin.Context) {
 	}
 	_ = c.ShouldBindJSON(&b)
 	if !pinRegexp.MatchString(b.PinCode) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "pinCode must be 6 digits", "statusCode": 400})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "pinCode must be 6 digits", "statusCode": 400})
 		return
 	}
 	var u User
 	a.store.DB.First(&u, "id = ?", uid)
 	if u.PinCode == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "pin code not set", "statusCode": 400})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "pin code not set", "statusCode": 400})
 		return
 	}
 	if b.OldPinCode != "" && bcrypt.CompareHashAndPassword([]byte(u.PinCode), []byte(b.OldPinCode)) != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "current pin code is incorrect", "statusCode": 400})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "current pin code is incorrect", "statusCode": 400})
 		return
 	}
 	hash, _ := bcrypt.GenerateFromPassword([]byte(b.PinCode), bcrypt.DefaultCost)
@@ -379,7 +379,7 @@ func (a *App) handleSessionUnlock(c *gin.Context) {
 		}
 	}
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid pin or password", "statusCode": 401})
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "invalid pin or password", "statusCode": 401})
 		return
 	}
 	now := time.Now().UTC()
@@ -404,7 +404,7 @@ func (a *App) handleSessionCreate(c *gin.Context) {
 	_ = c.ShouldBindJSON(&b)
 	newTok, err := a.issueToken(uid)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
 	now := time.Now().UTC()
@@ -461,7 +461,7 @@ func (a *App) handleStackCreate(c *gin.Context) {
 	}
 	_ = c.ShouldBindJSON(&b)
 	if len(b.AssetIDs) < 2 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "at least 2 assetIds required", "statusCode": 400})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "at least 2 assetIds required", "statusCode": 400})
 		return
 	}
 	// Validate ownership and gather assets (primary first).
@@ -469,7 +469,7 @@ func (a *App) handleStackCreate(c *gin.Context) {
 	for _, aid := range b.AssetIDs {
 		var as Asset
 		if err := a.store.DB.First(&as, "id = ? AND owner_id = ?", aid, uid).Error; err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "asset not found: " + aid, "statusCode": 404})
+			c.JSON(http.StatusNotFound, gin.H{"message": "asset not found: " + aid, "statusCode": 404})
 			return
 		}
 		assets = append(assets, as)
@@ -483,7 +483,7 @@ func (a *App) handleStackCreate(c *gin.Context) {
 		UpdatedAt:      now,
 	}
 	if err := a.store.DB.Create(&stack).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
 	for i, as := range assets {
@@ -497,7 +497,7 @@ func (a *App) handleStackGet(c *gin.Context) {
 	id := c.Param("id")
 	var stack Stack
 	if err := a.store.DB.First(&stack, "id = ? AND owner_id = ?", id, uid).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "stack not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "stack not found", "statusCode": 404})
 		return
 	}
 	assets := a.stackAssets(stack.ID)
@@ -513,7 +513,7 @@ func (a *App) handleStacksDelete(c *gin.Context) {
 	}
 	_ = c.ShouldBindJSON(&b)
 	if len(b.IDs) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ids required", "statusCode": 400})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "ids required", "statusCode": 400})
 		return
 	}
 	for _, id := range b.IDs {

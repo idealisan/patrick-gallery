@@ -14,11 +14,11 @@ func (a *App) requireAdmin(c *gin.Context) (*User, bool) {
 	uid := currentUserID(c)
 	var u User
 	if err := a.store.DB.First(&u, "id = ?", uid).Error; err != nil {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized", "statusCode": 401})
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"message": "unauthorized", "statusCode": 401})
 		return nil, false
 	}
 	if !u.IsAdmin {
-		c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "admin privileges required", "statusCode": 403})
+		c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"message": "admin privileges required", "statusCode": 403})
 		return nil, false
 	}
 	return &u, true
@@ -156,26 +156,26 @@ func (a *App) handleAdminCreateUser(c *gin.Context) {
 	}
 	var b userAdminCreateDto
 	if err := c.ShouldBindJSON(&b); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid body", "statusCode": 400})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid body", "statusCode": 400})
 		return
 	}
 	if b.Email == "" || b.Name == "" || b.Password == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "email, name and password are required", "statusCode": 400})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "email, name and password are required", "statusCode": 400})
 		return
 	}
 	if b.PinCode != "" && len(b.PinCode) != 6 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "pinCode must be 6 digits", "statusCode": 400})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "pinCode must be 6 digits", "statusCode": 400})
 		return
 	}
 	var n int64
 	a.store.DB.Model(&User{}).Where("email = ?", b.Email).Count(&n)
 	if n > 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "user already exists", "statusCode": 400})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "user already exists", "statusCode": 400})
 		return
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(b.Password), bcrypt.DefaultCost)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
 	avatar := b.AvatarColor
@@ -200,7 +200,7 @@ func (a *App) handleAdminCreateUser(c *gin.Context) {
 		ProfileChangedAt:     now,
 	}
 	if err := a.store.DB.Create(&u).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
 	tok, _ := a.issueToken(u.ID)
@@ -215,7 +215,7 @@ func (a *App) handleAdminGetUser(c *gin.Context) {
 	id := c.Param("id")
 	var u User
 	if err := a.store.DB.Unscoped().First(&u, "id = ?", id).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found", "statusCode": 404})
 		return
 	}
 	c.JSON(http.StatusOK, a.toAdminUser(u))
@@ -228,7 +228,7 @@ func (a *App) handleAdminUpdateUser(c *gin.Context) {
 	id := c.Param("id")
 	var u User
 	if err := a.store.DB.Unscoped().First(&u, "id = ?", id).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found", "statusCode": 404})
 		return
 	}
 	var b userAdminUpdateDto
@@ -242,7 +242,7 @@ func (a *App) handleAdminUpdateUser(c *gin.Context) {
 	if b.Password != "" {
 		hash, err := bcrypt.GenerateFromPassword([]byte(b.Password), bcrypt.DefaultCost)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 			return
 		}
 		u.Password = string(hash)
@@ -263,7 +263,7 @@ func (a *App) handleAdminUpdateUser(c *gin.Context) {
 	}
 	u.UpdatedAt = time.Now().UTC()
 	if err := a.store.DB.Save(&u).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, a.toAdminUser(u))
@@ -276,7 +276,7 @@ func (a *App) handleAdminDeleteUser(c *gin.Context) {
 	id := c.Param("id")
 	var u User
 	if err := a.store.DB.Unscoped().First(&u, "id = ?", id).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found", "statusCode": 404})
 		return
 	}
 	// Guard: never delete the only remaining admin.
@@ -284,7 +284,7 @@ func (a *App) handleAdminDeleteUser(c *gin.Context) {
 		var adminCount int64
 		a.store.DB.Model(&User{}).Where("is_admin = ?", true).Count(&adminCount)
 		if adminCount <= 1 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "cannot delete the only admin", "statusCode": 400})
+			c.JSON(http.StatusBadRequest, gin.H{"message": "cannot delete the only admin", "statusCode": 400})
 			return
 		}
 	}
@@ -292,7 +292,7 @@ func (a *App) handleAdminDeleteUser(c *gin.Context) {
 	_ = c.ShouldBindJSON(&b)
 	// Soft-delete the user (keeps the row so it can be restored).
 	if err := a.store.DB.Delete(&u).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
 	// Fan out a realtime user-delete event so connected official clients
@@ -315,7 +315,7 @@ func (a *App) handleAdminRestoreUser(c *gin.Context) {
 	id := c.Param("id")
 	var u User
 	if err := a.store.DB.Unscoped().First(&u, "id = ?", id).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found", "statusCode": 404})
 		return
 	}
 	if !u.DeletedAt.Valid {
@@ -323,7 +323,7 @@ func (a *App) handleAdminRestoreUser(c *gin.Context) {
 		return
 	}
 	if err := a.store.DB.Unscoped().Model(&u).Update("deleted_at", nil).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
 	// Restore the user's assets too.
@@ -398,7 +398,7 @@ func (a *App) handleAdminUserStatistics(c *gin.Context) {
 	}
 	id := c.Param("id")
 	if err := a.store.DB.First(&User{}, "id = ?", id).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found", "statusCode": 404})
 		return
 	}
 	var photos, videos, total int64
@@ -416,7 +416,7 @@ func (a *App) handleAdminUserCalendarHeatmap(c *gin.Context) {
 	}
 	id := c.Param("id")
 	if err := a.store.DB.First(&User{}, "id = ?", id).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found", "statusCode": 404})
 		return
 	}
 	now := time.Now().UTC()
@@ -549,7 +549,7 @@ func (a *App) handleAdminUserPreferences(c *gin.Context) {
 	}
 	id := c.Param("id")
 	if err := a.store.DB.First(&User{}, "id = ?", id).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found", "statusCode": 404})
+		c.JSON(http.StatusNotFound, gin.H{"message": "not found", "statusCode": 404})
 		return
 	}
 	if c.Request.Method == http.MethodGet {
@@ -560,13 +560,13 @@ func (a *App) handleAdminUserPreferences(c *gin.Context) {
 	existing := a.loadPreferences(id)
 	var patch map[string]json.RawMessage
 	if err := c.ShouldBindJSON(&patch); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid body", "statusCode": 400})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid body", "statusCode": 400})
 		return
 	}
 	merged := mergePreferences(patch, existing)
 	data, err := json.Marshal(merged)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
 	upd := UserPreferences{UserID: id, Data: string(data)}

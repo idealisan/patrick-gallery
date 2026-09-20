@@ -189,7 +189,7 @@ func (a *App) handleDuplicatesResolve(c *gin.Context) {
 		var members []Asset
 		a.store.DB.Where("duplicate_id = ? AND owner_id = ?", g.DuplicateID, uid).Find(&members)
 		if len(members) == 0 {
-			results = append(results, gin.H{"id": g.DuplicateID, "success": false, "error": "not_found"})
+			results = append(results, gin.H{"id": g.DuplicateID, "success": false, "message": "not_found"})
 			continue
 		}
 		inGroup := map[string]bool{}
@@ -211,13 +211,13 @@ func (a *App) handleDuplicatesResolve(c *gin.Context) {
 		bad := false
 		for _, m := range members {
 			if keepSet[m.ID] && trashSet[m.ID] {
-				results = append(results, gin.H{"id": g.DuplicateID, "success": false, "error": "validation",
+				results = append(results, gin.H{"id": g.DuplicateID, "success": false, "message": "validation",
 					"errorMessage": "An asset cannot be in both keepAssetIds and trashAssetIds"})
 				bad = true
 				break
 			}
 			if !keepSet[m.ID] && !trashSet[m.ID] {
-				results = append(results, gin.H{"id": g.DuplicateID, "success": false, "error": "validation",
+				results = append(results, gin.H{"id": g.DuplicateID, "success": false, "message": "validation",
 					"errorMessage": "Every asset must be in either keepAssetIds or trashAssetIds"})
 				bad = true
 				break
@@ -236,7 +236,7 @@ func (a *App) handleDuplicatesResolve(c *gin.Context) {
 			if err := a.store.DB.Model(&Asset{}).Where("id IN ?", trashIDs).Updates(map[string]any{
 				"is_trash": true, "trashed_at": &now, "updated_at": now,
 			}).Error; err != nil {
-				results = append(results, gin.H{"id": g.DuplicateID, "success": false, "error": "unknown"})
+				results = append(results, gin.H{"id": g.DuplicateID, "success": false, "message": "unknown"})
 				continue
 			}
 		}

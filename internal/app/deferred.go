@@ -13,7 +13,7 @@ import (
 // unsupported rather than faking a success.
 func (a *App) handleNotImplemented(c *gin.Context) {
 	c.JSON(http.StatusNotImplemented, gin.H{
-		"error":      "this capability is not implemented in immich-go",
+		"message":      "this capability is not implemented in immich-go",
 		"statusCode": 501,
 	})
 }
