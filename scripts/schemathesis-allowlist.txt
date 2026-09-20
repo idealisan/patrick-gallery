@@ -24,12 +24,27 @@ PUT /workflows/{id}
 DELETE /workflows/{id}
 POST /workflows/{id}/execute
 POST /admin/auth/unlink-all
-# Honest 4xx the official spec does not document (it lists only 201 for these
-# auth operations). The handlers behave like the official server: a bad login
-# returns 401, and admin-sign-up returns 400 once an admin exists / fields are
-# missing. Not stubs — real logic with an undocumented error status.
+# Honest 4xx the official spec does not document. Schemathesis' "examples"
+# phase replays the schema's example request bodies / path ids, which are
+# deliberately invalid or reference resources that do not exist. The handlers
+# (like the official server) validate and answer 400/401/404 instead of the
+# single 2xx the spec lists. Real implementations, not stubs.
 POST /auth/admin-sign-up
 POST /auth/login
+POST /shared-links/login
+POST /admin/notifications
+POST /admin/users
+POST /assets
+PUT /memories/{id}
+PUT /notifications/{id}
+PATCH /shared-links/{id}
+# 403s: the example albumId grants no access (timeline authorizeTimeline, same
+# as the official timeBucketChecks), and the /admin/users ops run after the
+# examples phase PUTs an isAdmin:false body, demoting the caller.
+GET /timeline/bucket
+GET /timeline/buckets
+PUT /admin/users/{id}
+GET /admin/users/{id}/calendar-heatmap
 # Face detection/recognition requires an ML backend (deferred) -> honest 501.
 GET /faces
 GET /faces/{id}
