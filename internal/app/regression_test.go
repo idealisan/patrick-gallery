@@ -61,7 +61,14 @@ func uploadAsset(t *testing.T, r *gin.Engine, token, fileName string) string {
 	t.Helper()
 	dir := t.TempDir()
 	imgPath := filepath.Join(dir, fileName)
-	writeRegressionJPEG(t, imgPath, 64, 48, 200, 100, 50)
+	// Content must differ per file name: the official upload contract
+	// (verified live on v3.1.0) answers 200 {status:"duplicate"} for
+	// identical bytes under the same owner.
+	seed := 0
+	for _, ch := range fileName {
+		seed += int(ch)
+	}
+	writeRegressionJPEG(t, imgPath, 64, 48, 200, 100, 50+seed%180)
 
 	var buf bytes.Buffer
 	mw := multipart.NewWriter(&buf)

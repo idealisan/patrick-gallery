@@ -99,10 +99,17 @@ func uploadAssetCK(t *testing.T, r *gin.Engine, cookie, fileName string) string 
 	t.Helper()
 	dir := t.TempDir()
 	imgPath := filepath.Join(dir, fileName)
+	// Content must differ per file name: the official upload contract
+	// (verified live on v3.1.0) answers 200 {status:"duplicate"} for
+	// identical bytes under the same owner.
+	seed := 0
+	for _, ch := range fileName {
+		seed += int(ch)
+	}
 	img := image.NewRGBA(image.Rect(0, 0, 64, 48))
 	for y := 0; y < 48; y++ {
 		for x := 0; x < 64; x++ {
-			img.Set(x, y, color.RGBA{uint8((x * 7) % 256), uint8((y * 11) % 256), 120, 255})
+			img.Set(x, y, color.RGBA{uint8((x * 7) % 256), uint8((y*11+seed) % 256), 120, 255})
 		}
 	}
 	f, err := os.Create(imgPath)
