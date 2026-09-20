@@ -271,7 +271,7 @@
 - Docker 镜像多架构（arm64）+ CNB 流水线自动发版（`.cnb.yml` stages）待接入。
 
 ### K. Schemathesis 真实契约一致性测试（v3.1.0, 2026-08-15）
-用行业标准 property-based API 测试 CLI **`schemathesis` 4.24.3** 对 immich-go 做真实 OpenAPI 一致性核验（替代 §J 的手写 stdlib 检查器，后者漏报了若干 DTO 形状错误）。
+用行业标准 property-based API 测试 CLI **`schemathesis` 4.27.5** 对 immich-go 做真实 OpenAPI 一致性核验（替代 §J 的手写 stdlib 检查器，后者漏报了若干 DTO 形状错误）。
 
 - 基准契约：`open-api/immich-openapi-specs.json`（immich-app/immich tag v3.1.0，OpenAPI 3.0.0，254 operations，`servers:[/api]`）。
 - 命令（可复现，详见 `reports/schemathesis-v3.1.0.md`）：

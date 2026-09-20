@@ -11,7 +11,7 @@ DTO 形状是否与原版对齐；OpenAPI 规范（v3.1.0）仅作路径/方法�
 
 ## 前置
 - Docker + docker compose v2（`docker compose version` 可见）。
-- Python3 + `pip install schemathesis==4.24.3`（`scripts/compare_origins.py` 用）。
+- Python3 + `pip install schemathesis==4.27.5`（`scripts/compare_origins.py` 用）。
 - 已构建 immich-go（`./immich-go`，默认 `:8081`）。
 
 ## 步骤

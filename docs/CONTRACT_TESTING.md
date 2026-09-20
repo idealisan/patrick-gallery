@@ -42,13 +42,13 @@ python3 scripts/schemathesis_check.py --no-server --base-url http://localhost:80
 python3 scripts/schemathesis_check.py --max-examples 5
 ```
 
-依赖：Go（构建）、Python3 + `schemathesis`（首次运行会自动 `pip install schemathesis==4.24.3`）。
+依赖：Go（构建）、Python3 + `schemathesis`（首次运行会自动 `pip install schemathesis==4.27.5`）。
 
 退出码：`0` = 通过；`1` = 检测到契约回归。
 
 ## 基线（v1.3.1-go，a14c98d）
 
-以官方 v3.1.0 spec 实跑（Schemathesis 4.24.3，`--phases examples`）：
+以官方 v3.1.0 spec 实跑（Schemathesis 4.27.5，`--phases examples`）：
 
 - Tested 30 / 254 operation；Passed **5**；Failed **25**。
 - 关键检查（schema / content-type / 5xx）：**全部 0**。
@@ -57,7 +57,7 @@ python3 scripts/schemathesis_check.py --max-examples 5
 
 ## CI 集成
 
-`.github/workflows/ci.yml` 新增 `contract-test` job：每次 push 到 `main` 与 PR 时 checkout → setup-go → `pip install schemathesis==4.24.3` → 运行 `scripts/schemathesis_check.py`。该 job 失败即阻断合并，确保 DTO 形状不回退。CNB 流水线（`.cnb.yml`）亦可复用同一脚本作为发版前门禁。
+`.github/workflows/ci.yml` 新增 `contract-test` job：每次 push 到 `main` 与 PR 时 checkout → setup-go → `pip install schemathesis==4.27.5` → 运行 `scripts/schemathesis_check.py`。该 job 失败即阻断合并，确保 DTO 形状不回退。CNB 流水线（`.cnb.yml`）亦可复用同一脚本作为发版前门禁。
 
 ## 维护 allowlist
 

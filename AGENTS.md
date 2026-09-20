@@ -157,6 +157,19 @@ Go 方式重建，或显式引入受控的外部组件；水平多租户扩展�
      `curl` and only surfaced in a real browser. See the post-mortem in
      `STATUS.md` §P.
 
+9. **尽量不要用 `rm` / git 清理等删除命令。** 避免引起权限警告，也避免误删
+   不该删的文件。
+   - **不要用 `rm`、`rm -rf`，也不要用会删除文件/引用的 git 命令**（如
+     `git clean`、`git stash clear`、`git branch -D`、`git update-ref -d`、
+     以回收为目的的 `git gc` 等）。
+   - **磁盘空间充足时，用"复制/移动到临时位置"代替删除**：需要让某个文件或
+     目录"让位"时，把它复制到临时位置即可（仓库内用 `.tmp/`，已在
+     `.gitignore` 中），不要直接删除。
+   - **磁盘空间不足时停下工作**并告知用户，不要靠删除来腾空间。
+   - **清理只在阶段完成后统一进行**：临时产物、备份、旁路目录等的清理，
+     等到当前阶段（例如一次 CI 修复 / 一个 Story）全部完成后，**先询问用户**，
+     再统一执行；不要在中间步骤里顺手删除。
+
 ### No-stub policy (operational)
 
 - **Definition.** A *stub* is any code path that claims success/availability
@@ -186,7 +199,7 @@ Go 方式重建，或显式引入受控的外部组件；水平多租户扩展�
   before pushing — there is no Go on the runner's checkout cache, so CI is
   the only safety net if you skip local checks.
 - **API 契约回归测试**：CI 的 `contract-test` job 会构建并启动 immich-go，用
-  Schemathesis 4.24.3 以官方 Immich v3.1.0 **OpenAPI 规范作为回归校验所用的
+  Schemathesis 4.27.5 以官方 Immich v3.1.0 **OpenAPI 规范作为回归校验所用的
   schema 来源**做一致性校验，并在 DTO 形状（`response_schema_conformance`）、
   `content_type_conformance`、5xx 上回归时失败。**注意**：OpenAPI 仅是回归检测
   工具，权威契约以**官方客户端与网页版实际代码**为准（见下方 workflow 说明）。
