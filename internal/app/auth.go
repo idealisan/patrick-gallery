@@ -17,6 +17,7 @@ import (
 const ctxUserID = "userID"
 const ctxShareKey = "shareLink"
 const ctxShareUserID = "shareUserID"
+const ctxAPIKeyID = "apiKeyID"
 
 // currentShareLink returns the SharedLink authorized via ?key=/?slug=/the
 // x-immich-share-key header, or nil when the caller is a normal user session.
@@ -168,6 +169,7 @@ func (a *App) AuthGuard() gin.HandlerFunc {
 				var ak ApiKey
 				if err := a.store.DB.Where("key = ?", hashKey(a.cfg.APIKeySalt, key)).First(&ak).Error; err == nil {
 					uid = ak.UserID
+					c.Set(ctxAPIKeyID, ak.ID)
 				}
 			}
 		}
@@ -208,7 +210,7 @@ func (a *App) AuthGuard() gin.HandlerFunc {
 		}
 
 		if uid == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized", "statusCode": 401})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"message": "unauthorized", "statusCode": 401})
 			return
 		}
 		c.Set(ctxUserID, uid)
@@ -274,25 +276,25 @@ type loginRequest struct {
 func (a *App) handleLogin(c *gin.Context) {
 	var req loginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid body", "statusCode": 400})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid body", "statusCode": 400})
 		return
 	}
 	var u User
 	if err := a.store.DB.Where("email = ?", req.Email).First(&u).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials", "statusCode": 401})
+			c.JSON(http.StatusUnauthorized, gin.H{"message": "invalid credentials", "statusCode": 401})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
 	if bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(req.Password)) != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials", "statusCode": 401})
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "invalid credentials", "statusCode": 401})
 		return
 	}
 	token, err := a.issueToken(u.ID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
 	a.recordSession(u.ID, token)
@@ -322,18 +324,18 @@ type signupRequest struct {
 func (a *App) handleSignup(c *gin.Context) {
 	var req signupRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid body", "statusCode": 400})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid body", "statusCode": 400})
 		return
 	}
 	var n int64
 	a.store.DB.Model(&User{}).Count(&n)
 	if n > 0 {
-		c.JSON(http.StatusForbidden, gin.H{"error": "registration disabled; an account already exists", "statusCode": 403})
+		c.JSON(http.StatusForbidden, gin.H{"message": "registration disabled; an account already exists", "statusCode": 403})
 		return
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
 	u := User{
@@ -348,7 +350,7 @@ func (a *App) handleSignup(c *gin.Context) {
 		UpdatedAt:   time.Now().UTC(),
 	}
 	if err := a.store.DB.Create(&u).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
 		return
 	}
 	token, _ := a.issueToken(u.ID)
@@ -361,7 +363,7 @@ func (a *App) handleValidate(c *gin.Context) {
 	uid := currentUserID(c)
 	var u User
 	if err := a.store.DB.First(&u, "id = ?", uid).Error; err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized", "statusCode": 401})
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthorized", "statusCode": 401})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -385,16 +387,16 @@ func (a *App) handleChangePassword(c *gin.Context) {
 	uid := currentUserID(c)
 	var u User
 	if err := a.store.DB.First(&u, "id = ?", uid).Error; err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "unauthorized"})
 		return
 	}
 	var req changePassRequest
 	if err := c.ShouldBindJSON(&req); err != nil || req.NewPassword == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid body", "statusCode": 400})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid body", "statusCode": 400})
 		return
 	}
 	if bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(req.Password)) != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "wrong password", "statusCode": 400})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "wrong password", "statusCode": 400})
 		return
 	}
 	hash, _ := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
@@ -424,6 +426,24 @@ func (a *App) handleLogout(c *gin.Context) {
 	})
 }
 
+// handleApiKeyMe implements GET /api-keys/me: it describes the API key the
+// request was authenticated with. The official server answers 403 when the
+// caller authenticated by any other means (JWT/cookie/session) — verified
+// live on v3.1.0.
+func (a *App) handleApiKeyMe(c *gin.Context) {
+	if v, ok := c.Get(ctxAPIKeyID); ok {
+		if keyID, ok := v.(string); ok && keyID != "" {
+			uid := currentUserID(c)
+			var ak ApiKey
+			if err := a.store.DB.First(&ak, "id = ? AND user_id = ?", keyID, uid).Error; err == nil {
+				c.JSON(http.StatusOK, ak)
+				return
+			}
+		}
+	}
+	c.JSON(http.StatusForbidden, gin.H{"message": "Not authenticated with an API Key"})
+}
+
 func (a *App) handleApiKeys(c *gin.Context) {
 	uid := currentUserID(c)
 	switch c.Request.Method {
@@ -431,7 +451,7 @@ func (a *App) handleApiKeys(c *gin.Context) {
 		if id := c.Param("id"); id != "" {
 			var ak ApiKey
 			if err := a.store.DB.First(&ak, "id = ? AND user_id = ?", id, uid).Error; err != nil {
-				c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+				c.JSON(http.StatusNotFound, gin.H{"message": "not found"})
 				return
 			}
 			c.JSON(http.StatusOK, ak)
@@ -459,7 +479,7 @@ func (a *App) handleApiKeys(c *gin.Context) {
 		id := c.Param("id")
 		var ak ApiKey
 		if err := a.store.DB.First(&ak, "id = ? AND user_id = ?", id, uid).Error; err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+			c.JSON(http.StatusNotFound, gin.H{"message": "not found"})
 			return
 		}
 		var body struct {

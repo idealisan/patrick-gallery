@@ -273,7 +273,7 @@ func (a *App) RegisterRoutes(r *gin.Engine) {
 		api.DELETE("/notifications/:id", a.handleDeleteNotification)
 		api.GET("/api-keys", a.handleApiKeys)
 		api.POST("/api-keys", a.handleApiKeys)
-		api.GET("/api-keys/me", a.handleApiKeys)
+		api.GET("/api-keys/me", a.handleApiKeyMe)
 		api.GET("/api-keys/:id", a.handleApiKeys)
 		api.PUT("/api-keys/:id", a.handleApiKeys)
 		api.DELETE("/api-keys/:id", a.handleApiKeys)

@@ -40,7 +40,7 @@ func main() {
 	// Serve the embedded SPA for every non-API route (SPA fallback).
 	r.NoRoute(func(c *gin.Context) {
 		if strings.HasPrefix(c.Request.URL.Path, "/api/") {
-			c.JSON(http.StatusNotFound, gin.H{"error": "not found", "statusCode": 404})
+			c.JSON(http.StatusNotFound, gin.H{"message": "not found", "statusCode": 404})
 			return
 		}
 		webroot.Serve(c.Writer, c.Request)
