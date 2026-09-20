@@ -1,6 +1,7 @@
-# Local dev build artifacts (dist/ release artifacts are intentionally kept)
+# Build/run artifacts — never commit these (dist/ holds large release binaries)
 /immich-go
 /immich-go.exe
+/dist/
 *.db
 *.db-journal
 *.db-shm
