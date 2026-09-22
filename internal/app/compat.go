@@ -10,21 +10,26 @@ import (
 // clients expect on first load. These are lightly-mounted so the Go port can
 // act as a drop-in for the core library experience.
 
-// handleAuthStatus reports the caller's auth state without requiring a body.
-// Immich returns one of: authorized | anonymous | locked | password-recheck.
+// handleAuthStatus implements GET /api/auth/status. The live v3.1.0 server
+// returns the AuthStatusResponseDto {isElevated, password, pinCode,
+// pinExpiresAt} — NOT the legacy `{authStatus: "authorized"}` string, which
+// the current official web does not understand.
 func (a *App) handleAuthStatus(c *gin.Context) {
-	h := c.GetHeader("Authorization")
-	if len(h) > 7 && h[:7] == "Bearer " {
-		if _, err := a.parseToken(h[7:]); err == nil {
-			c.JSON(http.StatusOK, gin.H{"authStatus": "authorized"})
-			return
+	pin := false
+	if tok := requestToken(c); tok != "" {
+		if claims, err := a.parseToken(tok); err == nil {
+			var u User
+			if a.store.DB.First(&u, "id = ?", claims.UserID).Error == nil && u.PinCode != "" {
+				pin = true
+			}
 		}
 	}
-	if a.cfg.LoginRequired {
-		c.JSON(http.StatusOK, gin.H{"authStatus": "unauthorized"})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"authStatus": "anonymous"})
+	c.JSON(http.StatusOK, gin.H{
+		"isElevated":   false,
+		"password":     true,
+		"pinCode":      pin,
+		"pinExpiresAt": nil,
+	})
 }
 
 // handleAuthValidateToken re-validates the caller's session. This matches the

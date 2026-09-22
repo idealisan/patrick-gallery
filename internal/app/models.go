@@ -22,7 +22,7 @@ type User struct {
 	StorageLabel         string         `gorm:"type:text" json:"storageLabel"`
 	CreatedAt            time.Time      `json:"createdAt"`
 	UpdatedAt            time.Time      `json:"updatedAt"`
-	DeletedAt            gorm.DeletedAt `gorm:"index" json:"-"`
+	DeletedAt            gorm.DeletedAt `gorm:"index" json:"deletedAt"`
 	// profile / preferences (kept inline for the scaffold)
 	Bio           string `gorm:"type:text" json:"bio,omitempty"`
 	IsEmailActive bool   `json:"isEmailActive,omitempty"`
@@ -44,6 +44,10 @@ type User struct {
 	// missing/omitted field makes the openapi-generated fromJson crash with
 	// "Null check operator used on a null value" and aborts login.
 	OAuthId string `gorm:"type:text;default:''" json:"oauthId"`
+	// License mirrors UserAdminResponseDto.license (null on this build); it
+	// MUST be present so the official web's `license` read is null, not
+	// undefined (verified live on v3.1.0).
+	License any `gorm:"-" json:"license"`
 	// Status mirrors Immich's UserStatus enum (active|removing|deleted). It is
 	// serialized unconditionally: the mobile client's UserAdminResponseDto
 	// requires a valid, non-null status, and an empty/unknown value throws.
@@ -264,7 +268,11 @@ type ApiKey struct {
 	UserID    string    `gorm:"index;type:text" json:"userId"`
 	Name      string    `gorm:"type:text" json:"name"`
 	Key       string    `gorm:"type:text" json:"-"` // hashed
-	CreatedAt time.Time `json:"createdAt"`
+	// Permissions is the official permission list stored as a JSON array
+	// string (ApiKeyResponseDto.permissions).
+	Permissions string    `gorm:"type:text" json:"-"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
 // DuplicateResolution records that the user chose `AssetID` as the keeper and

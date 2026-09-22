@@ -3,6 +3,7 @@ package app
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
@@ -444,6 +445,25 @@ func (a *App) handleApiKeyMe(c *gin.Context) {
 	c.JSON(http.StatusForbidden, gin.H{"message": "Not authenticated with an API Key"})
 }
 
+// apiKeyResponse builds the official ApiKeyResponseDto (verified live on
+// v3.1.0): {id, name, permissions, createdAt, updatedAt} — no userId.
+func apiKeyResponse(ak ApiKey) gin.H {
+	perms := []string{}
+	if ak.Permissions != "" {
+		_ = json.Unmarshal([]byte(ak.Permissions), &perms)
+	}
+	if perms == nil {
+		perms = []string{}
+	}
+	return gin.H{
+		"id":          ak.ID,
+		"name":        ak.Name,
+		"permissions": perms,
+		"createdAt":   ak.CreatedAt,
+		"updatedAt":   ak.UpdatedAt,
+	}
+}
+
 func (a *App) handleApiKeys(c *gin.Context) {
 	uid := currentUserID(c)
 	switch c.Request.Method {
@@ -454,27 +474,43 @@ func (a *App) handleApiKeys(c *gin.Context) {
 				c.JSON(http.StatusNotFound, gin.H{"message": "not found"})
 				return
 			}
-			c.JSON(http.StatusOK, ak)
+			c.JSON(http.StatusOK, apiKeyResponse(ak))
 			return
 		}
 		var keys []ApiKey
 		a.store.DB.Where("user_id = ?", uid).Find(&keys)
-		c.JSON(http.StatusOK, keys)
+		out := make([]gin.H, 0, len(keys))
+		for _, k := range keys {
+			out = append(out, apiKeyResponse(k))
+		}
+		c.JSON(http.StatusOK, out)
 	case http.MethodPost:
 		var body struct {
-			Name string `json:"name"`
+			Name        string   `json:"name"`
+			Permissions []string `json:"permissions"`
 		}
 		_ = c.ShouldBindJSON(&body)
+		// ApiKeyCreateDto requires permissions (official answers 400 when the
+		// array is missing).
+		if len(body.Permissions) == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"message": "permissions are required", "statusCode": 400})
+			return
+		}
 		raw := newUUID() + newUUID()
+		pj, _ := json.Marshal(body.Permissions)
+		now := time.Now().UTC()
 		ak := ApiKey{
-			ID:        newUUID(),
-			UserID:    uid,
-			Name:      body.Name,
-			Key:       hashKey(a.cfg.APIKeySalt, raw),
-			CreatedAt: time.Now().UTC(),
+			ID:          newUUID(),
+			UserID:      uid,
+			Name:        body.Name,
+			Key:         hashKey(a.cfg.APIKeySalt, raw),
+			Permissions: string(pj),
+			CreatedAt:   now,
+			UpdatedAt:   now,
 		}
 		a.store.DB.Create(&ak)
-		c.JSON(http.StatusCreated, gin.H{"id": ak.ID, "name": ak.Name, "key": raw, "createdAt": ak.CreatedAt})
+		// Official ApiKeyCreateResponseDto: {apiKey, secret}.
+		c.JSON(http.StatusCreated, gin.H{"apiKey": apiKeyResponse(ak), "secret": raw})
 	case http.MethodPut:
 		id := c.Param("id")
 		var ak ApiKey
@@ -483,17 +519,23 @@ func (a *App) handleApiKeys(c *gin.Context) {
 			return
 		}
 		var body struct {
-			Name string `json:"name"`
+			Name        string   `json:"name"`
+			Permissions []string `json:"permissions"`
 		}
 		_ = c.ShouldBindJSON(&body)
 		if body.Name != "" {
 			ak.Name = body.Name
 		}
+		if len(body.Permissions) > 0 {
+			pj, _ := json.Marshal(body.Permissions)
+			ak.Permissions = string(pj)
+		}
+		ak.UpdatedAt = time.Now().UTC()
 		a.store.DB.Save(&ak)
-		c.JSON(http.StatusOK, ak)
+		c.JSON(http.StatusOK, apiKeyResponse(ak))
 	case http.MethodDelete:
 		id := c.Param("id")
 		a.store.DB.Where("id = ? AND user_id = ?", id, uid).Delete(&ApiKey{})
-		c.Status(http.StatusOK)
+		c.Status(http.StatusNoContent)
 	}
 }
