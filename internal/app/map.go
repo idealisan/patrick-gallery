@@ -99,14 +99,16 @@ func (a *App) handleMapReverseGeocode(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "lat/lon required", "statusCode": 400})
 		return
 	}
+	// Official contract (verified live on v3.1.0): a LIST of
+	// {city, state, country} — an object broke the web's `.map()` over it.
 	if a.geocoder == nil {
-		c.JSON(http.StatusOK, gin.H{"city": "", "state": "", "country": ""})
+		c.JSON(http.StatusOK, []gin.H{{"city": "", "state": "", "country": ""}})
 		return
 	}
 	city, state, country := a.geocoder.Reverse(b.Lat, b.Lon)
-	c.JSON(http.StatusOK, gin.H{
+	c.JSON(http.StatusOK, []gin.H{{
 		"city":    city,
 		"state":   state,
 		"country": country,
-	})
+	}})
 }

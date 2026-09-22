@@ -578,5 +578,6 @@ func (a *App) handleAlbumBulkAddAssets(c *gin.Context) {
 			order++
 		}
 	}
-	c.Status(http.StatusOK)
+	// Official contract: {success: true} — verified live on v3.1.0.
+	c.JSON(http.StatusOK, gin.H{"success": true})
 }

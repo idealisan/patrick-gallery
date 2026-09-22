@@ -772,10 +772,12 @@ func (a *App) restoreBackup(filename string) error {
 // creates, restores, uploads and deletes .db.bak snapshots of the live
 // immich.db. This is an honest SQLite adaptation, not a fake-success stub.
 
+// databaseBackupEntry mirrors the official DatabaseBackupDto (verified live on
+// v3.1.0): {filename, filesize, timezone} — all required.
 type databaseBackupEntry struct {
-	FileName  string `json:"fileName"`
-	Size      int64  `json:"size"`
-	CreatedAt string `json:"createdAt"`
+	Filename string `json:"filename"`
+	Filesize int64  `json:"filesize"`
+	Timezone string `json:"timezone"`
 }
 
 // handleDatabaseBackupsList mirrors GET /api/admin/database-backups.
@@ -800,13 +802,14 @@ func (a *App) handleDatabaseBackupsList(c *gin.Context) {
 				continue
 			}
 			out = append(out, databaseBackupEntry{
-				FileName:  e.Name(),
-				Size:      info.Size(),
-				CreatedAt: info.ModTime().UTC().Format(time.RFC3339),
+				Filename: e.Name(),
+				Filesize: info.Size(),
+				Timezone: time.Now().Location().String(),
 			})
 		}
 	}
-	c.JSON(http.StatusOK, out)
+	// Official contract: {backups: [...]} — verified live on v3.1.0.
+	c.JSON(http.StatusOK, gin.H{"backups": out})
 }
 
 // handleDatabaseBackupRestore mirrors POST /api/admin/database-backups/start-restore.

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"path/filepath"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -11,7 +12,21 @@ import (
 func (a *App) handleListUsers(c *gin.Context) {
 	var users []User
 	a.store.DB.Find(&users)
-	c.JSON(http.StatusOK, users)
+	// Official GET /users returns UserResponseDto[] — the light public shape
+	// {id, email, name, avatarColor, profileImagePath, profileChangedAt}
+	// (verified live on v3.1.0), not the admin DTO with quotas/status.
+	out := make([]UserResponse, 0, len(users))
+	for _, u := range users {
+		out = append(out, UserResponse{
+			ID:               u.ID,
+			Email:            u.Email,
+			Name:             u.Name,
+			AvatarColor:      u.AvatarColor,
+			ProfileChangedAt: u.ProfileChangedAt.UTC().Format(time.RFC3339),
+			ProfileImagePath: u.ProfileImagePath,
+		})
+	}
+	c.JSON(http.StatusOK, out)
 }
 
 func (a *App) handleMe(c *gin.Context) {
