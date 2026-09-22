@@ -17,30 +17,9 @@ func (a *App) handleStacksList(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error(), "statusCode": 500})
 		return
 	}
-	out := make([]map[string]any, 0, len(stacks))
+	out := make([]gin.H, 0, len(stacks))
 	for _, s := range stacks {
-		var members []StackAsset
-		a.store.DB.Where("stack_id = ?", s.ID).Order("\"order\" ASC").Find(&members)
-		assets := make([]map[string]any, 0, len(members))
-		for _, m := range members {
-			var asset Asset
-			if a.store.DB.Where("id = ?", m.AssetID).First(&asset).Error != nil {
-				continue
-			}
-			assets = append(assets, gin.H{
-				"id":          asset.ID,
-				"duplicateId": nil,
-				"type":        asset.Type,
-			})
-		}
-		out = append(out, gin.H{
-			"id":            s.ID,
-			"primaryAssetId": s.PrimaryAssetID,
-			"ownerId":       s.OwnerID,
-			"createdAt":     s.CreatedAt,
-			"updatedAt":     s.UpdatedAt,
-			"assets":        assets,
-		})
+		out = append(out, a.stackToResponse(s, a.stackAssets(s.ID)))
 	}
 	c.JSON(http.StatusOK, out)
 }
@@ -89,7 +68,8 @@ func (a *App) handleStackUpdate(c *gin.Context) {
 	}
 	s.PrimaryAssetID = b.PrimaryAssetID
 	a.store.DB.Save(&s)
-	c.JSON(http.StatusOK, gin.H{"id": s.ID, "primaryAssetId": s.PrimaryAssetID, "ownerId": s.OwnerID})
+	// Official PUT /stacks/:id answers the full StackResponseDto.
+	c.JSON(http.StatusOK, a.stackToResponse(s, a.stackAssets(s.ID)))
 }
 
 // handleStackAssetGet returns a single member asset of a stack

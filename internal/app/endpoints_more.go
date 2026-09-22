@@ -554,14 +554,29 @@ func (a *App) stackAssets(stackID string) []Asset {
 	return assets
 }
 
+// stackToResponse renders the official StackResponseDto (verified live on
+// v3.1.0): {id, primaryAssetId, assets:[AssetResponseDto]} — each nested asset
+// is the full asset DTO WITHOUT `owner` and `stack` (the official server omits
+// those two keys here, unlike GET /assets/:id).
 func (a *App) stackToResponse(stack Stack, assets []Asset) gin.H {
-	out := make([]AssetResponse, 0, len(assets))
+	out := make([]map[string]any, 0, len(assets))
 	for _, as := range assets {
-		out = append(out, a.toResponse(as))
+		out = append(out, stackAssetJSON(a.toResponse(as)))
 	}
 	return gin.H{
 		"id":             stack.ID,
 		"primaryAssetId": stack.PrimaryAssetID,
 		"assets":         out,
 	}
+}
+
+// stackAssetJSON re-renders an AssetResponse without `owner`/`stack`, matching
+// the official stack response's nested asset shape.
+func stackAssetJSON(as AssetResponse) map[string]any {
+	b, _ := json.Marshal(as)
+	var m map[string]any
+	_ = json.Unmarshal(b, &m)
+	delete(m, "owner")
+	delete(m, "stack")
+	return m
 }
