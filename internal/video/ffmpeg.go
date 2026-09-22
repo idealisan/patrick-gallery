@@ -16,6 +16,7 @@ package video
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -246,9 +247,43 @@ func loadFFmpeg() (*ffmpeg, error) {
 	return f, nil
 }
 
+// Pinned FFmpeg 7.x library majors (libavcodec 61, libavformat 61). Every
+// struct offset in this backend was verified with `offsetof` against FFmpeg
+// 7.1 headers and is NOT stable across majors.
+const (
+	pinnedAVCodecMajor  = 61
+	pinnedAVFormatMajor = 61
+)
+
+// libVersionMajor extracts the major from an FFmpeg lib*_version() value
+// (major<<16 | minor<<8 | micro).
+func libVersionMajor(v int) int { return v >> 16 }
+
+// checkABI rejects a runtime FFmpeg whose libav* majors differ from the pinned
+// 7.x ABI. Distro packages routinely differ — Debian 12 ships 5.1 (libavcodec
+// 59 / libavformat 59) and Ubuntu 24.04 ships 6.1 (60/60) — and driving those
+// with 7.x offsets corrupts memory and kills the process mid-request (observed
+// as an aborted upload). Callers must fall back to the placeholder backend.
+func checkABI(codecVersion, formatVersion int) error {
+	cMaj, fMaj := libVersionMajor(codecVersion), libVersionMajor(formatVersion)
+	if cMaj != pinnedAVCodecMajor || fMaj != pinnedAVFormatMajor {
+		return fmt.Errorf(
+			"ffmpeg: found libavcodec %d / libavformat %d, need the pinned FFmpeg 7.x ABI (libavcodec %d / libavformat %d): struct offsets are version-specific",
+			cMaj, fMaj, pinnedAVCodecMajor, pinnedAVFormatMajor)
+	}
+	return nil
+}
+
 func newFFmpeg() (Processor, error) {
 	f, err := loadFFmpeg()
 	if err != nil {
+		return nil, err
+	}
+	// Refuse a mismatched FFmpeg instead of corrupting memory with it.
+	if f.fn.avcodecVersion == nil || f.fn.avformatVersion == nil {
+		return nil, errors.New("ffmpeg: version symbols unavailable; cannot verify the ABI")
+	}
+	if err := checkABI(f.fn.avcodecVersion(), f.fn.avformatVersion()); err != nil {
 		return nil, err
 	}
 	// quiet logs

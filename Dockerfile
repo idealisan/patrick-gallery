@@ -8,7 +8,12 @@
 # plus runtime configuration. There is deliberately NO golang/toolchain stage:
 # compiling inside a QEMU-emulated arm64 stage is what made image builds slow.
 
-FROM debian:bookworm-slim
+# Debian 13 (trixie) ON PURPOSE: its ffmpeg is 7.1.x — the ABI the purego
+# backend in internal/video is pinned to (libavcodec/libavformat major 61).
+# Bookworm ships 5.1 (major 59), which has incompatible struct layouts; the
+# backend now refuses a mismatched ABI and degrades to the placeholder, so a
+# wrong base would silently disable video instead of working.
+FROM debian:trixie-slim
 
 # FFmpeg shared libs, installed system-wide so the purego video loader
 # (internal/video) can dlopen them by soname. Debian (glibc) base is required:

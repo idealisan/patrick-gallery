@@ -101,14 +101,17 @@ ghcr.io/idealisan/patrick-gallery:latest
 ghcr.io/idealisan/patrick-gallery:<tag>      # e.g. v1.6.2-go
 ```
 
-The image is a **runtime-only** bundle (`debian:bookworm-slim`): it packages the
+The image is a **runtime-only** bundle (`debian:trixie-slim`, whose `ffmpeg` is 7.1.x — the ABI `internal/video` is pinned to): it packages the
 pre-compiled binary and runtime configuration — the Go build happens on the CI
 runner (native cross-compile), so no toolchain ships in the image and no
 emulated compile runs during the build. It installs `ffmpeg` and adds
 unversioned `libav*`/`libsw*` symlinks next to the binary so the purego video
 loader finds them; **in-container video thumbnails/transcode work out of the
 box**. The binary is `CGO_ENABLED=0` but glibc-linked (modernc.org/sqlite), so
-the Debian base is required — Alpine/musl would fail to exec it.
+the Debian base is required — Alpine/musl would fail to exec it. The purego
+video backend pins FFmpeg 7.x struct offsets: with a different major (bookworm
+5.1, Ubuntu 6.1) it refuses the library at startup and falls back to the
+placeholder backend (no thumbnails/transcode) rather than corrupting memory.
 
 ### Compose (recommended)
 

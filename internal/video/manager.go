@@ -11,15 +11,24 @@ import "log"
 // It never returns nil. Each constructor returns an error if its required
 // native library cannot be loaded, so selection is purely capability-based.
 func New() Processor {
-	for _, ctor := range []func() (Processor, error){
-		newVideoToolbox,  // macOS / Apple
-		newMediaFoundation, // Windows
-		newMediaCodec,    // Android / Linux native
-		newFFmpeg,        // software, cross-platform
+	for _, c := range []struct {
+		name string
+		ctor func() (Processor, error)
+	}{
+		{"videotoolbox", newVideoToolbox},       // macOS / Apple
+		{"mediafoundation", newMediaFoundation}, // Windows
+		{"mediacodec", newMediaCodec},           // Android / Linux native
+		{"ffmpeg", newFFmpeg},                   // software, cross-platform
 	} {
-		if p, err := ctor(); err == nil && p != nil {
+		p, err := c.ctor()
+		if err == nil && p != nil {
 			log.Printf("[video] using backend: %s (hardwareAccel=%v)", p.Name(), p.HardwareAccel())
 			return p
+		}
+		// Log WHY a backend was skipped: an ABI mismatch (e.g. a distro
+		// FFmpeg that is not the pinned 7.x) is otherwise invisible.
+		if err != nil {
+			log.Printf("[video] backend %s unavailable: %v", c.name, err)
 		}
 	}
 	log.Println("[video] no native/ffmpeg backend available; using placeholder (no thumbnails/transcode)")
