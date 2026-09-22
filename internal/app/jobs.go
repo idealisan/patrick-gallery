@@ -703,11 +703,11 @@ func (a *App) handleJobCommand(c *gin.Context) {
 		switch cmd.Command {
 		case "pause":
 			a.queuePaused.Store(id, true)
-			c.JSON(http.StatusOK, gin.H{"jobId": id, "paused": true})
+			c.JSON(http.StatusOK, a.jobStatusDto(id))
 			return
 		case "resume":
 			a.queuePaused.Store(id, false)
-			c.JSON(http.StatusOK, gin.H{"jobId": id, "paused": false})
+			c.JSON(http.StatusOK, a.jobStatusDto(id))
 			return
 		case "empty", "clear-failed":
 			if st, ok := a.jobStates.Load(id); ok {
@@ -724,7 +724,7 @@ func (a *App) handleJobCommand(c *gin.Context) {
 				s.mu.Unlock()
 			}
 			a.queuePaused.Store(id, false)
-			c.JSON(http.StatusOK, gin.H{"jobId": id, "cleared": true})
+			c.JSON(http.StatusOK, a.jobStatusDto(id))
 			return
 		case "start":
 			// fall through to dispatch below; official JobCommandDto carries
@@ -774,10 +774,10 @@ func (a *App) dispatchJob(c *gin.Context, id string, force bool) {
 	st.mu.Lock()
 	alreadyRunning := st.running
 	st.mu.Unlock()
-	if alreadyRunning {
-		c.JSON(http.StatusOK, gin.H{"jobId": id, "started": false, "alreadyRunning": true})
-		return
-	}
+        if alreadyRunning {
+                c.JSON(http.StatusOK, a.jobStatusDto(key))
+                return
+        }
 
 	if force {
 		a.dispatchChainedForce(c, key, spec)
@@ -789,19 +789,33 @@ func (a *App) dispatchJob(c *gin.Context, id string, force bool) {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error(), "statusCode": 500})
 		return
 	}
-	if len(items) == 0 {
-		st.begin(0)
-		st.mu.Lock()
-		st.running = false
-		st.finishedAt = time.Now()
-		st.mu.Unlock()
-		c.JSON(http.StatusOK, gin.H{"jobId": id, "started": true, "total": 0, "message": "nothing to process"})
-		return
-	}
+        if len(items) == 0 {
+                st.begin(0)
+                st.mu.Lock()
+                st.running = false
+                st.finishedAt = time.Now()
+                st.mu.Unlock()
+                c.JSON(http.StatusOK, a.jobStatusDto(key))
+                return
+        }
 
-	st.begin(len(items))
-	go a.runJob(key, spec, items)
-	c.JSON(http.StatusOK, gin.H{"jobId": id, "started": true, "total": len(items)})
+        st.begin(len(items))
+        go a.runJob(key, spec, items)
+        c.JSON(http.StatusOK, a.jobStatusDto(key))
+}
+
+// jobStatusDto builds the official JobStatusDto (verified live on v3.1.0):
+// {jobCounts:{active,completed,delayed,failed,paused,waiting},
+// queueStatus:{isActive,isPaused}}. PUT /jobs/{name} answers with it.
+func (a *App) jobStatusDto(name string) gin.H {
+	paused := false
+	if v, ok := a.queuePaused.Load(name); ok {
+		paused = v.(bool)
+	}
+	return gin.H{
+		"jobCounts":   a.queueStats(name),
+		"queueStatus": gin.H{"isActive": a.queueRunning(name), "isPaused": paused},
+	}
 }
 
 // dispatchChainedForce starts a full (force) rebuild that processes assets in
@@ -825,13 +839,7 @@ func (a *App) dispatchChainedForce(c *gin.Context, id string, spec jobSpec) bool
 
 	a.dispatchNextForceBatch(id, spec, ch)
 
-	st.mu.Lock()
-	running := st.running
-	st.mu.Unlock()
-	c.JSON(http.StatusOK, gin.H{
-		"jobId": id, "started": true, "mode": "chained-force",
-		"batchSize": jobBatchSize, "running": running,
-	})
+	c.JSON(http.StatusOK, a.jobStatusDto(id))
 	return true
 }
 

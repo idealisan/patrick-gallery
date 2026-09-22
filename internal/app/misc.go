@@ -113,7 +113,8 @@ func (a *App) handleTrashRestore(c *gin.Context) {
 	if len(b.IDs) > 0 {
 		a.emit("asset.restore", map[string]any{"ids": b.IDs})
 	}
-	c.JSON(http.StatusOK, gin.H{"restored": b.IDs})
+	// Official contract: {count} — verified live on v3.1.0.
+	c.JSON(http.StatusOK, gin.H{"count": len(b.IDs)})
 }
 
 func (a *App) handleTrashEmpty(c *gin.Context) {
@@ -129,7 +130,8 @@ func (a *App) handleTrashEmpty(c *gin.Context) {
 	}
 	a.store.DB.Where("owner_id = ? AND is_trash = ?", uid, true).Delete(&Asset{})
 	a.emit("asset.delete", map[string]any{"ids": []string{}})
-	c.Status(http.StatusOK)
+	// Official contract: {count} — verified live on v3.1.0.
+	c.JSON(http.StatusOK, gin.H{"count": len(assets)})
 }
 
 // ---------------- activity ----------------
@@ -466,10 +468,10 @@ func (a *App) handlePeopleList(c *gin.Context) {
 		})
 	}
 	c.JSON(http.StatusOK, gin.H{
-		"people": out,
-		"total":  len(out),
-		"count":  len(out),
-		"hidden": hidden,
+		"people":      out,
+		"total":       len(out),
+		"hidden":      hidden,
+		"hasNextPage": false,
 	})
 }
 

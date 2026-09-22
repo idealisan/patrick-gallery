@@ -35,7 +35,7 @@ type AssetResponse struct {
 	Type             string        `json:"type"`
 	OriginalPath     string        `json:"originalPath"`
 	OriginalFileName string        `json:"originalFileName"`
-	OriginalMimeType string        `json:"originalMimeType,omitempty"`
+	OriginalMimeType string        `json:"originalMimeType"`
 	Checksum         string        `json:"checksum"`
 	FileCreatedAt    time.Time     `json:"fileCreatedAt"`
 	FileModifiedAt   time.Time     `json:"fileModifiedAt"`
@@ -47,18 +47,18 @@ type AssetResponse struct {
 	LibraryId        string        `json:"libraryId"`
 	Resized          bool          `json:"resized"`
 	HasMetadata      bool          `json:"hasMetadata"`
-	Visibility       string        `json:"visibility,omitempty"`
+	Visibility       string        `json:"visibility"`
 	Stack            *assetStackResponse `json:"stack"`
-	Thumbhash        string        `json:"thumbhash,omitempty"`
-	Width            int           `json:"width,omitempty"`
-	Height           int           `json:"height,omitempty"`
+	Thumbhash        string        `json:"thumbhash"`
+	Width            int           `json:"width"`
+	Height           int           `json:"height"`
 	DuplicateID      *string       `json:"duplicateId"`
 	IsEdited         bool          `json:"isEdited"`
 	IsOffline        bool          `json:"isOffline"`
-	LivePhotoVideoID string        `json:"livePhotoVideoId,omitempty"`
+	LivePhotoVideoID string        `json:"livePhotoVideoId"`
 	CreatedAt        time.Time     `json:"createdAt"`
 	UpdatedAt        time.Time     `json:"updatedAt"`
-	ExifInfo         *Exif         `json:"exifInfo,omitempty"`
+	ExifInfo         *Exif         `json:"exifInfo"`
 	People           []any         `json:"people"`
 	Tags             []any         `json:"tags"`
 	Owner            *UserResponse `json:"owner,omitempty"`
