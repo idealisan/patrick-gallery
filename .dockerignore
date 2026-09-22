@@ -1,10 +1,15 @@
+# Keep the build context tiny: the image only needs dockerctx/<arch>/immich-go
+# plus the Dockerfile. Everything else here is local state or build output.
 .git
+.github
 .tools
 .cache
-resources
+.tmp
+.schemathesis-tmp
+reports
 dist
+resources
 server.log
 immich-go
 immich-go.exe
 *.db
-.github
