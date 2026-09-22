@@ -1,0 +1,79 @@
+# immich-go — 单实例部署（SQLite + 本地资源目录）
+#
+# 快速开始：
+#   docker compose -f docker-compose.immich-go.yml up -d
+#   浏览器打开 http://localhost:8081
+#   首次启动自动创建管理员（默认 admin@immich.app / password，生产环境务必改）
+#
+# 手机 App / 网页：把服务器地址填 http://<本机IP>:8081 即可直接连接
+#   （服务端按 Immich v3.1.0 契约实现，官方客户端与网页版可用）
+#
+# 数据持久化：库文件（immich.db）与媒体资源（resources/）全部落在
+#   ${IMMICH_GO_DATA:-./immich-go-data}，删除/重建容器不丢数据。
+#
+# 镜像：由本仓库 tag 发布流水线构建（GHCR，多架构 linux/amd64 + linux/arm64）：
+#   ghcr.io/idealisan/patrick-gallery:latest
+#   ghcr.io/idealisan/patrick-gallery:<tag>
+# 镜像内已带 FFmpeg 运行库，视频缩略图/转码开箱可用。
+#
+# 注：本文件是 immich-go 自己的部署文件；仓库根目录另有一个
+#     docker-compose.yml，那是「原版 Immich 并排对比」用的（postgres/redis/
+#     immich-server），不要混用。
+
+name: immich-go
+
+services:
+  immich-go:
+    image: ghcr.io/idealisan/patrick-gallery:${IMMICH_GO_TAG:-latest}
+    container_name: immich-go
+    restart: unless-stopped
+
+    ports:
+      - "${IMMICH_GO_PORT:-8081}:8081"
+
+    environment:
+      # ---- 监听与存储（容器内固定路径，配合下面的卷挂载）----
+      IMMICH_HOST: 0.0.0.0
+      IMMICH_PORT: "8081"
+      IMMICH_DB: /data/immich.db
+      IMMICH_RESOURCE: /data/resources
+
+      # ---- 首次启动创建的管理员（仅当库为空时生效）----
+      IMMICH_ADMIN_EMAIL: ${IMMICH_ADMIN_EMAIL:-admin@immich.app}
+      IMMICH_ADMIN_PASSWORD: ${IMMICH_ADMIN_PASSWORD:-password}
+
+      # ---- 客户端版本协商：与镜像内打包的官方 Web UI 版本一致 ----
+      IMMICH_COMPAT_VERSION: ${IMMICH_COMPAT_VERSION:-3.1.0}
+
+      # ---- 可选策略 ----
+      # 回收站保留天数（默认 30）
+      IMMICH_TRASH_DAYS: ${IMMICH_TRASH_DAYS:-30}
+      # 预览图最长边（默认 2560）
+      IMMICH_PREVIEW_SIZE: ${IMMICH_PREVIEW_SIZE:-2560}
+      # 是否必须登录才能浏览（默认 false）
+      # IMMICH_LOGIN_REQUIRED: "false"
+      # 反向代理对外域名（生成分享链接等场景设置）
+      # IMMICH_EXTERNAL_DOMAIN: "https://photos.example.com"
+
+      # ---- 时区 ----
+      # 基础镜像未打包 tzdata；若需要按本地时区解析，取消注释并在 Dockerfile
+      # 里补装 tzdata，或改为挂载宿主机的 /etc/localtime。
+      # TZ: Asia/Shanghai
+
+    volumes:
+      - "${IMMICH_GO_DATA:-./immich-go-data}:/data"
+
+    # 镜像为精简运行时（无 curl/wget），故不提供容器内 healthcheck；
+    # 探活用宿主机执行：curl -fsS http://localhost:${IMMICH_GO_PORT:-8081}/api/server/ping
+    # healthcheck:
+    #   test: ["CMD-SHELL", "curl -fsS http://localhost:8081/api/server/ping || exit 1"]
+    #   interval: 30s
+    #   timeout: 5s
+    #   retries: 3
+
+    # 如需本地自建镜像：Dockerfile 只打包编译产物，先编译再构建（注意架构）：
+    #   mkdir -p dockerctx/amd64
+    #   CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" \
+    #     -o dockerctx/amd64/immich-go .
+    #   docker build --build-arg TARGETARCH=amd64 -t immich-go:local .
+    # 然后把上面的 image: 换成 immich-go:local

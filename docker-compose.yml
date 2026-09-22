@@ -1,5 +1,9 @@
 # 原版 Immich v3.1.0 并排对比用 compose（与 immich-go 的兼容目标一致）
 #
+# 注意：若你只想部署 immich-go 本体，请用仓库根目录的
+#       docker-compose.immich-go.yml（docker compose -f docker-compose.immich-go.yml up -d）
+#       本文件用于拉起原版 Immich 做 API 并排对比，两者不要混用。
+#
 # 用途：在 Docker 可用的机器上拉起“原版 Immich”，再另起 immich-go，
 #       用 scripts/compare_origins.sh 对两套 API 做并排一致性对比。
 # 本沙箱（无 CAP_SYS_ADMIN）无法运行 dockerd，故仅提供可复用配置，

@@ -91,33 +91,59 @@ Verify: `sha256sum -c dist/checksums.txt`.
 > `IMMICH_COMPAT_VERSION` (default `3.1.0`). Point the official mobile/desktop
 > app at it and set that env var to match your app's expected version if needed.
 
-## Docker image (CNB Container Registry)
+## Docker image & Compose
 
-The image is built from the repo `Dockerfile` (`golang:1.23` multi-stage,
-`CGO_ENABLED=0` → no-cgo build; the resulting binary is glibc-linked via the
-modernc.org/sqlite stack, so the runtime base is **Debian bookworm (glibc)**
-— Alpine/musl would fail to exec it). The image installs `ffmpeg` and adds
+Published by the tag pipeline (push a tag → CI + contract gate → artifacts +
+image) as a **multi-arch** manifest for `linux/amd64` and `linux/arm64`:
+
+```
+ghcr.io/idealisan/patrick-gallery:latest
+ghcr.io/idealisan/patrick-gallery:<tag>      # e.g. v1.6.2-go
+```
+
+The image is a **runtime-only** bundle (`debian:bookworm-slim`): it packages the
+pre-compiled binary and runtime configuration — the Go build happens on the CI
+runner (native cross-compile), so no toolchain ships in the image and no
+emulated compile runs during the build. It installs `ffmpeg` and adds
 unversioned `libav*`/`libsw*` symlinks next to the binary so the purego video
 loader finds them; **in-container video thumbnails/transcode work out of the
-box** (verified: server logs `using backend: ffmpeg-software`).
-It is published to the CNB registry:
+box**. The binary is `CGO_ENABLED=0` but glibc-linked (modernc.org/sqlite), so
+the Debian base is required — Alpine/musl would fail to exec it.
 
-```
-registry.cnb.cool/finalappstore/immich-go:latest
-registry.cnb.cool/finalappstore/immich-go:v1.2.0-go
-```
+### Compose (recommended)
 
 ```sh
-docker run -d --name immich-go \
-  -p 8081:8081 \
-  -v "$(pwd)/data:/data" \
-  registry.cnb.cool/finalappstore/immich-go:latest
-# -> http://localhost:8081  (admin@immich.app / password)
+docker compose -f docker-compose.immich-go.yml up -d
+# -> http://localhost:8081   (admin@immich.app / password on first start)
 ```
 
-Currently built for `linux/amd64` (multi-arch `arm64` needs `docker buildx` +
-QEMU). Mount `/data` to persist the SQLite DB (`immich.db`) and media
-(`resources/`). The `Dockerfile` and `.dockerignore` live at the repo root.
+All state persists in `./immich-go-data` (SQLite `immich.db` + media under
+`resources/`). Override any value via env vars, e.g.
+`IMMICH_GO_PORT=9000 IMMICH_GO_DATA=/srv/immich docker compose -f docker-compose.immich-go.yml up -d`.
+The file documents the full set (`IMMICH_TRASH_DAYS`, `IMMICH_PREVIEW_SIZE`,
+`IMMICH_EXTERNAL_DOMAIN`, …).
+
+### docker run
+
+```sh
+docker run -d --name immich-go -p 8081:8081   -v "$(pwd)/immich-go-data:/data"   ghcr.io/idealisan/patrick-gallery:latest
+```
+
+> The root `docker-compose.yml` is a **different** stack: it runs the *original*
+> Immich (postgres/redis/immich-server) for side-by-side API comparison — see
+> `docs/SIDE_BY_SIDE.md`. To run immich-go itself use
+> `docker-compose.immich-go.yml`.
+
+### Building the image yourself
+
+The Dockerfile only packages the artifact (no toolchain), so stage the binary
+for the target architecture first:
+
+```sh
+mkdir -p dockerctx/amd64
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w"   -o dockerctx/amd64/immich-go .
+docker build --build-arg TARGETARCH=amd64 -t immich-go:local .
+```
 
 ## Performance
 
