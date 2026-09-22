@@ -304,18 +304,3 @@ func (a *App) handleSearchSuggestions(c *gin.Context) {
 	c.JSON(http.StatusOK, out)
 }
 
-// handleSystemConfigDefaults mirrors GET /api/system-config/defaults.
-func (a *App) handleSystemConfigDefaults(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"loginPageMessage":        "",
-		"trashDays":               a.cfg.TrashDays,
-		"isSavedPhotosHidden":     false,
-		"isEmailEnabled":          false,
-		"isOauthAutoLaunch":       false,
-		"storageTemplate":         "{{y}}/{{yyyy}}/{{MM}}-{{dd}}/{{filename}}",
-		"theme":                   "system",
-		"isPublicUsersEnabled":    false,
-		"isSingleUserMode":        false,
-		"isSingleUserModeAllowed": false,
-	})
-}
