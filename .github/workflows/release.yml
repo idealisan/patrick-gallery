@@ -1,23 +1,40 @@
-name: Release build & test
+name: Release build & publish
 
-# Runs on every published GitHub Release. Tests the code, then:
-#   * cross-compiles the 6 platform binaries and attaches them as release assets
-#   * builds and pushes a multi-arch Docker image (linux/amd64, linux/arm64)
-#     to GHCR (ghcr.io/<owner>/<repo>), tagged :latest and :<release-tag>.
+# Triggers
+#   * push of a tag (git push origin v1.5.0-go)  -> run CI, then publish
+#   * a published GitHub Release                  -> same pipeline (kept so the
+#     "draft notes -> publish" flow still works)
+#
+# `github.ref_name` is the tag for BOTH events (a release event's ref is the
+# tag), so every step below is event-agnostic.
+#
+# Pipeline (nothing is published unless CI is green):
+#   1. CI: `go vet` + `go test` and the Schemathesis API-contract regression
+#      gate (same checks as .github/workflows/ci.yml).
+#   2. Publish 6 cross-compiled binaries, attached as assets of the GitHub
+#      Release for the tag.
+#   3. Publish a multi-arch Docker image (linux/amd64 + linux/arm64) to
+#      ghcr.io/<owner>/<repo>, tagged :latest and :<tag>.
 #
 # Timeout strategy (to avoid hung jobs wasting Actions minutes):
 #   * every job has `timeout-minutes`
-#   * the test step has an explicit `go test -timeout`
-#   * the build matrix uses `fail-fast: true` so a common compile failure
-#     stops the other platforms instead of building them all.
+#   * the test steps have explicit `-timeout`
+#   * the build matrix uses `fail-fast: true`.
 
 on:
+  push:
+    tags: ['**']
   release:
     types: [published]
 
 permissions:
-  contents: write   # required to upload release assets
+  contents: write   # required to create the Release / upload release assets
   packages: write   # required to push the Docker image to GHCR
+
+# Never let two tag pipelines fight over :latest / the same Release.
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
 
 jobs:
   test:
@@ -44,9 +61,43 @@ jobs:
         timeout-minutes: 10
         run: go test -timeout 300s ./...
 
+  contract-test:
+    name: API contract regression (Schemathesis)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install Schemathesis
+        run: python3 -m pip install --quiet "schemathesis==4.27.5" "hypothesis==6.168.0"
+
+      - name: Run contract regression gate
+        # Builds immich-go, starts it, logs in, runs Schemathesis against the
+        # official Immich v3.1.0 OpenAPI spec, and fails on DTO-shape regressions.
+        run: python3 scripts/schemathesis_check.py --max-examples 1
+
+      - name: Upload report on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: schemathesis-regression-${{ github.ref_name }}
+          path: reports/schemathesis/regression
+          if-no-files-found: ignore
+
   build:
     name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
-    needs: test
+    needs: [test, contract-test]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     # Stop the whole matrix on the first failure (saves minutes when the
@@ -85,14 +136,26 @@ jobs:
         timeout-minutes: 10
         run: bash scripts/bundle-deps.sh .
 
-      - name: Upload release asset
+      # Keep the packages as workflow artifacts too (handy for debugging a
+      # tag whose Release asset upload failed).
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: immich-go-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: immich-go-*
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Attach to GitHub Release
+        # Creates the Release for the tag if it does not exist yet, then
+        # attaches the package (binaries + bundled FFmpeg libs).
         uses: softprops/action-gh-release@v2
         with:
           files: immich-go-*
 
   docker:
     name: Docker image (multi-arch)
-    needs: test
+    needs: [test, contract-test]
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
@@ -104,6 +167,12 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+
+      - name: Compute image tag
+        # Docker tags cannot contain "/" while git tags can; sanitize so a tag
+        # like `release/1.0` still publishes (as `release-1.0`).
+        id: tag
+        run: echo "value=$(printf '%s' "${GITHUB_REF_NAME}" | tr '/' '-')" >> "$GITHUB_OUTPUT"
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -124,16 +193,16 @@ jobs:
           platforms: linux/amd64,linux/arm64
           tags: |
             ghcr.io/${{ github.repository }}:latest
-            ghcr.io/${{ github.repository }}:${{ github.event.release.tag_name }}
+            ghcr.io/${{ github.repository }}:${{ steps.tag.outputs.value }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
   notify-lark:
     name: Notify Lark (build result)
-    # Report the overall release-build outcome (test + matrix + docker) to a
+    # Report the overall tag-pipeline outcome (CI + matrix + docker) to a
     # Lark (Feishu) group bot. The webhook URL comes from the repo secret
     # LARK_WEBHOOK_URL; if unset the step skips so the release still proceeds.
-    needs: [test, build, docker]
+    needs: [test, contract-test, build, docker]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -142,6 +211,7 @@ jobs:
         env:
           LARK_WEBHOOK_URL: ${{ secrets.LARK_WEBHOOK_URL }}
           R_TEST: ${{ needs.test.result }}
+          R_CONTRACT: ${{ needs.contract-test.result }}
           R_BUILD: ${{ needs.build.result }}
           R_DOCKER: ${{ needs.docker.result }}
         run: |
@@ -150,11 +220,11 @@ jobs:
             exit 0
           fi
           STATUS="success"
-          for r in "$R_TEST" "$R_BUILD" "$R_DOCKER"; do
+          for r in "$R_TEST" "$R_CONTRACT" "$R_BUILD" "$R_DOCKER"; do
             [ "$r" = "success" ] || STATUS="$r"
           done
           if [ "$STATUS" = "success" ]; then ICON="✅"; else ICON="❌"; fi
-          TAG="${{ github.event.release.tag_name }}"
+          TAG="${GITHUB_REF_NAME}"
           MSG="${ICON} immich-go release build: ${STATUS} (${TAG})
           repo:   ${GITHUB_REPOSITORY}
           commit: ${GITHUB_SHA::7}
