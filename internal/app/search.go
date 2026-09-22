@@ -272,11 +272,40 @@ func (a *App) handleSearchExplore(c *gin.Context) {
 	uid := currentUserID(c)
 	var assets []Asset
 	a.store.DB.Where("owner_id = ? AND is_trash = ?", uid, false).Order("local_date_time DESC").Limit(100).Find(&assets)
-	out := make([]AssetResponse, 0, len(assets))
+	// Official SearchExploreResponseDto[] (verified live on v3.1.0): one entry
+	// per facet, {fieldName, items:[{value, data:AssetResponseDto}]}; the
+	// official server emits the facets "exifInfo.city" and "createdAt".
+	byCity := map[string]Asset{}
+	byDate := map[string]Asset{}
+	cityOrder := []string{}
+	dateOrder := []string{}
 	for _, as := range assets {
-		out = append(out, a.toResponse(as))
+		if as.ExifID != "" {
+			var ex Exif
+			if a.store.DB.First(&ex, "id = ?", as.ExifID).Error == nil && ex.City != "" {
+				if _, ok := byCity[ex.City]; !ok {
+					byCity[ex.City] = as
+					cityOrder = append(cityOrder, ex.City)
+				}
+			}
+		}
+		d := as.LocalDateTime.UTC().Format("2006-01-02")
+		if _, ok := byDate[d]; !ok {
+			byDate[d] = as
+			dateOrder = append(dateOrder, d)
+		}
 	}
-	c.JSON(http.StatusOK, emptySearchResponse(out))
+	items := func(order []string, src map[string]Asset) []gin.H {
+		out := make([]gin.H, 0, len(order))
+		for _, k := range order {
+			out = append(out, gin.H{"value": k, "data": a.toResponse(src[k])})
+		}
+		return out
+	}
+	c.JSON(http.StatusOK, []gin.H{
+		{"fieldName": "exifInfo.city", "items": items(cityOrder, byCity)},
+		{"fieldName": "createdAt", "items": items(dateOrder, byDate)},
+	})
 }
 
 // handleSearchRandom returns a random sample of the user's assets.

@@ -182,14 +182,30 @@ func (a *App) handleSyncAck(c *gin.Context) {
 		Type string `json:"type"`
 		Ack  string `json:"ack"`
 	}
-	_ = c.ShouldBindJSON(&b)
-	a.store.DB.Save(&SyncState{
-		UserID:       uid,
-		LastAckType:  b.Type,
-		LastAckToken: b.Ack,
-		UpdatedAt:    time.Now().UTC(),
-	})
-	c.JSON(http.StatusOK, gin.H{"ack": b.Ack, "type": b.Type})
+	switch c.Request.Method {
+	case http.MethodGet:
+		// Official contract (verified live on v3.1.0): SyncAckDto[] — a list,
+		// not a single object.
+		var st SyncState
+		out := []gin.H{}
+		if a.store.DB.First(&st, "user_id = ?", uid).Error == nil && st.LastAckToken != "" {
+			out = append(out, gin.H{"ack": st.LastAckToken, "type": st.LastAckType})
+		}
+		c.JSON(http.StatusOK, out)
+	case http.MethodPost:
+		_ = c.ShouldBindJSON(&b)
+		a.store.DB.Save(&SyncState{
+			UserID:       uid,
+			LastAckType:  b.Type,
+			LastAckToken: b.Ack,
+			UpdatedAt:    time.Now().UTC(),
+		})
+		// Official POST /sync/ack → 204 No Content.
+		c.Status(http.StatusNoContent)
+	default:
+		a.store.DB.Where("user_id = ?", uid).Delete(&SyncState{})
+		c.Status(http.StatusNoContent)
+	}
 }
 
 // handleSyncStream emits a real snapshot of the user's library as Immich
@@ -467,8 +483,19 @@ func (a *App) handleSearchPlaces(c *gin.Context) {
 	}
 	q := c.Query("name")
 	places := a.geocoder.SearchCities(q, 100)
-	all := a.geocoder.SearchCities("", 100)
-	c.JSON(http.StatusOK, gin.H{"places": places, "recentPlaces": []any{}, "allPlaces": all})
+	// Official contract (verified live on v3.1.0): a LIST of place objects
+	// {name, latitude, longitude, admin1name, admin2name}.
+	out := make([]gin.H, 0, len(places))
+	for _, p := range places {
+		out = append(out, gin.H{
+			"name":       p.Name,
+			"latitude":   p.Latitude,
+			"longitude":  p.Longitude,
+			"admin1name": p.State,
+			"admin2name": "",
+		})
+	}
+	c.JSON(http.StatusOK, out)
 }
 
 // ---- minor aliases / real helpers ----
