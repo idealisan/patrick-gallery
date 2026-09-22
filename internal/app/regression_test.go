@@ -524,23 +524,33 @@ func TestSharedLinksPersistFields(t *testing.T) {
 func TestApiKeySingleReadAndUpdate(t *testing.T) {
 	_, r, token := newTestServer(t)
 
-	w := do(r, "POST", "/api/api-keys", token, mustJSON(t, map[string]string{"name": "mobile"}), "application/json")
+	// ApiKeyCreateDto requires permissions; the answer is the official
+	// ApiKeyCreateResponseDto {apiKey:{id,name,permissions,createdAt,updatedAt}, secret}.
+	w := do(r, "POST", "/api/api-keys", token,
+		mustJSON(t, map[string]any{"name": "mobile", "permissions": []string{"asset.read"}}), "application/json")
 	if w.Code != http.StatusCreated {
 		t.Fatalf("create -> %d: %s", w.Code, w.Body.String())
 	}
 	var created struct {
-		ID string `json:"id"`
+		APIKey struct {
+			ID          string   `json:"id"`
+			Permissions []string `json:"permissions"`
+		} `json:"apiKey"`
+		Secret string `json:"secret"`
 	}
-	if err := json.Unmarshal(w.Body.Bytes(), &created); err != nil || created.ID == "" {
-		t.Fatalf("create decode: %v", err)
+	if err := json.Unmarshal(w.Body.Bytes(), &created); err != nil || created.APIKey.ID == "" {
+		t.Fatalf("create decode: %v (%s)", err, w.Body.String())
+	}
+	if created.Secret == "" || len(created.APIKey.Permissions) == 0 {
+		t.Errorf("create must return {apiKey.permissions, secret}: %s", w.Body.String())
 	}
 
-	w = do(r, "GET", "/api/api-keys/"+created.ID, token, nil, "")
+	w = do(r, "GET", "/api/api-keys/"+created.APIKey.ID, token, nil, "")
 	if w.Code != http.StatusOK {
 		t.Fatalf("get single -> %d", w.Code)
 	}
 
-	w = do(r, "PUT", "/api/api-keys/"+created.ID, token, mustJSON(t, map[string]string{"name": "renamed"}), "application/json")
+	w = do(r, "PUT", "/api/api-keys/"+created.APIKey.ID, token, mustJSON(t, map[string]string{"name": "renamed"}), "application/json")
 	if w.Code != http.StatusOK {
 		t.Fatalf("update -> %d: %s", w.Code, w.Body.String())
 	}

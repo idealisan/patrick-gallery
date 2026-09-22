@@ -38,12 +38,18 @@ func TestReverseGeocodeEndpoint(t *testing.T) {
 			t.Errorf("%s: status %d", tc.name, w.Code)
 			continue
 		}
-		var resp struct {
+		// Official contract (verified live on v3.1.0): a LIST of results.
+		type geoResult struct {
 			City    string `json:"city"`
 			State   string `json:"state"`
 			Country string `json:"country"`
 		}
-		_ = json.Unmarshal(w.Body.Bytes(), &resp)
+		var list []geoResult
+		_ = json.Unmarshal(w.Body.Bytes(), &list)
+		resp := geoResult{}
+		if len(list) > 0 {
+			resp = list[0]
+		}
 		if tc.wantC == "" {
 			if resp.Country != "" {
 				t.Errorf("%s: expected no reverse-geocode, got country=%q", tc.name, resp.Country)
