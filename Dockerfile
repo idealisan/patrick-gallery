@@ -27,13 +27,12 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 # build (the video backend degrades gracefully to the placeholder).
 RUN set -e; \
     mkdir -p /usr/local/bin/libs; \
-    triplet="$(dpkg-architecture -qDEB_HOST_MULTIARCH)"; \
     for l in libavformat libavcodec libavutil libswscale libswresample libavfilter libavdevice; do \
-      f="$(ls /usr/lib/"$triplet"/"$l".so.* 2>/dev/null | head -n1 || true)"; \
-      if [ -n "$f" ]; then ln -sf "$f" "/usr/local/bin/libs/$l.so"; fi; \
+      f="$(find /usr/lib -name "${l}.so.*" -print -quit 2>/dev/null || true)"; \
+      if [ -n "$f" ]; then ln -sf "$f" "/usr/local/bin/libs/${l}.so"; fi; \
     done; \
-    ls -l /usr/local/bin/libs
-
+    echo "linked $(ls -1 /usr/local/bin/libs | wc -l) ffmpeg libs (0 is fine: video degrades to placeholder)"; \
+    ls -l /usr/local/bin/libs || true
 # Pre-built binary, selected per target architecture by BuildKit.
 ARG TARGETARCH
 COPY dockerctx/${TARGETARCH}/immich-go /usr/local/bin/immich-go
