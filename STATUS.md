@@ -29,7 +29,7 @@
 | 视频后端抽象 (`internal/video`) + 纯软件 FFmpeg (purego) 后端 | `[done]` | 抽象接口就绪；**纯 Go / purego FFmpeg 后端完整可用**：Probe + 抽帧缩略图 + 进程内转码（无 CLI、无 CGO），经 `go test` 与 HTTP 端到端验证（输出经 ffprobe 确认为合法 h264 mp4）。硬件加速后端仍为 stub。 |
 | 视频 API 接线（上传缩略图、`/preview`、转码 `/encoded-video`） | `[done]` | 上传即抽帧生成视频封面；`/encoded-video` 走真实进程内转码（libx264 软编），失败时回退原文件 |
 | 图像：EXIF 提取 + 更宽解码（WebP） | `[done]` | EXIF 提取 + WebP 解码已完成；WebP 解码改用纯 Go 的 `golang.org/x/image/webp`（替代需 CGO 的 `chai2010/webp`），整项目现可 `CGO_ENABLED=0` 构建 |
-| 前端：官方前端完整移植（SPA） | `[done]` | 纯 vanilla JS SPA（无构建步骤、随包嵌入，唯一契合单二进制纯 Go 模型的方案）：时间线图库、相册（列表/详情/封面/增删成员）、搜索、收藏、归档、回收站、管理页、灯箱查看器（图片预览 + **视频经真实转码播放**）、拖拽/选择上传、多选批量操作。内嵌资源经 `webroot.go` 以 `web/` 目录 + SPA 回退方式服务 |
+| 前端：官方前端完整移植（SPA） | `[done]` | **官方 Immich Web 前端 v3.1.0 构建嵌入**（`scripts/build-web.sh` 由 immich tag `v3.1.0` 经 pnpm 构建，产物拷入 `internal/webroot/webui/`，`webroot.go` 以 `//go:embed all:webui` 嵌入 + SPA 回退；来源/许可见 `THIRD_PARTY.md`，符合 `AGENTS.md` 硬规则 6）。此前手写 vanilla JS SPA（`internal/webroot/assets/`）已移除，不再是产品 UI |
 | 发布打包：将 FFmpeg 共享库打包进各发行包 | `[done]` | `bundle-deps.sh` 为二进制生成 `-deps` 包（含 libs/），CI 已接入 |
 
 ## 一、已实现的功能
@@ -62,7 +62,7 @@
 - 系统：config / features / about / version / ping / health、system-config 读写、jobs 列表、下载归档（zip，已实现）
 
 ### 交付与运维
-- 内置完整 SPA Web 前端（vanilla JS，随包嵌入 `web/`，SPA 回退）：登录 / 时间线图库 / 相册 / 搜索 / 收藏 / 归档 / 回收站 / 管理 / 灯箱查看器（图片预览 + 视频进程内转码播放）/ 拖拽·选择上传 / 多选批量操作
+- 内置官方 Web 前端（immich v3.1.0 构建，随包嵌入 `internal/webroot/webui/`，SPA 回退）：登录 / 时间线 / 相册 / 搜索 / 地图 / 收藏 / 归档 / 回收站 / 管理 / 分享 / 灯箱查看器（含视频 HLS/转码播放）/ 上传（构建见 `scripts/build-web.sh`）
 - 6 平台静态二进制 + GHCR 多架构镜像 + CI 发布流水线
 
 ## 二、未实现 / 已知缺陷（目前未解决）
@@ -90,8 +90,8 @@
 ### 6. SQLite 单写者限制（架构性缺陷）
 - 并发写入会串行化，多用户 / 高并发写入可能出现锁等待甚至偶发 500。定位是**个人 / 单用户**场景，不适合多用户高并发写入。
 
-### 7. 内置 Web UI（已升级为完整 SPA）
-- 已移植为类 Immich 的完整前端（时间线图库 / 相册 / 搜索 / 收藏 / 归档 / 回收站 / 管理 / 灯箱查看器 / 上传），覆盖个人局域网使用的主要单人场景。复杂管理（OAuth、地图、回忆等）仍需官方 App 或直连 API。
+### 7. 内置 Web UI（官方前端构建嵌入，2026-09-23 已修订）
+- 产品 UI 为**官方 Immich Web v3.1.0 构建**（`internal/webroot/webui/` + SPA 回退，见上 Release 2 表格）；下述手写 SPA 时代的描述仅作归档：曾移植为类 Immich 的完整前端（时间线图库 / 相册 / 搜索 / 收藏 / 归档 / 回收站 / 管理 / 灯箱查看器 / 上传），覆盖个人局域网使用的主要单人场景。复杂管理（OAuth、回忆等）仍需官方 App 或直连 API。
 
 ### 8. 其余 Immich 大功能未覆盖（按设计超出单人 / 私域纯 Go 范围）
 - 仍缺（需外部服务 / 多用户 / 管理后台）：OAuth / SSO**接入外部 IdP**（仅 `/api/oauth/config` 开关，`enabled:false`）、管理 / 维护后台面板、工作流 / 插件、存储模板迁移（`storageTemplateMigration` job 报 `unsupported`）。

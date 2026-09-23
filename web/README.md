@@ -1,75 +1,33 @@
-# Official Immich Web Frontend Port
+# Official Immich Web Frontend (embedded)
 
-This directory documents the plan to replace the inline single-file SPA
-(`internal/webroot/index.html`) with a build of the **official Immich web
-application** so that `immich-go` ships the real UI instead of the minimal
-gallery.
+The product web UI is the **official Immich web frontend** (pinned release
+`v3.1.0`), built from the immich monorepo and embedded into the Go binary —
+per `AGENTS.md` hard rule 6. The hand-written vanilla SPA that previously
+lived in `internal/webroot/assets/` / `internal/webroot/index.html` has been
+**removed** and is not the product UI.
 
-## Why
+## Current state
 
-`internal/webroot/index.html` is a self-contained, no-build demo SPA. It is
-good for getting started, but it lacks the full Immich experience (albums,
-sharing, map, multi-select, etc.). The official web app is a Vite + React +
-TypeScript project and is the canonical frontend for the Immich API.
+- Embedded assets: `internal/webroot/webui/` (official build output),
+  served by `internal/webroot/webroot.go` via `//go:embed all:webui`
+  with SPA history-fallback to `index.html` for every non-`/api` route.
+- Source / license / pinned tag: see `THIRD_PARTY.md`
+  ("Official Immich web UI" section, AGPL-3.0, tag `v3.1.0`).
+- Advertised server version (`Config.CompatVersion`, default `3.1.0`)
+  matches the packaged web release so the official client accepts
+  the connection.
 
-## Plan
+## Rebuilding the web UI (canonical)
 
-1. **Obtain the official web app source**
+Use `scripts/build-web.sh` (pnpm-based, SvelteKit + Vite):
 
-   ```bash
-   git clone --depth 1 https://github.com/immich-app/immich.git immich-src
-   ```
+```bash
+scripts/build-web.sh                 # uses IMMICH_WEB_TAG=v3.1.0 by default
+go build ./...                       # re-embed internal/webroot/webui
+```
 
-   (The full clone is multi-GB; `build.sh` uses a shallow clone of just the
-   `web/` subfolder where possible. This is intentionally NOT run automatically
-   in constrained environments — see `build.sh`.)
+## Legacy note
 
-2. **Point the API base at this server**
-
-   The Immich web app reads its server URL from a runtime config value
-   (`IMMICH_API_URL` / the value returned by `GET /api/server/config`
-   normally `/_app/immich-web-config`, or at build time via the
-   `IMMICH_SERVER_URL` env var used by the build). Set it to the host/port
-   where `immich-go` is listening, e.g. `http://localhost:3000`.
-
-3. **Build**
-
-   ```bash
-   cd immich-src/web
-   npm install
-   npm run build        # outputs to immich-src/web/dist
-   ```
-
-4. **Embed the built assets with Go**
-
-   Today `internal/webroot/webroot.go` does:
-
-   ```go
-   //go:embed index.html
-   var indexFS embed.FS
-   ```
-
-   To ship the real UI, change the embed to the built `dist/` directory and
-   keep `Index()` / `Serve()` intact, e.g.:
-
-   ```go
-   //go:embed all:dist
-   var indexFS embed.FS
-   func Index() ([]byte, error) { return indexFS.ReadFile("dist/index.html") }
-   ```
-
-   `Serve()` and `Index()` behaviour (always `200` for non-API routes) must be
-   preserved so the binary still builds and SPA routing keeps working. The SPA
-   must be served at `/` and the prerendered `index.html` returned for unknown
-   client-side routes.
-
-5. **Wire it up**
-
-   `build.sh` produces `immich-src/web/dist`, which you copy into
-   `internal/webroot/dist` (or adjust the embed path) before `go build`.
-
-## Automation
-
-`build.sh` performs steps 1–4. It is **guarded**: if `node`/`npm` are missing
-it is a no-op, and the clone only happens when `IMMICH_WEB_DO_CLONE=1` is set,
-so a multi-GB clone is never triggered by accident.
+`web/build.sh` is a legacy npm-based variant kept for reference; it targets
+`internal/webroot/webui` as well. Prefer `scripts/build-web.sh`, which is
+the build referenced by `THIRD_PARTY.md`.

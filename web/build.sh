@@ -6,15 +6,17 @@
 #   - No-ops if `node` or `npm` are not available.
 #   - Never performs the (multi-GB) clone unless IMMICH_WEB_DO_CLONE=1 is set.
 #
-# When run successfully it produces: ../internal/webroot/dist  (the built SPA)
-# which webroot.go's embed directive can then pick up.
+# When run successfully it produces: ../internal/webroot/webui  (the built SPA)
+# which webroot.go's embed directive (//go:embed all:webui) picks up.
+# NOTE: prefer scripts/build-web.sh (pnpm-based, canonical per THIRD_PARTY.md);
+# this npm-based variant is kept for reference.
 #
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SRC="$ROOT/web/immich-src"
 WEB="$SRC/web"
-OUT="$ROOT/internal/webroot/dist"
+OUT="$ROOT/internal/webroot/webui"
 API_URL="${IMMICH_API_URL:-http://localhost:3000}"
 
 need() { command -v "$1" >/dev/null 2>&1 || { echo "skip: '$1' not found"; exit 0; }; }
@@ -48,4 +50,4 @@ rm -rf "$OUT"
 mkdir -p "$(dirname "$OUT")"
 cp -r dist "$OUT"
 
-echo "done. now rebuild immich-go (webroot.go must embed ./dist)."
+echo "done. now rebuild immich-go (webroot.go embeds ./webui)."
