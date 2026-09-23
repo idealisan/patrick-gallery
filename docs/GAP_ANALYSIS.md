@@ -24,7 +24,7 @@ immich-go 目前只覆盖了原版的**单人核心闭环**。要对等原版的
 
 - ✅ **已满足**（详见 §14 核验）：照片/视频备份上传、去重、时间线/相册/搜索/地图浏览、收藏/归档/回收站、分享链接、库扫描、作业、实时事件推送（websocket + Socket.IO）。核心媒体闭环对单人个人场景**已真正可用且 v3.1.0 契约兼容**。
 - ⚠️ **唯一开箱 blocker（已修）**：`config.go` 默认 `IMMICH_COMPAT_VERSION=1.130.0` 与仓库内置契约 v3.1.0 不一致，会导致客户端报「版本不匹配」。已改为默认 `3.1.0`，开箱即与已验证契约对齐。
-- 🔍 **需用真实客户端验证的一项**：原版手机 APP 的双向增量同步端点 `/sync/stream` 当前为 stub；主流程靠 REST + 实时事件即可刷新，但完整首次全量校正依赖该端点，建议用真实 APP 实测确认不影响备份/同步。
+- 🔍 **需用真实客户端验证的一项**（2026-09-23 修订）：`/sync/stream` 已是**真实增量快照**（`internal/app/compat_v3.go:handleSyncStream`，按用户emit AuthUserV1/UserV1/AssetV2/AlbumV2/AlbumUserV1/AlbumToAssetV1 + SyncCompleteV1，jsonlines 格式，`SyncState` 持久化 ack，`compat_v3_test.go`/`android_contract_test.go` 覆盖），不再是 stub；主流程靠 REST + 实时事件即可刷新，首次全量校正走该端点，仍建议用真实 APP 实测确认。
 - ❌ **不在本即时目标内（归入 P3 / 显式延后）**：ML（人物/CLIP/OCR）、OAuth/SSO、通知、插件/工作流、Memories、水平扩展。这些不影响「单人个人管理+同步」。（注：PIN/设备会话锁、`/sessions`、手动 Stacks、资产 edits、资料图、伙伴共享写操作等手机 APP 必需端点已在 v3.1.0 契约下补齐并实现。）
 - ✅ **多用户已转入活动阶段**：用户/账户管理后台 `/admin/users/*` 已实现（见 §13 P2-15）；伙伴/相册内用户共享的关系模型已存在。下一阶段把共享资产透出到 timeline/search、补相册内共享前端入口与按用户资源隔离（见 §13 多用户路线），均在纯 Go / SQLite 单实例约束内推进。
 
@@ -40,12 +40,14 @@ immich-go 目前只覆盖了原版的**单人核心闭环**。要对等原版的
 - **方法+路径精确匹配：117（≈46%）**
 - **缺失：137**
 
+> ⚠️ **计数已过时（2026-09-23 标注）**：117/137 是 §13 P2-15（`/admin/users/*` 11 端点）与 §14.3（system-config 持久化、queues、maintenance/integrity、SQLite 备份、`POST /assets/jobs`、伙伴透出/相册共享鉴权、memories、notifications、stacks 手动端点、PIN/会话锁、`/albums/:id/map-markers`、`POST /download/archive`）落地**之前**的数字。下表 §1.1 中 `Users (admin)`、`Memories`、`Stacks`、`Notifications`、`Sessions` 等行的「缺失」数，以及 §2.1/§2.2/§4–§6/§10/§14.1 中对应的「全缺 / 仍是 stub」表述，均以 §13/§14.3 为准（已实现）。精确新计数待重跑 §15 复现脚本后更新。
+
 ### 1.1 缺失端点按 tag 分布
 
 | Tag | 缺失 | 客户端面（对等所需） |
 |-----|------|----------------------|
 | Authentication | 12 | 手机 PIN/会话锁 + Web OAuth 配置（两端都要） |
-| Users (admin) | 11 | ✅ 已实现（`/admin/users/*` 全部 real，见 §13 P2-15） |
+| Users (admin) | 0（原 11，§13 P2-15 已全部实现） | ✅ 已实现（`/admin/users/*` 全部 real，见 §13 P2-15） |
 | Assets | 11 | 两端：元数据编辑 / 复制 / edits / OCR / 资产级 job |
 | Users | 10 | 两端：资料图、license、onboarding、calendar-heatmap |
 | Maintenance (admin) | 9 | Web 管理后台维护/完整性 |
@@ -90,15 +92,15 @@ immich-go 目前只覆盖了原版的**单人核心闭环**。要对等原版的
 | 功能 | 原版手机行为 | immich-go 现状 | 差距 |
 |------|--------------|----------------|------|
 | 人物 / 人脸 | 「人物」Tab，自动聚类、可改名、合并、隐藏 | `GET /people` 返回空；人脸写操作全缺；`facialRecognition:false` | **完全缺失（ML）** |
-| 回忆 Memories | 「On this day」时间线 | 8 个端点全缺 | **完全缺失** |
+| 回忆 Memories | 「On this day」时间线 | `GET /api/memories` 已实现（按月/日分组，见 §14.3）；其余 7 个 memories 端点仍缺 | ⚠️ 基础可用，完整套件缺 |
 | 堆叠 Stacks | 连拍/相似自动堆叠、可展开 | ✅ 手动堆叠已实现（`POST /stacks`、`GET /stacks/:id`、`DELETE /stacks`，真实建表 + 资产顺序透出）；缺列表/合并与 ML 自动聚类 | ⚠️ 手动堆叠可用，自动堆叠缺（ML） |
 | 语义搜索 | 「人物/地点/事物」facets（CLIP 向量） | `smartSearch` 已用 OpenAI 兼容 Chat Completions 视觉接口为 image 生成文本描述（`POST /jobs smartSearch` 后台异步写入 `asset_mls.description`/`labels_json`）；`/search/smart` 以子串匹配 描述+文件名+OCR 文本 返回真实结果，未配 LLM 时降级为纯文件名/OCR 文本搜索（不再 501）。 | ✅ 已实现（LLM 文本描述路线，非 CLIP 向量；需 `IMMICH_LLM_*` 配置） |
-| 搜索人物 | `/search/person` | 仅 GET stub 返回 0 | **缺失（依赖 ML）** |
+| 搜索人物 | `/search/person` | ✅ 按 personId/名称检索其资产（`asset.person_id`，见 `NO_STUBS.md` A#14）；人物自动聚类仍缺（ML） | ⚠️ 检索可用，聚类缺 |
 | 设备锁 / PIN | `auth/pin-code`、`auth/session/lock|unlock`、`/sessions/*` | ✅ 已实现（real：PIN 用 bcrypt 存储并校验、`/sessions` 创建子会话带 token、lock 清 `pin_expires_at`、unlock 校验 PIN/密码后置 `pin_expires_at+15min`） | ✅ 已实现（手机必备，v3.1.0 契约） |
-| 通知 | 站内通知、`/notifications/*` | 全缺 | **缺失** |
-| 完整同步 | `/sync/stream` 双向增量 | 为 stub（仅 `/api/events` + Socket.IO 实时事件） | **弱化** |
-| 相册内用户共享 | 把相册共享给指定用户 | `/albums/:id/user/:userId` 等缺 | **缺失** |
-| 伙伴共享资产 | 伙伴的照片出现在自己时间线 | 关系存在但资产未透出 | **弱化** |
+| 通知 | 站内通知、`/notifications/*` | 设备令牌 `POST/DELETE /api/notifications` + `POST /admin/notifications`（含 `test-email` 真实发信）已实现（见 §14.3）；无外部推送服务 | ⚠️ 站内可用，推送缺（设计内） |
+| 完整同步 | `/sync/stream` 双向增量 | ✅ 真实快照（`handleSyncStream` + `SyncState` 持久化 ack，jsonlines；仅 partners/stacks/memories/people/faces/ocr 等无数据类不 emit，客户端容忍缺席） | ✅ 可用（建议真机复核） |
+| 相册内用户共享 | 把相册共享给指定用户 | ✅ `PUT /albums/:id/users`、`PUT/DELETE /albums/:id/user/:userId` 已实现并按 owner/editor/viewer 鉴权（`app.go:372-374`，见 §13 P0-5） | ✅ 可用 |
+| 伙伴共享资产 | 伙伴的照片出现在自己时间线 | ✅ 时间线 `withPartners` + 搜索 join 伙伴已实现（`timeline.go`，见 §13 P0-4） | ✅ 可用 |
 | 地图瓦片 | 真实地图（样式 URL） | 离线网格，无瓦片 | **弱化** |
 | 视频自适应码率 | 多质量 HLS | 单变体单分辨率 | **弱化** |
 | OAuth 登录 | 若服务端启用 OAuth，手机走 `/oauth/*` | 全缺 | 取决于部署 |
@@ -109,7 +111,7 @@ Web 管理后台 + 高级界面缺失：
 
 | 功能 | 原版 Web | immich-go 现状 | 差距 |
 |------|----------|----------------|------|
-| 用户管理后台 | `/admin/users/*` | 11 端点全缺 | ✅ 已实现（real，admin 角色守护） |
+| 用户管理后台 | `/admin/users/*` | ✅ 11 端点全部已实现（real，admin 角色守护，见 §13 P2-15） | ✅ 无差距 |
 | 维护 / 完整性 | `/admin/maintenance/*`、`/admin/integrity/*` | 全缺 | **完全缺失** |
 | 数据库备份恢复 | `/admin/database-backups/*` | 全缺（SQLite 只能拷文件） | **完全缺失（架构）** |
 | 系统元数据状态 | `/system-metadata/*` | 全缺 | **缺失** |
@@ -165,9 +167,9 @@ Web 管理后台 + 高级界面缺失：
 - `visibility` 枚举（archive/timeline/hidden/locked）由 `isArchived` 推导（`visibilityOf()`，`asset.go`），`hidden`/`locked` 不持久化。
 - `duplicateId/isEdited/isOffline` 仅 DTO 返回，库表无列。
 
-### 4.5 实时同步
+### 4.5 实时同步（2026-09-23 已修订：`/sync/stream` 不再是 stub）
 - `GET /api/events`（内存总线）+ `Socket.IO`（Engine.IO v4）覆盖主要变更。
-- 但 `GET /sync/stream` 仍是 stub，**无原版完整双向增量同步协议**（跨设备全量校正依赖它）。
+- ✅ `/sync/stream`（GET/POST）为**真实增量快照**：`handleSyncStream`（`compat_v3.go:228`）按当前用户 emit AuthUserV1/UserV1/AssetV2/AlbumV2/AlbumUserV1/AlbumToAssetV1，以 SyncCompleteV1 收尾，`Content-Type: application/jsonlines+json`；`/sync/ack`（GET 返回 `SyncAckDto[]`，POST/DELETE 返回 204）持久化 `sync_state`。无数据类（partners/stacks/memories/people/faces/ocr）有意不 emit，客户端容忍缺席。残留：多类型全量双向校正的完备性建议真机复核。
 
 ### 4.6 搜索
 - 文本/EXIF 搜索可用，facets 最小化；无 CLIP 语义搜索（`smartSearch:false`）、无人物/地点召回（人物为空）。
@@ -176,7 +178,7 @@ Web 管理后台 + 高级界面缺失：
 - `GET /map/markers` + 离线等距投影网格 + 标记点；`reverseGeocoding:true`。
 - **无真实地图瓦片**（原版用 Mapbox/maplibre 样式）；`mapDarkStyleUrl/mapLightStyleUrl` 为空。
 - 反向地理编码为 1°×1° 最近城市近似（GeoNames `cities15000`）。
-- 缺 `GET /albums/:id/map-markers`。
+- ✅ `GET /albums/:id/map-markers` 已实现（`album.go` 按 GPS EXIF 过滤，`regression_test.go:TestAlbumMapMarkers` 覆盖）。
 
 ---
 
@@ -184,7 +186,7 @@ Web 管理后台 + 高级界面缺失：
 
 `internal/app/models.go` 表远少于原版：
 
-**完全缺失的表/实体**：`Stack`/`AssetStack`、`Face`/`AssetFace`、`Session`、`Memory`、`Notification`、`Workflow`/`Plugin`/`PluginJob`、`UserPreferences`（独立表）、存储模板相关列。
+**完全缺失的表/实体**（2026-09-23 已按 `models.go`/`db.go` 核对修订）：`Face`/`AssetFace`（人脸检测无 ML 后端，端点诚实 501）、`Workflow`/`Plugin`/`PluginJob`、存储模板相关列。**以下已存在，不再缺失**：`Stack`（`models.go:377`，手动堆叠）、`Session`（`:328`，登录落表）、`Memory`（`:395`）、`Notification`（`:159`，设备令牌）、`UserPreferences` 独立表（`:346`，JSON blob，已纳入 `AutoMigrate`）。
 
 **`Asset` 缺列**：`stackParentId`/`stackId`、`isEdited`、`isOffline`、`visibility` 枚举持久化、`duplicateId`、`originalMimeType`（仅 DTO 计算）、`places`。
 
@@ -200,14 +202,16 @@ Web 管理后台 + 高级界面缺失：
 - 手机 PIN/会话锁已实现：PIN 用 bcrypt 存储校验、`/sessions` 创建子会话带 token、`auth/session/lock|unlock` 控制 `pin_expires_at`（第 2.1 节）——**对等手机体验已打通**；OAuth 登录仍需外部 IdP（延后）。
 - **默认 JWT secret 硬编码**：`IMMICH_JWT_SECRET` 默认 `immich-dev-secret-change-me`（`config.go`），生产必须覆盖。
 - 无账户锁定/爆破防护、无密码重置邮件（`email:false`）、无注册审批。
-- 无 admin 用户管理（11）+ `auth/admin-sign-up`。
+- ✅ admin 用户管理 11 端点已实现（`app.go:308-318`，见 §13 P2-15）；仍缺 `auth/admin-sign-up`。
 - API key 仅 list/create/delete，缺单 key 读取/更新/`/me`。
 
 ---
 
 ## 7. 前端（Web UI）差距
 
-`internal/webroot/assets/app.js`（vanilla JS，无构建，~976 行）覆盖：时间线、相册、搜索、地图、收藏、归档、回收站、上传、多选批量、管理、灯箱（图片+视频转码播放）、分享。
+> ⚠️ **本节已过时（2026-09-23 标注）**：`internal/webroot/assets/app.js` 手写 vanilla SPA 已不存在（`internal/webroot/` 下仅剩 `webroot.go` + 官方构建产物 `webui/`）。产品 UI 现为**官方 Immich Web 前端 v3.1.0 构建嵌入**（`//go:embed all:webui`，见 `THIRD_PARTY.md` 与 `AGENTS.md` 硬规则 6），下述「相对原版 Web 的缺失」多为手写 SPA 时代的描述，不再适用；Web 差异以官方 Web 实际行为 + 契约测试为准。
+>
+> 原文归档：手写 SPA（vanilla JS，无构建，~976 行）曾覆盖：时间线、相册、搜索、地图、收藏、归档、回收站、上传、多选批量、管理、灯箱（图片+视频转码播放）、分享。
 
 **相对原版 Web 的缺失**
 - 人物 / 人脸 UI（因 ML 缺失，自然没有）
@@ -244,7 +248,7 @@ Web 管理后台 + 高级界面缺失：
 ---
 
 ## 10. 版本 / 契约维护风险
-- **兼容性版本漂移**：`config.go` 默认 `IMMICH_COMPAT_VERSION=1.130.0`，而仓库内置契约为 **v3.1.0**（`STATUS.md` §H 实测需显式设 `3.1.0`）。默认广告版本与内置契约不一致，易引发「服务器版本不匹配」。
+- ~~兼容性版本漂移~~ ✅ **已修复（2026-09-23 核对）**：`config.go:106` 默认已为 `IMMICH_COMPAT_VERSION=3.1.0`，与内置 v3.1.0 契约对齐，开箱即过版本门控。
 - **客户端快速迭代**：官方 App/Web 升级可能引入新必填字段/端点，需持续追赶——长期维护成本。
 - **契约测试覆盖有限**：Schemathesis 仅 `examples` 阶段，实际只覆盖 30/254 operation；`schemathesis-allowlist.txt` 豁免 25 已知未实现 + 3 良性边界。其余 152 缺失端点不在门禁视野内（仅靠本 diff 暴露）。
 
@@ -375,15 +379,15 @@ Web 管理后台 + 高级界面缺失：
 | 分享链接（免登录） | `/share/:key` + `/api/share/:key/{thumbnail,original}/:assetId` | ✅ | ✅ | 字段未持久化（P0-3） |
 | 伙伴 | list/create/delete | ✅ 形状 | ⚠️ 共享资产未透出 | P0-4 |
 | 活动（评论） | `/activities`（asset/album） | ✅ | ✅ | — |
-| 实时同步（事件推送） | `/api/events`（websocket 内存总线）+ `/socket.io`（Engine.IO v4 + Socket.IO，`onAssetUpload/Update/Trash/Delete/Album*` 事件名） | ✅ 协议层 | ✅ | `/sync/stream` 为 stub（双向增量协议未做） |
+| 实时同步（事件推送） | `/api/events`（websocket 内存总线）+ `/socket.io`（Engine.IO v4 + Socket.IO，`onAssetUpload/Update/Trash/Delete/Album*` 事件名） | ✅ 协议层 | ✅ | `/sync/stream` 已是真实快照（见 §4.5），残留仅完备性真机复核 |
 | 反向地理编码 | `/map/reverse-geocode` + 摄取写入 `Exif.city/country`（GeoNames 离线） | ✅ | ✅ | 1°×1° 最近城市近似 |
-| 下载归档 | `/download/archive`（**GET** 变体；原版为 POST） | ⚠️ 方法差异 | ✅ | 小差异（P2） |
+| 下载归档 | `/download/archive`（GET + POST 双动词，`app.go:572-573`） | ✅ | ✅ | 无差异（原 GET-only 描述已过时） |
 
 ### 14.2 总体结论
 
 - **上传 / 去重 / 管理 / 媒体服务**：已真正可用，且与 v3.1.0 契约在「形状与状态码」层面一致。手机 APP 可完成备份、浏览、播放、收藏、归档、删除、相册、搜索、地图、分享、库扫描等主流程。
-- **同步**：实时事件推送（websocket + Socket.IO）已对等，客户端能即时刷新；仅原版专用的双向增量 `/sync/stream` 仍是 stub（不影响主流程连接与刷新）。
-- **真正的「硬缺口」不在核心媒体本身，而在账户/共享元数据层**：PIN/会话锁（P0-1）、资产元数据写入（P0-2）、分享链接字段持久化（P0-3）、伙伴共享资产透出（P0-4）、相册内用户共享（P0-5）、兼容版本漂移（P0-6）。这些属于「个性化/多用户」边缘，已在 P0 排期。
+- **同步**：实时事件推送（websocket + Socket.IO）已对等，客户端能即时刷新；`/sync/stream` 亦为真实快照（见 §4.5），残留仅完备性真机复核。
+- **真正的「硬缺口」不在核心媒体本身，而在账户/共享元数据层**（2026-09-23 修订：其中 PIN/会话锁、伙伴透出、相册内共享、版本对齐均已落地，见 §13 P0-4/P0-5 与 §14.3；剩余为）：资产元数据写入（P0-2）、分享链接字段持久化（P0-3）。
 
 ### 14.3 Web 后台（admin）后端实现（2026-08-19 批次）
 
