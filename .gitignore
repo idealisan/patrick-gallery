@@ -29,3 +29,7 @@ reports/schemathesis/regression/
 
 # per-arch binaries staged for the Docker build
 dockerctx/
+
+# Local single-instance data dir mounted by docker-compose.immich-go.yml
+# (${IMMICH_GO_DATA:-./immich-go-data}); never commit local DB/media.
+/immich-go-data/
